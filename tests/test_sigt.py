@@ -242,3 +242,75 @@ def test_migracion_agrega_columnas_sin_perder_datos(tmp_path):
     out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd=os.getcwd())
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "OLD-01 None None"
+
+
+def test_importar_ficha_historica_en_excel(client):
+    """Importa el libro real de fichas (5 hojas, ejercicio octubre-septiembre) y comprueba el resultado."""
+    import pathlib
+    ruta = pathlib.Path(__file__).parent / "datos" / "fichas_historicas.xlsx"
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    assert c.put("/api/parametros", json={"empresa": "TRIPOLIVEN, C.A.", "gerencia_emisora": "Gerencia de Normalización y Calidad",
+                                          "codigo_formato": "NC-16-7", "ejercicio_inicio": 10}).status_code in (200, 409)
+    r = c.post("/api/importar/excel", files={"archivo": ("fichas.xlsx", ruta.read_bytes())})
+    assert r.status_code == 200, r.text
+    prev = r.json()
+    assert len(prev["indicadores"]) == 5 and prev["inicio_ejercicio"] == 10
+    sp = next(i for i in prev["indicadores"] if i["sigla"] == "SP")
+    assert sp["formula"] == "sg*100/sr" and sp["frecuencia"] == "mensual" and len(sp["mediciones"]) == 8
+    assert sp["mediciones"][0]["periodo"] == "2025-10" and sp["mediciones"][0]["resultado"] == 92.86
+    io = next(i for i in prev["indicadores"] if i["sigla"] == "IO")
+    assert io["frecuencia"] == "trimestral" and [m["periodo"] for m in io["mediciones"]] == ["2026-Q1", "2026-Q2"]
+    cuerpo = {"archivo": "fichas.xlsx", "inicio_ejercicio": prev["inicio_ejercicio"],
+              "indicadores": [{**i, "formula": i["formula"], "mediciones": i["mediciones"]} for i in prev["indicadores"]],
+              "areas_nuevas": ["Sistemas"],
+              "catalogos": [{"tipo": "gerencia", "valor": g} for g in prev["catalogos"]["gerencia"]]}
+    ok = c.post("/api/importar/confirmar", json=cuerpo)
+    if calc_inicio() != 10:  # el sistema debe tener el mismo inicio de ejercicio que las fichas
+        assert ok.status_code == 409
+        return
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["indicadores"] == 5 and ok.json()["mediciones"] == 8 + 8 + 8 + 2 + 7
+    assert c.post("/api/importar/confirmar", json=cuerpo).status_code == 422  # códigos ya existentes
+    # ficha con el formato del SGC y Excel por indicador
+    ind = next(i for i in c.get("/api/indicadores").json() if i["sigla"] == "SP")
+    f = c.get(f"/api/indicadores/{ind['id']}/ficha?ejercicio=2026").json()
+    assert f["ejercicio_etiqueta"] == "2025-2026" and f["periodos"][0]["corta"] == "Oct." and len(f["periodos"]) == 12
+    assert f["periodos"][0]["medicion"]["resultado"] == 92.86 and f["indicador"]["meta_texto"] == "96 Mín."
+    x = c.get("/api/reportes/fichas.xlsx?ejercicio=2026")
+    assert x.status_code == 200
+    from io import BytesIO
+    from openpyxl import load_workbook
+    wb = load_workbook(BytesIO(x.content))
+    assert len(wb.sheetnames) >= 5 and wb[wb.sheetnames[0]]["D1"].value == "FICHA TÉCNICA DE INDICADOR DE GESTIÓN"
+
+
+def calc_inicio():
+    from app import calc
+    return calc.INICIO
+
+
+def test_calendario_fiscal_octubre_septiembre():
+    from datetime import date
+    from app import calc
+    anterior = calc.INICIO
+    try:
+        calc.INICIO = 10
+        assert calc.codigo("mensual", date(2025, 10, 15)) == "2025-10"
+        assert calc.codigo("trimestral", date(2025, 12, 31)) == "2026-Q1"    # Oct–Dic 2025 = T1 del ejercicio 2025-2026
+        assert calc.codigo("trimestral", date(2026, 9, 1)) == "2026-Q4"
+        assert calc.codigo("bimestral", date(2025, 11, 1)) == "2026-B1"
+        assert calc.codigo("cuatrimestral", date(2026, 1, 31)) == "2026-C1"
+        assert calc.codigo("semestral", date(2026, 3, 31)) == "2026-S1"
+        assert calc.codigo("anual", date(2026, 9, 30)) == "2026" and calc.codigo("anual", date(2026, 10, 1)) == "2027"
+        assert calc.etiqueta_ejercicio(2026) == "2025-2026"
+        assert calc.periodos_del_ejercicio("trimestral", 2026) == ["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"]
+        assert [calc.etiqueta_corta("trimestral", p) for p in calc.periodos_del_ejercicio("trimestral", 2026)] == \
+            ["Dic.", "Mar.", "Jun.", "Sep."]
+        assert calc.etiqueta_corta("bimestral", "2026-B1") == "Nov."
+        assert calc.rango("semestral", "2026-S2") == (date(2026, 4, 1), date(2026, 9, 30))
+        assert calc.periodos_pendientes("eventual", date(2026, 10, 26), {}) == []
+        assert calc.semaforo(600, 96, 85, "mayor", 500, 1000) == "amarillo"    # fuera del tope verde
+        assert calc.semaforo(-0.5, 3, 5, "menor", 0, 0) == "rojo"
+    finally:
+        calc.INICIO = anterior

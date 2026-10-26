@@ -63,3 +63,12 @@ Operadores `+ − × ÷ ^ % //`, comparaciones, `and/or/not`, `si(cond, a, b)` y
 
 ## Actualizaciones de esquema
 Al arrancar, `app/bootstrap.py` agrega automáticamente las columnas nuevas a las tablas existentes (migración aditiva, sin pérdida de datos), por lo que una base de Supabase ya en uso se actualiza sola al desplegar.
+
+## Reemplazo de las fichas en Excel
+El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicador de gestión» (formato NC-16-7):
+- **Ficha completa:** seguimiento (proceso / objetivo organizacional / proveedor), proceso y su objetivo, sigla, gerencia, departamento, líder de proceso, responsables de medición/registro/análisis, fuente, meta («96 Mín.», «3 Máx.»), semáforo con franjas Mín./Máx., fórmula documentada con su leyenda de símbolos y notas. Vista en pantalla (**Ver ficha**), imprimible y exportable.
+- **Ejercicio fiscal** configurable (p. ej. octubre–septiembre) y frecuencias **mensual, bimestral, trimestral, cuatrimestral, semestral, anual y eventual**; los períodos se alinean al ejercicio (trimestres que cierran en Dic./Mar./Jun./Sep.).
+- **Resultados por período** con cálculo automático, análisis de resultados y correcciones / oportunidades de mejora por período, gráfico de valores con mínimo y máximo.
+- **Listas de apoyo** (gerencias, procesos con su objetivo, objetivos organizacionales, cargos) administrables en Organización.
+- **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño y gráfico.
+- **Importación de años anteriores** (`Importar`): lee el Excel de fichas (una hoja por indicador), traduce la fórmula, propone indicadores y mediciones, muestra una vista previa editable y los carga como aprobados, con registro en la bitácora. Si el ejercicio fiscal del archivo difiere del configurado, avisa antes de importar.

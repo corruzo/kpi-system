@@ -3,12 +3,13 @@ import csv
 import io
 import logging
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,11 +18,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from . import audit, calc, reportes, security
-from .bootstrap import bootstrap_admin, preparar_base
+from . import audit, calc, importar, reportes, security
+from .bootstrap import bootstrap_admin, parametros_por_defecto, preparar_base
 from .config import PRODUCCION, TRUST_PROXY
-from .database import get_db
-from .models import Area, Bitacora, Indicador, Medicion, NotaAuditoria, Usuario, ahora
+from .database import SessionLocal, get_db
+from .models import (Area, Bitacora, Catalogo, Indicador, Medicion, NotaAuditoria, Parametro, Usuario, ahora)
 
 STATIC = Path(__file__).parent / "static"
 _lock = threading.Lock()  # serializa escrituras para mantener íntegra la cadena de la bitácora
@@ -38,6 +39,28 @@ def _motivo(e: Exception) -> str:
     return f"{type(e).__name__} (vea Logs de Vercel para el detalle)"
 
 
+_param_ts = 0.0
+
+
+def leer_parametros(db: Session) -> dict:
+    """Parámetros del sistema; sincroniza el calendario fiscal del proceso con el valor guardado."""
+    p = {x.clave: x.valor for x in db.scalars(select(Parametro))}
+    try:
+        calc.INICIO = min(12, max(1, int(p.get("ejercicio_inicio", 1))))
+    except ValueError:
+        calc.INICIO = 1
+    return p
+
+
+def refrescar_parametros(forzar=False):
+    """Otros procesos pueden haber cambiado el ejercicio fiscal: se relee cada 30 s."""
+    global _param_ts
+    if forzar or time.time() - _param_ts > 30:
+        with SessionLocal() as db:
+            leer_parametros(db)
+        _param_ts = time.time()
+
+
 def iniciar():
     """Prepara la base una sola vez por proceso (en serverless no siempre se ejecuta el lifespan)."""
     global _iniciado
@@ -45,6 +68,8 @@ def iniciar():
         if not _iniciado:
             preparar_base()
             bootstrap_admin()
+            parametros_por_defecto()
+            refrescar_parametros(True)
             _iniciado = True
 
 
@@ -75,6 +100,8 @@ async def cabeceras(request: Request, call_next):
         except Exception as e:
             logging.getLogger("sigt").exception("Fallo al preparar la base de datos")
             return PlainTextResponse(f"SIGT no pudo preparar la base de datos.\n\n{_motivo(e)}\n", status_code=503)
+    if _iniciado and request.url.path.startswith("/api/"):
+        await run_in_threadpool(refrescar_parametros)
     r = await call_next(request)
     r.headers.update({"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
                       "Referrer-Policy": "same-origin", "Content-Security-Policy": CSP,
@@ -134,6 +161,10 @@ def ind_out(i: Indicador):
             "frecuencia": i.frecuencia, "sentido": i.sentido, "formula": i.formula,
             "variables": i.variables, "constantes": i.constantes or [], "decimales": _dec(i),
             "fuente": i.fuente or "", "notas": i.notas or "", "meta": i.meta, "limite": i.limite,
+            "meta_tope": i.meta_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",
+            "ref_nombre": i.ref_nombre or "", "ref_detalle": i.ref_detalle or "", "sigla": i.sigla or "",
+            "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
+            "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "",
             "activo": i.activo}
 
 
@@ -146,7 +177,8 @@ def med_out(m: Medicion):
             "valores": m.valores, "resultado": m.resultado,
             "decimales": m.decimales if m.decimales is not None else _dec(i),
             "formula": m.formula or i.formula, "constantes": m.constantes if m.constantes is not None else (i.constantes or []), "semaforo": m.semaforo,
-            "meta": m.meta, "limite": m.limite, "sentido": m.sentido, "estado": m.estado,
+            "meta": m.meta, "limite": m.limite, "meta_tope": m.meta_tope, "limite_tope": m.limite_tope,
+            "sentido": m.sentido, "estado": m.estado,
             "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
             "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
             "revisado_por": m.revisado_por.nombre if m.revisado_por else None,
@@ -238,7 +270,7 @@ class IndicadorIn(BaseModel):
     objetivo: str = Field(default="", max_length=1000)
     area_id: int
     unidad: str = Field(min_length=1, max_length=12)
-    frecuencia: Literal["mensual", "trimestral", "semestral", "anual"]
+    frecuencia: Literal["mensual", "bimestral", "trimestral", "cuatrimestral", "semestral", "anual", "eventual"]
     sentido: Literal["mayor", "menor"]
     formula: str = Field(min_length=1, max_length=calc.MAX_LARGO * 2)
     variables: list[VariableIn] = Field(min_length=1, max_length=12)
@@ -246,8 +278,19 @@ class IndicadorIn(BaseModel):
     decimales: int = Field(default=2, ge=0, le=6)
     fuente: str = Field(default="", max_length=500)
     notas: str = Field(default="", max_length=2000)
+    seguimiento: Literal["proceso", "objetivo", "proveedor"] = "proceso"
+    ref_nombre: str = Field(default="", max_length=200)
+    ref_detalle: str = Field(default="", max_length=2000)
+    sigla: str = Field(default="", max_length=20)
+    gerencia: str = Field(default="", max_length=150)
+    lider: str = Field(default="", max_length=150)
+    resp_medicion: str = Field(default="", max_length=150)
+    resp_registro: str = Field(default="", max_length=150)
+    resp_analisis: str = Field(default="", max_length=150)
     meta: float
     limite: float
+    meta_tope: float | None = None
+    limite_tope: float | None = None
     activo: bool = True
 
     @field_validator("codigo")
@@ -298,7 +341,7 @@ def _calcular(ind: Indicador, valores: dict) -> dict:
         res = calc.evaluar(ind.formula, finales, consts, _dec(ind))
     except calc.FormulaError as e:
         return {"ok": False, "error": str(e)}
-    sem = calc.semaforo(res, ind.meta, ind.limite, ind.sentido)
+    sem = calc.semaforo(res, ind.meta, ind.limite, ind.sentido, ind.meta_tope, ind.limite_tope)
     return {"ok": True, "resultado": res, "semaforo": sem, "requiere_analisis": sem != "verde", "valores": finales}
 
 
@@ -485,7 +528,9 @@ def listar_indicadores(db: Session = Depends(get_db), u: Usuario = Depends(usuar
 
 
 def _campos(d: IndicadorIn) -> dict:
-    return {**d.model_dump(exclude={"variables", "constantes", "formula"}), "formula": calc.normalizar(d.formula),
+    cols = {c.name for c in Indicador.__table__.columns}
+    base = {k: v for k, v in d.model_dump(exclude={"variables", "constantes", "formula"}).items() if k in cols}
+    return {**base, "formula": calc.normalizar(d.formula),
             "variables": [v.model_dump() for v in d.variables],
             "constantes": [c.model_dump() for c in d.constantes]}
 
@@ -501,7 +546,7 @@ def _validar_ficha(db: Session, d: IndicadorIn, actual_id: int | None = None):
         raise HTTPException(422, f"La clave «{mal[0]}» está reservada (función o palabra del lenguaje).")
     try:
         calc.validar_formula(d.formula, todas, claves)
-        calc.validar_umbrales(d.meta, d.limite, d.sentido)
+        calc.validar_umbrales(d.meta, d.limite, d.sentido, d.meta_tope, d.limite_tope)
     except (calc.FormulaError, ValueError) as e:
         raise HTTPException(422, str(e))
     if not db.get(Area, d.area_id):
@@ -527,6 +572,8 @@ class ProbarIn(BaseModel):
     decimales: int = Field(default=2, ge=0, le=6)
     meta: float
     limite: float
+    meta_tope: float | None = None
+    limite_tope: float | None = None
     sentido: Literal["mayor", "menor"]
 
 
@@ -534,11 +581,12 @@ class ProbarIn(BaseModel):
 def probar_formula(d: ProbarIn, _=Depends(requiere("admin"))):
     """Calcula resultado y semáforo con valores de ejemplo antes de guardar la ficha."""
     try:
-        calc.validar_umbrales(d.meta, d.limite, d.sentido)
+        calc.validar_umbrales(d.meta, d.limite, d.sentido, d.meta_tope, d.limite_tope)
         r = calc.evaluar(d.formula, d.valores, d.constantes, d.decimales)
     except (calc.FormulaError, ValueError) as e:
         return {"ok": False, "error": str(e)}
-    return {"ok": True, "resultado": r, "semaforo": calc.semaforo(r, d.meta, d.limite, d.sentido)}
+    return {"ok": True, "resultado": r,
+            "semaforo": calc.semaforo(r, d.meta, d.limite, d.sentido, d.meta_tope, d.limite_tope)}
 
 
 @app.post("/api/indicadores", status_code=201)
@@ -608,7 +656,8 @@ def periodos(ind_id: int, db: Session = Depends(get_db), u: Usuario = Depends(us
     pend = calc.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in meds.items()})
     return {"sugerido": pend[0] if pend else None,
             "periodos": [{"periodo": p, "etiqueta": calc.etiqueta(ind.frecuencia, p),
-                          "actual": i == 0, "pendiente": p in pend,
+                          "actual": i == 0, "pendiente": p in pend, "corta": calc.etiqueta_corta(ind.frecuencia, p),
+                          "ejercicio": calc.etiqueta_ejercicio(calc.ejercicio_de(ind.frecuencia, p)),
                           "medicion": med_out(meds[p]) if p in meds else None}
                          for i, p in enumerate(calc.periodos_recientes(ind.frecuencia, hoy))]}
 
@@ -647,6 +696,7 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
         m.version += 1
     m.valores, m.resultado, m.semaforo = valores, r["resultado"], r["semaforo"]
     m.meta, m.limite, m.sentido = ind.meta, ind.limite, ind.sentido
+    m.meta_tope, m.limite_tope = ind.meta_tope, ind.limite_tope
     m.formula, m.constantes, m.decimales = ind.formula, ind.constantes or [], _dec(ind)
     m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
     m.cargado_por_id, m.cargado_en = u.id, ahora()
@@ -756,12 +806,13 @@ def reporte_xlsx(anio: int | None = None, area_id: int | None = None, estado: st
         a = db.get(Area, area_id)
         filtros.append(f"Área: {a.nombre if a else area_id}")
     if anio:
-        qm = qm.where(Medicion.periodo.like(f"{int(anio)}%"))
-        filtros.append(f"Año: {anio}")
+        filtros.append(f"Ejercicio fiscal: {calc.etiqueta_ejercicio(int(anio))}")
     if estado:
         qm = qm.where(Medicion.estado == estado)
         filtros.append(f"Estado: {estado}")
     inds, meds = db.scalars(qi).all(), db.scalars(qm).all()
+    if anio:
+        meds = [m for m in meds if calc.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
     por_aprobar = len(db.scalars(select(Medicion.id).join(Indicador).where(
         Medicion.estado == "enviado", *([Indicador.area_id == area_id] if area_id else []))).all())
     datos = reportes.reporte_general(meds, inds, u.nombre, " · ".join(filtros), por_aprobar)
@@ -836,6 +887,298 @@ def bitacora(accion: str | None = None, indicador_id: int | None = None, usuario
 @app.get("/api/bitacora/verificar")
 def verificar_bitacora(db: Session = Depends(get_db), _=Depends(requiere("admin"))):
     return audit.verificar(db)
+
+
+# ------------------------------------------------- parámetros y catálogos
+class ParametrosIn(BaseModel):
+    empresa: str = Field(min_length=2, max_length=120)
+    gerencia_emisora: str = Field(default="", max_length=150)
+    codigo_formato: str = Field(default="", max_length=30)
+    ejercicio_inicio: int = Field(ge=1, le=12)
+
+
+@app.get("/api/parametros")
+def ver_parametros(db: Session = Depends(get_db), _=Depends(usuario_actual)):
+    p = leer_parametros(db)
+    return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
+            "codigo_formato": p.get("codigo_formato", ""), "ejercicio_inicio": calc.INICIO,
+            "ejercicio_actual": calc.etiqueta_ejercicio(calc._ejercicio(date.today()))}
+
+
+@app.put("/api/parametros")
+def editar_parametros(d: ParametrosIn, db: Session = Depends(get_db),
+                      u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    actual = leer_parametros(db)
+    if d.ejercicio_inicio != calc.INICIO and db.scalar(
+            select(Medicion.id).join(Indicador).where(~Indicador.frecuencia.in_(("mensual", "eventual"))).limit(1)):
+        raise HTTPException(409, "Ya existen cargas bimestrales, trimestrales, cuatrimestrales, semestrales o anuales: "
+                                 "cambiar el mes de inicio del ejercicio fiscal alteraría sus períodos.")
+    cambios = {}
+    for k, v in {**d.model_dump(), "ejercicio_inicio": str(d.ejercicio_inicio)}.items():
+        if actual.get(k) != v:
+            cambios[k] = [actual.get(k), v]
+            fila = db.get(Parametro, k)
+            if fila:
+                fila.valor = str(v)
+            else:
+                db.add(Parametro(clave=k, valor=str(v)))
+    if cambios:
+        audit.registrar(db, u, "PARAMETROS_EDITADOS", "parametro", None, {"cambios": cambios})
+    db.commit()
+    return ver_parametros(db, u)
+
+
+TIPOS_CAT = Literal["gerencia", "proceso", "objetivo", "cargo"]
+
+
+class CatalogoIn(BaseModel):
+    tipo: TIPOS_CAT
+    valor: str = Field(min_length=2, max_length=300)
+    detalle: str = Field(default="", max_length=2000)
+
+
+def cat_out(c: Catalogo):
+    return {"id": c.id, "tipo": c.tipo, "valor": c.valor, "detalle": c.detalle or ""}
+
+
+@app.get("/api/catalogos")
+def listar_catalogos(db: Session = Depends(get_db), _=Depends(usuario_actual)):
+    return [cat_out(c) for c in db.scalars(select(Catalogo).order_by(Catalogo.tipo, Catalogo.valor))]
+
+
+@app.post("/api/catalogos", status_code=201)
+def crear_catalogo(d: CatalogoIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+                   _=Depends(escritura)):
+    if db.scalar(select(Catalogo).where(Catalogo.tipo == d.tipo, func.lower(Catalogo.valor) == d.valor.strip().lower())):
+        raise HTTPException(422, "Ese elemento ya existe en la lista.")
+    c = Catalogo(tipo=d.tipo, valor=d.valor.strip(), detalle=d.detalle.strip())
+    db.add(c)
+    db.flush()
+    audit.registrar(db, u, "CATALOGO_CREADO", "catalogo", c.id, {"tipo": c.tipo, "valor": c.valor})
+    db.commit()
+    return cat_out(c)
+
+
+@app.put("/api/catalogos/{cid}")
+def editar_catalogo(cid: int, d: CatalogoIn, db: Session = Depends(get_db),
+                    u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    c = db.get(Catalogo, cid)
+    if not c:
+        raise HTTPException(404, "Elemento no encontrado.")
+    antes = (c.valor, c.detalle)
+    c.valor, c.detalle = d.valor.strip(), d.detalle.strip()
+    audit.registrar(db, u, "CATALOGO_EDITADO", "catalogo", c.id,
+                    {"tipo": c.tipo, "antes": list(antes), "despues": [c.valor, c.detalle]})
+    db.commit()
+    return cat_out(c)
+
+
+@app.delete("/api/catalogos/{cid}")
+def eliminar_catalogo(cid: int, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+                      _=Depends(escritura)):
+    c = db.get(Catalogo, cid)
+    if not c:
+        raise HTTPException(404, "Elemento no encontrado.")
+    audit.registrar(db, u, "CATALOGO_ELIMINADO", "catalogo", c.id, {"tipo": c.tipo, "valor": c.valor})
+    db.delete(c)  # las fichas conservan el texto copiado: no dependen del catálogo
+    db.commit()
+    return {"ok": True}
+
+
+# ------------------------------------------------------- ficha del indicador
+def _params_ficha(db: Session) -> dict:
+    p = leer_parametros(db)
+    return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
+            "codigo_formato": p.get("codigo_formato", "")}
+
+
+def _contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
+    hoy = date.today()
+    f = ind.frecuencia
+    meds = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind.id))}
+    actual = calc.ejercicio_de(f, calc.periodo_actual(f, hoy))
+    ejercicios = sorted({calc.ejercicio_de(f, p) for p in meds} | {actual}, reverse=True)
+    con_datos = sorted({calc.ejercicio_de(f, p) for p in meds}, reverse=True)
+    # sin ejercicio pedido: el vigente, o el más reciente que tenga datos si el vigente aún está vacío
+    y = ejercicio if ejercicio in ejercicios else (actual if actual in con_datos or not con_datos else con_datos[0])
+    periodos = [{"periodo": p, "etiqueta": calc.etiqueta(f, p), "corta": calc.etiqueta_corta(f, p),
+                 "medicion": meds.get(p)} for p in calc.periodos_del_ejercicio(f, y)]
+    return y, ejercicios, periodos
+
+
+@app.get("/api/indicadores/{ind_id}/ficha")
+def ficha_indicador(ind_id: int, ejercicio: int | None = None, db: Session = Depends(get_db),
+                    u: Usuario = Depends(usuario_actual)):
+    """Ficha técnica con el mismo contenido de la ficha en papel: definición, responsables,
+    resultados por período del ejercicio fiscal y análisis."""
+    ind = _ind_visible(db, u, ind_id)
+    y, ejercicios, periodos = _contexto_ficha(db, ind, ejercicio)
+    return {"indicador": {**ind_out(ind), "meta_texto": reportes.meta_texto(ind)}, "parametros": _params_ficha(db),
+            "ejercicio": y, "ejercicio_etiqueta": calc.etiqueta_ejercicio(y),
+            "ejercicios": [{"valor": e, "etiqueta": calc.etiqueta_ejercicio(e)} for e in ejercicios],
+            "periodos": [{**{k: v for k, v in x.items() if k != "medicion"},
+                          "medicion": med_out(x["medicion"]) if x["medicion"] else None} for x in periodos]}
+
+
+@app.get("/api/reportes/fichas.xlsx")
+def fichas_xlsx(ejercicio: int | None = None, area_id: int | None = None, indicador_id: int | None = None,
+                db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Una hoja por indicador con el formato de la ficha técnica del SGC (reemplaza las fichas en Excel)."""
+    q = select(Indicador).order_by(Indicador.codigo)
+    if u.rol == "jefe":
+        area_id = u.area_id
+    if u.rol != "admin":
+        q = q.where(Indicador.activo.is_(True))
+    if area_id:
+        q = q.where(Indicador.area_id == area_id)
+    if indicador_id:
+        q = q.where(Indicador.id == indicador_id)
+    inds = db.scalars(q).all()
+    if not inds:
+        raise HTTPException(404, "No hay indicadores para el reporte.")
+    fichas, y_ref = [], ejercicio
+    for ind in inds:
+        y, _, periodos = _contexto_ficha(db, ind, ejercicio)
+        y_ref = y_ref or y
+        fichas.append((ind, y, periodos))
+    datos = reportes.fichas_xlsx(fichas, _params_ficha(db), u.nombre)
+    audit.registrar(db, u, "REPORTE_EXPORTADO", "reporte", None,
+                    {"tipo": "fichas", "indicadores": len(inds), "ejercicio": y_ref})
+    db.commit()
+    return _descarga(datos, f"SIGT_fichas_{date.today():%Y%m%d}.xlsx")
+
+
+# ------------------------------------------------- importación de fichas históricas
+@app.post("/api/importar/excel")
+async def importar_previsualizar(archivo: UploadFile = File(...), db: Session = Depends(get_db),
+                                 _=Depends(requiere("admin"))):
+    """Lee un Excel con fichas técnicas (una hoja por indicador) y devuelve una vista previa; no guarda nada."""
+    datos = await archivo.read(importar.MAX_BYTES + 1)
+    try:
+        r = await run_in_threadpool(importar.leer_libro, datos, archivo.filename or "")
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    areas = {a.nombre.lower() for a in db.scalars(select(Area))}
+    codigos = {c for c in db.scalars(select(Indicador.codigo))}
+    usados = set()
+    for n, i in enumerate(r["indicadores"], 1):
+        base = (i["sigla"] or (i["area"][:3] or "IND")).upper().replace(" ", "")
+        cod = base if base not in codigos | usados and i["sigla"] else f"{base[:3]}-{n:02d}"
+        while cod in codigos | usados:
+            n += 1
+            cod = f"{base[:3]}-{n:02d}"
+        i["codigo"] = cod
+        usados.add(cod)
+        i["area_existe"] = i["area"].lower() in areas
+    r["inicio_actual"] = calc.INICIO
+    return r
+
+
+class ImpMedicion(BaseModel):
+    periodo: str
+    valores: dict[str, float]
+    analisis: str = Field(default="", max_length=4000)
+    plan_mejora: str = Field(default="", max_length=4000)
+
+
+class ImpIndicador(IndicadorIn):
+    area_id: int = 0
+    area: str = Field(min_length=2, max_length=80)
+    hoja: str = ""
+    mediciones: list[ImpMedicion] = Field(default_factory=list, max_length=400)
+
+
+class ImpCatalogo(BaseModel):
+    tipo: TIPOS_CAT
+    valor: str = Field(min_length=2, max_length=300)
+    detalle: str = Field(default="", max_length=2000)
+
+
+class ImpIn(BaseModel):
+    archivo: str = ""
+    inicio_ejercicio: int | None = None
+    indicadores: list[ImpIndicador] = Field(max_length=100)
+    catalogos: list[ImpCatalogo] = Field(default_factory=list, max_length=500)
+    areas_nuevas: list[str] = Field(default_factory=list, max_length=60)
+
+
+@app.post("/api/importar/confirmar", status_code=201)
+def importar_confirmar(d: ImpIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+                       _=Depends(escritura)):
+    """Crea indicadores, mediciones históricas (aprobadas) y catálogos. Todo o nada; los resultados se recalculan aquí."""
+    if any(i.frecuencia not in ("mensual", "eventual") and i.mediciones for i in d.indicadores) and \
+            d.inicio_ejercicio and d.inicio_ejercicio != calc.INICIO:
+        raise HTTPException(409, f"Las fichas usan un ejercicio fiscal que inicia en el mes {d.inicio_ejercicio}, "
+                                 f"pero el sistema está configurado en el mes {calc.INICIO}. "
+                                 "Ajuste «Inicio del ejercicio fiscal» en Organización → Parámetros y reintente.")
+    areas = {a.nombre.lower(): a for a in db.scalars(select(Area))}
+    nuevas = {n.strip().lower() for n in d.areas_nuevas}
+    resumen = {"indicadores": 0, "mediciones": 0, "areas": 0, "catalogos": 0}
+    vistos = set()
+    for i in d.indicadores:
+        if i.codigo in vistos:
+            raise HTTPException(422, f"El código {i.codigo} está repetido en la importación.")
+        vistos.add(i.codigo)
+        a = areas.get(i.area.strip().lower())
+        if not a:
+            if i.area.strip().lower() not in nuevas:
+                raise HTTPException(422, f"El área «{i.area}» no existe. Márquela para crearla o elija otra.")
+            a = Area(nombre=i.area.strip())
+            db.add(a)
+            db.flush()
+            areas[a.nombre.lower()] = a
+            resumen["areas"] += 1
+            audit.registrar(db, u, "AREA_CREADA", "area", a.id, {"nombre": a.nombre, "origen": "importación"})
+        i.area_id = a.id
+        try:
+            _validar_ficha(db, i)
+        except HTTPException as e:
+            raise HTTPException(422, f"{i.codigo}: {e.detail}")
+        ind = Indicador(**_campos(i))
+        db.add(ind)
+        db.flush()
+        periodos_ok = []
+        for med in i.mediciones:
+            if not calc.periodo_valido(ind.frecuencia, med.periodo) or calc.es_futuro(ind.frecuencia, med.periodo, date.today()):
+                raise HTTPException(422, f"{i.codigo}: período «{med.periodo}» no válido para la frecuencia.")
+            if med.periodo in periodos_ok:
+                raise HTTPException(422, f"{i.codigo}: período {med.periodo} repetido.")
+            r = _calcular(ind, {k: v for k, v in med.valores.items()})
+            if not r["ok"]:
+                raise HTTPException(422, f"{i.codigo} {med.periodo}: {r['error']}")
+            ahora_ = ahora()
+            m = Medicion(indicador_id=ind.id, periodo=med.periodo, valores=r["valores"], resultado=r["resultado"],
+                         semaforo=r["semaforo"], meta=ind.meta, limite=ind.limite, sentido=ind.sentido,
+                         meta_tope=ind.meta_tope, limite_tope=ind.limite_tope, estado="aprobado",
+                         analisis=med.analisis.strip(), plan_mejora=med.plan_mejora.strip(), version=1,
+                         formula=ind.formula, constantes=ind.constantes or [], decimales=_dec(ind),
+                         cargado_por_id=u.id, cargado_en=ahora_, revisado_por_id=u.id, revisado_en=ahora_,
+                         nota_revision=f"Importado desde Excel «{d.archivo}» (hoja «{i.hoja}»).")
+            db.add(m)
+            periodos_ok.append(med.periodo)
+        resumen["indicadores"] += 1
+        resumen["mediciones"] += len(periodos_ok)
+        audit.registrar(db, u, "IMPORTACION", "indicador", ind.id,
+                        {"codigo": ind.codigo, "archivo": d.archivo, "hoja": i.hoja, "periodos": periodos_ok}, ind)
+    for nombre in sorted(nuevas):  # departamentos marcados que no tienen indicadores en este archivo
+        if nombre not in areas:
+            a = Area(nombre=next(n.strip() for n in d.areas_nuevas if n.strip().lower() == nombre))
+            db.add(a)
+            db.flush()
+            areas[nombre] = a
+            resumen["areas"] += 1
+            audit.registrar(db, u, "AREA_CREADA", "area", a.id, {"nombre": a.nombre, "origen": "importación"})
+    existentes = {(c.tipo, c.valor.lower()) for c in db.scalars(select(Catalogo))}
+    for c in d.catalogos:
+        if (c.tipo, c.valor.strip().lower()) not in existentes:
+            db.add(Catalogo(tipo=c.tipo, valor=c.valor.strip(), detalle=c.detalle.strip()))
+            existentes.add((c.tipo, c.valor.strip().lower()))
+            resumen["catalogos"] += 1
+    if resumen["catalogos"]:
+        audit.registrar(db, u, "CATALOGO_CREADO", "catalogo", None,
+                        {"cantidad": resumen["catalogos"], "origen": f"importación {d.archivo}"})
+    db.commit()
+    return resumen
 
 
 # ---------------------------------------------------------------- estáticos

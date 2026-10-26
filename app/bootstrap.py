@@ -6,7 +6,7 @@ from sqlalchemy import func, inspect, select, text
 
 from . import audit
 from .database import ES_POSTGRES, Base, SessionLocal, engine
-from .models import Usuario
+from .models import Medicion, Parametro, Usuario
 from .security import hash_password
 
 log = logging.getLogger("sigt")
@@ -59,6 +59,21 @@ def crear_admin(username: str, nombre: str, password: str) -> Usuario:
                         {"username": u.username, "rol": "admin", "origen": "bootstrap"})
         db.commit()
         return u
+
+
+def parametros_por_defecto() -> None:
+    """Crea los parámetros que falten. En una base nueva el ejercicio fiscal inicia en octubre (práctica de la
+    empresa); en una base con cargas previas se conserva el calendario por año natural."""
+    with SessionLocal() as db:
+        existentes = {p.clave for p in db.scalars(select(Parametro))}
+        hay_datos = bool(db.scalar(select(func.count(Medicion.id))))
+        base = {"empresa": "TRIPOLIVEN, C.A.", "gerencia_emisora": "Gerencia de Normalización y Calidad",
+                "codigo_formato": "NC-16-7",
+                "ejercicio_inicio": os.getenv("SIGT_EJERCICIO_INICIO", "1" if hay_datos else "10")}
+        for k, v in base.items():
+            if k not in existentes:
+                db.add(Parametro(clave=k, valor=v))
+        db.commit()
 
 
 def bootstrap_admin() -> None:

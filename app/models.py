@@ -18,6 +18,23 @@ class Area(Base):
     nombre: Mapped[str] = mapped_column(String(80), unique=True)
 
 
+class Parametro(Base):
+    """Configuración del sistema (clave/valor): empresa, código del formato, inicio del ejercicio fiscal…"""
+    __tablename__ = "parametros"
+    clave: Mapped[str] = mapped_column(String(40), primary_key=True)
+    valor: Mapped[str] = mapped_column(Text, default="")
+
+
+class Catalogo(Base):
+    """Listas de apoyo de la ficha: gerencias, procesos (con su objetivo), objetivos organizacionales, cargos."""
+    __tablename__ = "catalogos"
+    __table_args__ = (UniqueConstraint("tipo", "valor"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(20))      # gerencia | proceso | objetivo | cargo
+    valor: Mapped[str] = mapped_column(String(300))
+    detalle: Mapped[str] = mapped_column(Text, default="")
+
+
 class Usuario(Base):
     __tablename__ = "usuarios"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -53,6 +70,18 @@ class Indicador(Base):
     decimales: Mapped[int | None] = mapped_column(Integer, default=2)
     fuente: Mapped[str | None] = mapped_column(Text, default="")              # origen de los datos
     notas: Mapped[str | None] = mapped_column(Text, default="")               # método de cálculo / observaciones
+    # --- datos de la ficha técnica del SGC ---
+    seguimiento: Mapped[str | None] = mapped_column(String(20), default="proceso")  # proceso | objetivo | proveedor
+    ref_nombre: Mapped[str | None] = mapped_column(String(200), default="")   # proceso u objetivo organizacional
+    ref_detalle: Mapped[str | None] = mapped_column(Text, default="")         # objetivo del proceso / específico / bien o servicio
+    sigla: Mapped[str | None] = mapped_column(String(20), default="")
+    gerencia: Mapped[str | None] = mapped_column(String(150), default="")
+    lider: Mapped[str | None] = mapped_column(String(150), default="")        # líder de proceso (cargo)
+    resp_medicion: Mapped[str | None] = mapped_column(String(150), default="")
+    resp_registro: Mapped[str | None] = mapped_column(String(150), default="")
+    resp_analisis: Mapped[str | None] = mapped_column(String(150), default="")
+    meta_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
+    limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
     area: Mapped[Area] = relationship()
 
 
@@ -82,6 +111,8 @@ class Medicion(Base):
     formula: Mapped[str | None] = mapped_column(Text)
     constantes: Mapped[list | None] = mapped_column(JSON)
     decimales: Mapped[int | None] = mapped_column(Integer)
+    meta_tope: Mapped[float | None] = mapped_column(Float)
+    limite_tope: Mapped[float | None] = mapped_column(Float)
     indicador: Mapped[Indicador] = relationship()
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id])
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id])

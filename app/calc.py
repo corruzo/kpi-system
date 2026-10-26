@@ -2,14 +2,23 @@
 import ast
 import math
 import re
-from datetime import date
+from datetime import date, timedelta
 
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
          "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-POR_ANIO = {"mensual": 12, "trimestral": 4, "semestral": 2, "anual": 1}
-# Cuántos períodos ya cerrados se consideran "por cargar"
-VENTANA_PENDIENTE = {"mensual": 3, "trimestral": 2, "semestral": 1, "anual": 1}
-HISTORIAL = {"mensual": 24, "trimestral": 12, "semestral": 8, "anual": 5}
+MES3 = ["Ene.", "Feb.", "Mar.", "Abr.", "May.", "Jun.", "Jul.", "Ago.", "Sep.", "Oct.", "Nov.", "Dic."]
+FRECUENCIAS = ["mensual", "bimestral", "trimestral", "cuatrimestral", "semestral", "anual", "eventual"]
+MESES_POR_PERIODO = {"mensual": 1, "bimestral": 2, "trimestral": 3, "cuatrimestral": 4, "semestral": 6,
+                     "anual": 12, "eventual": 1}
+PREFIJO = {"bimestral": "B", "trimestral": "Q", "cuatrimestral": "C", "semestral": "S"}
+NOMBRE_CORTO = {"B": "Bim.", "Q": "T", "C": "Cuat.", "S": "S"}
+# Cuántos períodos ya cerrados se consideran "por cargar" (eventual: ninguno, se carga cuando ocurre)
+VENTANA_PENDIENTE = {"mensual": 3, "bimestral": 2, "trimestral": 2, "cuatrimestral": 1, "semestral": 1,
+                     "anual": 1, "eventual": 0}
+HISTORIAL = {"mensual": 24, "bimestral": 12, "trimestral": 12, "cuatrimestral": 9, "semestral": 8,
+             "anual": 5, "eventual": 24}
+# Mes en que inicia el ejercicio fiscal (1 = enero, 10 = octubre). Lo fija la configuración del sistema.
+INICIO = 1
 
 
 class FormulaError(ValueError):
@@ -169,54 +178,102 @@ def evaluar(formula: str, valores: dict, constantes: dict | None = None, decimal
 
 
 # --------------------------------------------------------------- semáforo
-def semaforo(valor: float, meta: float, limite: float, sentido: str) -> str:
+def semaforo(valor: float, meta: float, limite: float, sentido: str,
+             meta_tope: float | None = None, limite_tope: float | None = None) -> str:
+    """Verde / amarillo / rojo. Los topes opcionales acotan el otro extremo de cada franja
+    (mayor es mejor: valor máximo de la franja; menor es mejor: valor mínimo)."""
     if sentido == "mayor":
-        return "verde" if valor >= meta else "amarillo" if valor >= limite else "rojo"
-    return "verde" if valor <= meta else "amarillo" if valor <= limite else "rojo"
+        if valor >= meta and (meta_tope is None or valor <= meta_tope):
+            return "verde"
+        return "amarillo" if valor >= limite and (limite_tope is None or valor <= limite_tope) else "rojo"
+    if valor <= meta and (meta_tope is None or valor >= meta_tope):
+        return "verde"
+    return "amarillo" if valor <= limite and (limite_tope is None or valor >= limite_tope) else "rojo"
 
 
-def validar_umbrales(meta: float, limite: float, sentido: str) -> None:
+def validar_umbrales(meta: float, limite: float, sentido: str,
+                     meta_tope: float | None = None, limite_tope: float | None = None) -> None:
     if sentido == "mayor" and limite > meta:
         raise ValueError("Con «mayor es mejor», el límite crítico debe ser ≤ la meta.")
     if sentido == "menor" and limite < meta:
         raise ValueError("Con «menor es mejor», el límite crítico debe ser ≥ la meta.")
+    mayor = sentido == "mayor"
+    if meta_tope is not None and (meta_tope < meta if mayor else meta_tope > meta):
+        raise ValueError("El tope de la zona verde debe quedar más allá de la meta.")
+    if limite_tope is not None and (limite_tope < limite if mayor else limite_tope > limite):
+        raise ValueError("El tope de la zona amarilla debe quedar más allá del límite crítico.")
 
 
-# ---------------------------------------------------------------- períodos
-_RX = {"mensual": r"^(\d{4})-(0[1-9]|1[0-2])$",
-       "trimestral": r"^(\d{4})-Q([1-4])$",
-       "semestral": r"^(\d{4})-S([12])$",
-       "anual": r"^(\d{4})$"}
+# ------------------------------------------------- períodos y ejercicio fiscal
+def _suma_meses(d: date, n: int) -> date:
+    y, m = divmod(d.month - 1 + n, 12)
+    return date(d.year + y, m + 1, 1)
 
 
-def _fmt(f, y, i):
-    return {"mensual": f"{y}-{i:02d}", "trimestral": f"{y}-Q{i}", "semestral": f"{y}-S{i}", "anual": f"{y}"}[f]
+def _ejercicio(d: date) -> int:
+    """Año en que TERMINA el ejercicio fiscal que contiene a la fecha."""
+    return d.year if INICIO == 1 else (d.year + 1 if d.month >= INICIO else d.year)
 
 
-def _parse_periodo(f, p):
-    m = re.match(_RX[f], p or "")
-    return (int(m.group(1)), int(m.group(2)) if m.lastindex > 1 else 1) if m else None
+def _inicio_ejercicio(y: int) -> date:
+    return date(y if INICIO == 1 else y - 1, INICIO, 1)
+
+
+def etiqueta_ejercicio(y: int) -> str:
+    return str(y) if INICIO == 1 else f"{y - 1}-{y}"
+
+
+def codigo(f: str, d: date) -> str:
+    """Código del período de frecuencia f que contiene la fecha d."""
+    if f in ("mensual", "eventual"):
+        return f"{d.year}-{d.month:02d}"
+    y = _ejercicio(d)
+    if f == "anual":
+        return str(y)
+    n = ((d.month - INICIO) % 12) // MESES_POR_PERIODO[f] + 1
+    return f"{y}-{PREFIJO[f]}{n}"
+
+
+def _rx(f: str) -> str:
+    if f in ("mensual", "eventual"):
+        return r"^(\d{4})-(0[1-9]|1[0-2])$"
+    if f == "anual":
+        return r"^(\d{4})$"
+    return rf"^(\d{{4}})-{PREFIJO[f]}([1-9]\d?)$"
+
+
+def rango(f: str, p: str) -> tuple[date, date] | None:
+    """(primer día, último día) del período, o None si el código no es válido."""
+    if f not in MESES_POR_PERIODO:
+        return None
+    m = re.match(_rx(f), p or "")
+    if not m:
+        return None
+    k = MESES_POR_PERIODO[f]
+    if f in ("mensual", "eventual"):
+        ini = date(int(m.group(1)), int(m.group(2)), 1)
+    else:
+        n = int(m.group(2)) if m.lastindex > 1 else 1
+        if n > 12 // k:
+            return None
+        ini = _suma_meses(_inicio_ejercicio(int(m.group(1))), (n - 1) * k)
+    return ini, _suma_meses(ini, k) - timedelta(days=1)
 
 
 def periodo_valido(f: str, p: str) -> bool:
-    return _parse_periodo(f, p) is not None
+    return rango(f, p) is not None
 
 
 def periodo_actual(f: str, hoy: date) -> str:
-    i = {"mensual": hoy.month, "trimestral": (hoy.month - 1) // 3 + 1,
-         "semestral": 1 if hoy.month <= 6 else 2, "anual": 1}[f]
-    return _fmt(f, hoy.year, i)
+    return codigo(f, hoy)
 
 
 def periodos_recientes(f: str, hoy: date, n: int | None = None) -> list[str]:
     """Del actual hacia atrás."""
-    y, i = _parse_periodo(f, periodo_actual(f, hoy))
-    out = []
+    out, p = [], codigo(f, hoy)
     for _ in range(n or HISTORIAL[f]):
-        out.append(_fmt(f, y, i))
-        i -= 1
-        if i < 1:
-            y, i = y - 1, POR_ANIO[f]
+        out.append(p)
+        p = codigo(f, rango(f, p)[0] - timedelta(days=1))
     return out
 
 
@@ -225,16 +282,39 @@ def periodos_cerrados(f: str, hoy: date, n: int) -> list[str]:
 
 
 def es_futuro(f: str, p: str, hoy: date) -> bool:
-    return _parse_periodo(f, p) > _parse_periodo(f, periodo_actual(f, hoy))
+    return rango(f, p)[0] > hoy
+
+
+def ejercicio_de(f: str, p: str) -> int:
+    """Ejercicio fiscal al que pertenece el período."""
+    return _ejercicio(rango(f, p)[1])
+
+
+def periodos_del_ejercicio(f: str, y: int) -> list[str]:
+    """Todos los períodos del ejercicio, en orden cronológico."""
+    ini, k = _inicio_ejercicio(y), MESES_POR_PERIODO[f]
+    return [codigo(f, _suma_meses(ini, i * k)) for i in range(12 // k)]
 
 
 def etiqueta(f: str, p: str) -> str:
-    y, i = _parse_periodo(f, p)
-    return {"mensual": f"{MESES[i - 1]} {y}", "trimestral": f"T{i} {y}",
-            "semestral": f"S{i} {y}", "anual": f"Año {y}"}[f]
+    ini, fin = rango(f, p)
+    if f in ("mensual", "eventual"):
+        return f"{MESES[ini.month - 1]} {ini.year}"
+    ej = etiqueta_ejercicio(ejercicio_de(f, p))
+    if f == "anual":
+        return f"Ejercicio {ej}"
+    pref = PREFIJO[f]
+    n = p.rsplit(pref, 1)[1]
+    return f"{NOMBRE_CORTO[pref]}{n} {ej} ({MES3[ini.month - 1][:3]}–{MES3[fin.month - 1][:3]})"
+
+
+def etiqueta_corta(f: str, p: str) -> str:
+    """Encabezado breve de columna (mes de cierre del período, como en las fichas en papel)."""
+    ini, fin = rango(f, p)
+    return MES3[fin.month - 1] if f != "anual" else etiqueta_ejercicio(ejercicio_de(f, p))
 
 
 def periodos_pendientes(f: str, hoy: date, estados: dict[str, str]) -> list[str]:
     """Períodos cerrados sin carga (o devueltos) — del más antiguo al más reciente."""
-    ventana = periodos_cerrados(f, hoy, VENTANA_PENDIENTE[f])
+    ventana = periodos_cerrados(f, hoy, VENTANA_PENDIENTE[f]) if VENTANA_PENDIENTE[f] else []
     return [p for p in reversed(ventana) if estados.get(p) in (None, "observado")]

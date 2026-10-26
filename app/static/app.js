@@ -1,7 +1,7 @@
 /* SIGT · lógica de interfaz (Alpine.js) */
 const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos: '#94a3b8' };
 const NAVY = '#0f172a', BRAND = '#0284c7';
-const ACCIONES = ['CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION'];
+const ACCIONES = ['PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION'];
 const ICONOS = {
   carga: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z',
   historial: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
@@ -9,6 +9,8 @@ const ICONOS = {
   panel: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
   fichas: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   org: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  importar: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12',
+  ficha: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   reportes: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4',
   bitacora: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
 };
@@ -29,6 +31,14 @@ const AYUDA = {
   fuente: ['Fuente de los datos', 'De dónde salen los datos (ERP, informe de producción, laboratorio…) para que la medición sea verificable en auditoría.'],
   notas: ['Método y observaciones', 'Aclaraciones del cálculo, exclusiones, criterios o responsables. Aparece en la ficha técnica y en el reporte Excel.'],
   activo: ['Activo', 'Un indicador archivado deja de aparecer para cargar datos, pero su historial se conserva. Puede restaurarlo cuando quiera.'],
+  seguimiento: ['Seguimiento de', '<b>Desempeño de proceso</b>: indicador de un proceso del SGC. <b>Objetivo organizacional</b>: contribuye a un objetivo estratégico. <b>Desempeño de proveedor externo</b>: evalúa un bien o servicio contratado. Cambia las etiquetas de la ficha impresa.'],
+  ref_nombre: ['Proceso / objetivo', 'Nombre del proceso (o del objetivo organizacional) al que pertenece el indicador. Puede elegirlo de la lista o escribirlo.'],
+  ref_detalle: ['Objetivo del proceso / objetivo específico', 'Descripción que aparece bajo el proceso en la ficha: objetivo del proceso, objetivo específico o bien/servicio evaluado.'],
+  sigla: ['Sigla', 'Abreviatura del indicador que se usa en la fórmula documentada. Ej.: <b>SP</b> para «Servicio prestado». Aparece en la ficha: <code>SP = SG × 100 / SR</code>.'],
+  gerencia: ['Gerencia', 'Gerencia de la que depende el indicador (aparece en la ficha técnica).'],
+  lider: ['Líder de proceso', 'Cargo que lidera el proceso. Ej.: Jefe de sistemas.'],
+  responsables: ['Responsables', '<b>Medición</b>: quien obtiene el dato. <b>Registro</b>: quien lo carga. <b>Análisis</b>: quien interpreta los resultados. Escriba el nombre; se sugieren los usuarios del sistema.'],
+  topes: ['Topes de las franjas (opcional)', 'Para acotar el otro extremo de cada franja, como las columnas «Mín./Máx.» de la ficha en papel. Ej.: mayor es mejor, meta 96 con tope 500 → verde solo entre 96 y 500. Déjelos vacíos si no aplica.'],
   carga: ['¿Cómo cargar un indicador?', '<ol class="list-decimal space-y-1 pl-5"><li>Elija el <b>indicador</b> y el <b>período</b> (los pendientes aparecen arriba).</li><li>Digite solo los <b>datos base</b>; el resultado se calcula solo.</li><li>Si el semáforo es <b>amarillo o rojo</b>, escriba el análisis y el plan de mejora (obligatorio por ISO 9001).</li><li>Pulse <b>Enviar carga</b>. El Gerente / Auditor la aprobará o la devolverá con observaciones.</li></ol>'],
   semaforo: ['Semáforo', '<b class="text-green-700">Cumple</b>: alcanza la meta. <b class="text-amber-700">Alerta</b>: entre la meta y el límite crítico. <b class="text-red-700">Crítico</b>: peor que el límite crítico. En alerta y crítico debe documentar análisis y plan de mejora.'],
 };
@@ -64,7 +74,9 @@ function sigt() {
     ready: false, user: null, view: '', busy: false, menu: false, mas: false, ACCIONES, fq: { q: '', area: '', frecuencia: '', estado: 'activo' },
     prueba: { valores: {}, res: null }, ay: '', guia: false, ejemplos: EJEMPLOS, funcDoc: FUNC_DOC,
     filtro2: { semaforo: '', periodo: '', area_id: '' }, histMas: false, reabrirNota: {},
-    rep: { anio: '', area_id: '', estado: '' }, bitUsuario: '', bitMas: false, fichaAbierta: false, ayudaCarga: false,
+    rep: { anio: '', area_id: '', estado: '' }, repFicha: { area_id: '', indicador_id: '' },
+    params: {}, parForm: {}, catalogos: [], catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
+    fv: { id: null, ejercicio: '', data: null }, imp: { prev: null, sel: {}, cat: {}, res: null, crearAreas: true, cargando: false }, bitUsuario: '', bitMas: false, fichaAbierta: false, ayudaCarga: false,
     loginForm: { username: '', password: '' }, loginError: '',
     toast: { msg: '', error: false }, _toastT: null,
     indicadores: [], areas: [],
@@ -117,7 +129,9 @@ function sigt() {
     rolNombre: u => ROLES[u.rol],
     async alIngresar() {
       await this.cargarIndicadores();
+      this.params = await this.api('/api/parametros');
       if (this.user.rol !== 'jefe') this.areas = await this.api('/api/areas');
+      if (this.user.rol === 'admin') this.catalogos = await this.api('/api/catalogos');
       if (this.user.rol === 'admin') this.usuarios = await this.api('/api/usuarios');
       if (['gerente', 'admin'].includes(this.user.rol)) this.bandeja = await this.api('/api/mediciones?estado=enviado');
       await this.go({ jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol]);
@@ -129,7 +143,7 @@ function sigt() {
       if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }];
       return [{ id: 'fichas', label: 'Indicadores', corto: 'Fichas' }, { id: 'panel', label: 'Panel de análisis', corto: 'Panel' },
       { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'carga', label: 'Cargar datos', corto: 'Cargar', badge: this.pendientesTotal() || '' },
-      { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'bitacora', label: 'Bitácora', corto: 'Bitácora' }];
+      { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'importar', label: 'Importar', corto: 'Importar' }, { id: 'bitacora', label: 'Bitácora', corto: 'Bitácora' }];
     },
     // En móvil: 4 accesos + «Más» cuando hay más de 5 secciones
     navMovil() { const n = this.nav(); return n.length > 5 ? [...n.slice(0, 4), { id: '_mas', label: 'Más', corto: 'Más', badge: n.slice(4).reduce((a, x) => a + (x.badge || 0), 0) || '' }] : n; },
@@ -147,7 +161,7 @@ function sigt() {
       if (v === 'bandeja') await this.cargarBandeja();
       if (v === 'panel') await this.cargarPanel();
       if (v === 'fichas') await this.cargarIndicadores();
-      if (v === 'org') { this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); }
+      if (v === 'org') { this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); this.catalogos = await this.api('/api/catalogos'); this.parForm = { ...this.params }; }
       if (v === 'bitacora') await this.cargarBitacora();
       if (v === 'reportes' && this.user.rol !== 'jefe' && !this.areas.length) this.areas = await this.api('/api/areas');
     },
@@ -246,7 +260,16 @@ function sigt() {
       this.busy = false;
     },
     // ------------------------------------------------------------ reportes
-    get anios() { const y = new Date().getFullYear(); return Array.from({ length: 6 }, (_, k) => y - k); },
+    get ejercicios() {
+      const m0 = this.params.ejercicio_inicio || 1, hoy = new Date(), y = hoy.getFullYear() + (m0 > 1 && hoy.getMonth() + 1 >= m0 ? 1 : 0);
+      return Array.from({ length: 7 }, (_, k) => ({ valor: y - k, etiqueta: m0 === 1 ? String(y - k) : `${y - k - 1}-${y - k}` }));
+    },
+    descargarFichas() {
+      const q = new URLSearchParams(); if (this.rep.anio) q.set('ejercicio', this.rep.anio);
+      for (const [k, v] of Object.entries(this.repFicha)) if (v) q.set(k, v);
+      if (this.user.rol !== 'jefe' && this.rep.area_id && !this.repFicha.area_id) q.set('area_id', this.rep.area_id);
+      return this.descargar('/api/reportes/fichas.xlsx?' + q, 'fichas_sigt.xlsx');
+    },
     async descargar(url, nombreDef) {
       this.busy = true;
       try {
@@ -256,6 +279,94 @@ function sigt() {
         const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000); this.avisar('Reporte descargado.');
       } catch (e) { this.avisar(e.message, true); }
+      this.busy = false;
+    },
+    // ------------------------------------------------------ ficha del indicador
+    async verFicha(id, ejercicio = '') {
+      this.fv = { id, ejercicio, data: null, volver: this.view };
+      await this.go('ficha'); await this.cargarFicha();
+    },
+    async cargarFicha() {
+      this.fv.data = await this.api(`/api/indicadores/${this.fv.id}/ficha` + (this.fv.ejercicio ? `?ejercicio=${this.fv.ejercicio}` : ''));
+      this.fv.ejercicio = this.fv.data.ejercicio;
+      this.$nextTick(() => this.dibujarFicha());
+    },
+    fichaDescargar() { return this.descargar(`/api/reportes/fichas.xlsx?indicador_id=${this.fv.id}&ejercicio=${this.fv.ejercicio}`, 'ficha_sigt.xlsx'); },
+    valorFicha(p, clave) { const m = p.medicion; return m && m.estado !== 'observado' && m.valores[clave] !== undefined ? nf(m.valores[clave], 2) : ''; },
+    semaforoFranjas(i) {
+      const f = x => (x === null || x === undefined) ? '' : this.fmt(x, i.unidad, i.decimales), mayor = i.sentido === 'mayor';
+      return [{ n: 'Verde', c: 'verde', min: mayor ? f(i.meta) : f(i.meta_tope), max: mayor ? f(i.meta_tope) : f(i.meta) },
+      { n: 'Amarillo', c: 'amarillo', min: mayor ? f(i.limite) : f(i.limite_tope), max: mayor ? f(i.limite_tope) : f(i.limite) },
+      { n: 'Rojo', c: 'rojo', min: mayor ? '< ' + f(i.limite) : (i.limite_tope !== null ? '< ' + f(i.limite_tope) : ''), max: mayor ? (i.limite_tope !== null ? '> ' + f(i.limite_tope) : '') : '> ' + f(i.limite) }];
+    },
+    formulaDoc(i) {
+      let t = i.formula; const todos = [...i.variables, ...(i.constantes || [])];
+      todos.sort((a, b) => b.clave.length - a.clave.length).forEach(v => t = t.replace(new RegExp('\\b' + v.clave + '\\b', 'g'), v.clave.toUpperCase()));
+      return [`${i.sigla || 'IND'} = ${t}`, ...i.variables.map(v => `${v.clave.toUpperCase()} = ${v.etiqueta}`), ...(i.constantes || []).map(c => `${c.clave.toUpperCase()} = ${c.etiqueta} (${c.valor})`)].join('\n');
+    },
+    dibujarFicha() {
+      const d = this.fv.data, c = document.getElementById('ch-ficha');
+      if (!d || !c || typeof Chart === 'undefined') return;
+      Chart.getChart(c)?.destroy();
+      const i = d.indicador, ps = d.periodos.filter(p => p.medicion && p.medicion.estado !== 'observado'), mayor = i.sentido === 'mayor';
+      const linea = (l, v, col) => ({ label: l, data: ps.map(() => v), borderColor: col, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 });
+      const ds = [{ label: 'Indicador', data: ps.map(p => p.medicion.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: ps.map(p => SEM[p.medicion.semaforo]), pointRadius: 6, borderWidth: 2, tension: 0 }];
+      const mn = mayor ? i.meta : i.meta_tope, mx = mayor ? i.meta_tope : i.meta;
+      if (mn !== null && mn !== undefined) ds.push(linea('Mín.', mn, SEM.verde)); if (mx !== null && mx !== undefined) ds.push(linea('Máx.', mx, SEM.rojo));
+      new Chart(c, { type: 'line', data: { labels: ps.map(p => p.corta), datasets: ds }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    },
+    // ------------------------------------------------- parámetros y catálogos
+    async guardarParametros() {
+      this.busy = true;
+      try { this.params = await this.api('/api/parametros', { method: 'PUT', body: { empresa: this.parForm.empresa, gerencia_emisora: this.parForm.gerencia_emisora, codigo_formato: this.parForm.codigo_formato, ejercicio_inicio: Number(this.parForm.ejercicio_inicio) } }); this.parForm = { ...this.params }; this.avisar('Parámetros guardados.'); } catch { }
+      this.busy = false;
+    },
+    get catActual() { return this.catalogos.filter(c => c.tipo === this.catTab); },
+    async guardarCat() {
+      this.busy = true;
+      try {
+        const f = this.catForm, id = f.id;
+        await this.api(id ? `/api/catalogos/${id}` : '/api/catalogos', { method: id ? 'PUT' : 'POST', body: { tipo: this.catTab, valor: f.valor, detalle: f.detalle } });
+        this.catForm = { id: null, valor: '', detalle: '' }; this.catalogos = await this.api('/api/catalogos'); this.avisar('Lista actualizada.');
+      } catch { }
+      this.busy = false;
+    },
+    async eliminarCat(c) {
+      if (!confirm(`¿Quitar «${c.valor}» de la lista? Las fichas que ya lo usan conservan el texto.`)) return;
+      try { await this.api(`/api/catalogos/${c.id}`, { method: 'DELETE' }); this.catalogos = await this.api('/api/catalogos'); } catch { }
+    },
+    lista(tipo) { return this.catalogos.filter(c => c.tipo === tipo); },
+    elegirRef() {
+      const c = this.catalogos.find(c => c.tipo === 'proceso' && c.valor === this.ficha.ref_nombre);
+      if (c && c.detalle && !this.ficha.ref_detalle) this.ficha.ref_detalle = c.detalle;
+    },
+    get sugerenciasPersonas() { return [...new Set(this.usuarios.map(u => u.nombre.split(' (')[0]))]; },
+    // ------------------------------------------------------- importar Excel
+    async analizarExcel(ev) {
+      const f = ev.target.files[0]; if (!f) return;
+      this.imp = { prev: null, sel: {}, cat: {}, res: null, crearAreas: true, cargando: true };
+      try {
+        const fd = new FormData(); fd.append('archivo', f);
+        const r = await fetch('/api/importar/excel', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const d = await r.json(); if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : 'No se pudo leer el archivo.');
+        this.imp.prev = d; this.imp.sel = Object.fromEntries(d.indicadores.map((_, k) => [k, !!d.indicadores[k].formula]));
+        this.imp.cat = { gerencia: true, cargo: true, objetivo: true, proceso: true, area: true };
+      } catch (e) { this.avisar(e.message, true); }
+      this.imp.cargando = false; ev.target.value = '';
+    },
+    get impInicioDistinto() { const p = this.imp.prev; return !!p && p.indicadores.some(i => i.frecuencia !== 'mensual' && i.frecuencia !== 'eventual' && i.mediciones.length) && p.inicio_ejercicio && p.inicio_ejercicio !== p.inicio_actual; },
+    get impSeleccion() { return this.imp.prev ? this.imp.prev.indicadores.filter((_, k) => this.imp.sel[k]) : []; },
+    async confirmarImportacion() {
+      const p = this.imp.prev; this.busy = true;
+      try {
+        const inds = this.impSeleccion, cats = [];
+        for (const t of ['gerencia', 'cargo', 'objetivo', 'proceso']) if (this.imp.cat[t]) for (const v of p.catalogos[t] || []) cats.push({ tipo: t, valor: v, detalle: t === 'proceso' ? (p.detalle_procesos[v] || '') : '' });
+        const nuevas = new Set(inds.filter(i => !i.area_existe).map(i => i.area));
+        if (this.imp.cat.area && this.imp.crearAreas) (p.catalogos.area || []).forEach(a => nuevas.add(a));
+        const cuerpo = { archivo: p.archivo, inicio_ejercicio: p.inicio_ejercicio, indicadores: inds.map(i => ({ ...i, objetivo: i.objetivo || '' })), catalogos: cats, areas_nuevas: [...nuevas] };
+        this.imp.res = await this.api('/api/importar/confirmar', { method: 'POST', body: cuerpo });
+        this.imp.prev = null; await this.cargarIndicadores(); this.areas = await this.api('/api/areas'); this.catalogos = await this.api('/api/catalogos'); this.avisar('Importación completada.');
+      } catch { }
       this.busy = false;
     },
     descargarReporte() {
@@ -347,7 +458,7 @@ function sigt() {
         (this.fq.estado === '' || (this.fq.estado === 'activo') === i.activo));
     },
     nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', meta: 90, limite: 80, formula: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
+      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', meta: 90, limite: 80, meta_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables. Pulse «Guía de fórmulas» para ver funciones y ejemplos.');
     },
     editarFicha(i) {
@@ -401,14 +512,17 @@ function sigt() {
         if (x === '' || x === undefined || x === null) { if (!v.opcional) { this.prueba.res = null; return; } valores[v.clave] = Number(v.defecto || 0); } else valores[v.clave] = Number(x);
       }
       const constantes = Object.fromEntries((f.constantes || []).filter(c => c.clave).map(c => [c.clave, Number(c.valor)]));
-      try { this.prueba.res = await this.api('/api/formula/probar', { method: 'POST', body: { formula: f.formula, valores, constantes, decimales: Number(f.decimales), meta: Number(f.meta), limite: Number(f.limite), sentido: f.sentido } }, true); } catch { }
+      try { this.prueba.res = await this.api('/api/formula/probar', { method: 'POST', body: { formula: f.formula, valores, constantes, decimales: Number(f.decimales), meta: Number(f.meta), limite: Number(f.limite), meta_tope: f.meta_tope === '' ? null : f.meta_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, sentido: f.sentido } }, true); } catch { }
     },
     cuerpoFicha(f) {
       return {
         codigo: f.codigo, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
         variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta, ayuda: v.ayuda || '', unidad: v.unidad || '', opcional: !!v.opcional, defecto: Number(v.defecto || 0), negativo: !!v.negativo })),
         constantes: (f.constantes || []).map(c => ({ clave: c.clave, etiqueta: c.etiqueta, valor: Number(c.valor) })),
-        decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', meta: f.meta, limite: f.limite, activo: f.activo
+        decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', meta: f.meta, limite: f.limite,
+        meta_tope: f.meta_tope === '' ? null : f.meta_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, activo: f.activo,
+        seguimiento: f.seguimiento || 'proceso', ref_nombre: f.ref_nombre || '', ref_detalle: f.ref_detalle || '', sigla: f.sigla || '', gerencia: f.gerencia || '',
+        lider: f.lider || '', resp_medicion: f.resp_medicion || '', resp_registro: f.resp_registro || '', resp_analisis: f.resp_analisis || ''
       };
     },
     async guardarFicha() {
@@ -493,6 +607,10 @@ function sigt() {
         case 'REPORTE_EXPORTADO': return `Reporte Excel (${d.filas} filas) ${(d.filtros || []).join(' · ')}`;
         case 'INDICADOR_EDITADO': return `${d.codigo}: cambios en ` + Object.keys(d.cambios || {}).join(', ');
         case 'INICIO_SESION': return 'Inicio de sesión';
+        case 'IMPORTACION': return `${d.codigo} ← ${d.archivo} (${d.hoja}): ${(d.periodos || []).length} períodos importados`;
+        case 'PARAMETROS_EDITADOS': return 'Cambios: ' + Object.keys(d.cambios || {}).join(', ');
+        case 'CATALOGO_CREADO': case 'CATALOGO_ELIMINADO': return d.valor || `${d.cantidad || ''} elementos (${d.origen || ''})`;
+        case 'CATALOGO_EDITADO': return `${d.tipo}: ${(d.antes || [])[0]} → ${(d.despues || [])[0]}`;
         case 'CLAVE_CAMBIADA': return 'Cambio de contraseña';
         case 'USUARIO_CREADO': case 'USUARIO_EDITADO': return `${d.username || ''} ${d.rol || ''} ` + Object.keys(d.cambios || {}).join(', ');
         case 'AREA_CREADA': case 'AREA_ELIMINADA': return d.nombre;
