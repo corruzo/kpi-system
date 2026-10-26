@@ -420,7 +420,7 @@ function sigt() {
     dibujar() {
       if (!this.dash || typeof Chart === 'undefined') return;
       const nuevo = (id, cfg) => { const c = document.getElementById(id); if (!c) return; Chart.getChart(c)?.destroy(); new Chart(c, cfg); };
-      Chart.defaults.font.family = 'system-ui, sans-serif';
+      Chart.defaults.font.family = 'ui-sans-serif, system-ui, "Segoe UI", sans-serif'; Chart.defaults.color = '#5f5d52'; Chart.defaults.borderColor = '#e8e5da';
       const r = this.dash.resumen, i = this.dash.indicadores.find(x => x.id === this.tendInd);
       if (i) {
         const s = i.serie, plano = a => a.map(x => Alpine.raw(x));

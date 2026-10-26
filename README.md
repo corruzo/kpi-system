@@ -72,3 +72,6 @@ El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicado
 - **Listas de apoyo** (gerencias, procesos con su objetivo, objetivos organizacionales, cargos) administrables en Organización.
 - **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño y gráfico.
 - **Importación de años anteriores** (`Importar`): lee el Excel de fichas (una hoja por indicador), traduce la fórmula, propone indicadores y mediciones, muestra una vista previa editable y los carga como aprobados, con registro en la bitácora. Si el ejercicio fiscal del archivo difiere del configurado, avisa antes de importar.
+
+## Diseño de la interfaz
+Estilo sobrio y cálido inspirado en Claude.com: fondo crema, títulos en tipografía serif, tarjetas y controles muy redondeados, botones en forma de píldora, cabecera translúcida con navegación en cápsula (escritorio) y barra flotante inferior con menú «Más» (móvil), hojas modales que suben desde abajo en el teléfono y respeto de «reducir movimiento». Conserva los azules corporativos (#0f172a y #0284c7) como acentos. Los estilos se compilan con `npm run build:css` (fuente en `src/input.css` y `tailwind.config.js`).
