@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
@@ -24,10 +25,22 @@ STATIC = Path(__file__).parent / "static"
 _lock = threading.Lock()  # serializa escrituras para mantener íntegra la cadena de la bitácora
 
 
+_iniciado = False
+
+
+def iniciar():
+    """Prepara la base una sola vez por proceso (en serverless no siempre se ejecuta el lifespan)."""
+    global _iniciado
+    with _lock:
+        if not _iniciado:
+            preparar_base()
+            bootstrap_admin()
+            _iniciado = True
+
+
 @asynccontextmanager
 async def lifespan(_):
-    preparar_base()
-    bootstrap_admin()
+    iniciar()
     yield
 
 
@@ -43,6 +56,8 @@ CSP = ("default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
 
 @app.middleware("http")
 async def cabeceras(request: Request, call_next):
+    if not _iniciado and request.url.path != "/healthz":
+        await run_in_threadpool(iniciar)
     r = await call_next(request)
     r.headers.update({"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
                       "Referrer-Policy": "same-origin", "Content-Security-Policy": CSP,

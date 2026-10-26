@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import PRODUCCION
@@ -42,9 +43,11 @@ if ES_SQLITE:
         cur.execute("PRAGMA journal_mode=WAL")
         cur.close()
 elif ES_POSTGRES:
+    # Serverless (Vercel): sin pool propio; el pooler de Supabase gestiona las conexiones.
+    _pool = {"poolclass": NullPool} if os.getenv("VERCEL") or os.getenv("SIGT_NULLPOOL") == "1" else \
+        {"pool_size": int(os.getenv("SIGT_POOL_SIZE", "5")), "max_overflow": 5, "pool_recycle": 300}
     engine = create_engine(
-        DATABASE_URL, pool_pre_ping=True, pool_size=int(os.getenv("SIGT_POOL_SIZE", "5")),
-        max_overflow=5, pool_recycle=300,
+        DATABASE_URL, pool_pre_ping=True, **_pool,
         # prepare_threshold=None: compatible con el pooler transaccional de Supabase (puerto 6543)
         connect_args={"prepare_threshold": None},
     )

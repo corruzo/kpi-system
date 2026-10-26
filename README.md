@@ -42,3 +42,6 @@ Tailwind, Alpine y Chart.js se sirven desde `app/static/` (sin CDN ni dependenci
 - Fórmulas con evaluador AST restringido (sin `eval`).
 - Bitácora de solo inserción con cadena SHA-256 (verificable desde la interfaz), protegida además por trigger en Postgres y bloqueo en el ORM; escrituras serializadas con *advisory lock* entre procesos.
 - Contraseñas PBKDF2-SHA256 (210 000 iteraciones), mínimo 10 caracteres; cambiar o restablecer una clave invalida las sesiones previas; bloqueo tras 5 intentos fallidos en 15 min; cabeceras CSP/HSTS/X-Frame-Options.
+
+## Vercel
+`vercel.json` + `api/index.py` ejecutan la app como función serverless. Variables obligatorias (Project → Settings → Environment Variables): `SIGT_ENV=production`, `SIGT_SECRET`, `SIGT_DATABASE_URL` (use el **pooler** de Supabase, no `db.<proyecto>.supabase.co`, que es solo IPv6), `SIGT_ADMIN_USER`, `SIGT_ADMIN_PASSWORD`. Tras cambiar variables hay que redesplegar. Si falla, revise Deployments → Logs: el mensaje indica la variable que falta.
