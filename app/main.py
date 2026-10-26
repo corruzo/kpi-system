@@ -1,6 +1,7 @@
 """SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A."""
 import csv
 import io
+import logging
 import threading
 from contextlib import asynccontextmanager
 from datetime import date
@@ -9,10 +10,11 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from . import audit, calc, security
@@ -28,6 +30,14 @@ _lock = threading.Lock()  # serializa escrituras para mantener íntegra la caden
 _iniciado = False
 
 
+def _motivo(e: Exception) -> str:
+    """Motivo legible sin exponer credenciales: solo la primera línea del error del driver."""
+    if isinstance(e, (OperationalError, RuntimeError)):
+        linea = (str(getattr(e, "orig", None) or e).strip().splitlines() or [""])[0]
+        return f"{type(e).__name__}: {linea[:300]}"
+    return f"{type(e).__name__} (vea Logs de Vercel para el detalle)"
+
+
 def iniciar():
     """Prepara la base una sola vez por proceso (en serverless no siempre se ejecuta el lifespan)."""
     global _iniciado
@@ -40,7 +50,10 @@ def iniciar():
 
 @asynccontextmanager
 async def lifespan(_):
-    iniciar()
+    try:
+        iniciar()
+    except Exception:  # no tumbar el proceso: se reintenta en la primera petición y se muestra el motivo
+        logging.getLogger("sigt").exception("Fallo al preparar la base de datos")
     yield
 
 
@@ -57,7 +70,11 @@ CSP = ("default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
 @app.middleware("http")
 async def cabeceras(request: Request, call_next):
     if not _iniciado and request.url.path != "/healthz":
-        await run_in_threadpool(iniciar)
+        try:
+            await run_in_threadpool(iniciar)
+        except Exception as e:
+            logging.getLogger("sigt").exception("Fallo al preparar la base de datos")
+            return PlainTextResponse(f"SIGT no pudo preparar la base de datos.\n\n{_motivo(e)}\n", status_code=503)
     r = await call_next(request)
     r.headers.update({"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
                       "Referrer-Policy": "same-origin", "Content-Security-Policy": CSP,
