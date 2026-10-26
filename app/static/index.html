@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SIGT Tripoliven</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f172a'/><path d='M7 22V10m6 12V14m6 8V8m6 14V12' stroke='%2338bdf8' stroke-width='3' stroke-linecap='round'/></svg>">
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { navy: '#0f172a', brand: '#0284c7' } } } }</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script defer src="/static/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak]{display:none!important}
+    body{background:#f1f5f9;color:#0f172a}
+    .inp{width:100%;border:1px solid #cbd5e1;background:#fff;padding:.55rem .75rem;border-radius:.375rem;outline:none}
+    .inp:focus{border-color:#0284c7;box-shadow:0 0 0 2px #bae6fd}
+    .inp:disabled{background:#f1f5f9;color:#475569}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.55rem 1rem;border-radius:.375rem;font-weight:600;font-size:.875rem;border:1px solid transparent;transition:background .15s}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-p{background:#0284c7;color:#fff}.btn-p:hover:not(:disabled){background:#0369a1}
+    .btn-s{background:#fff;color:#0f172a;border-color:#cbd5e1}.btn-s:hover:not(:disabled){background:#f1f5f9}
+    .btn-d{background:#fff;color:#b91c1c;border-color:#fca5a5}.btn-d:hover:not(:disabled){background:#fef2f2}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:.5rem}
+    .lbl{display:block;font-size:.75rem;font-weight:600;color:#475569;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.03em}
+    .th{padding:.6rem .75rem;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:#475569;background:#f8fafc;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+    .td{padding:.6rem .75rem;border-bottom:1px solid #f1f5f9;font-size:.875rem;vertical-align:top}
+    .fade-in{animation:fade .25s ease-out}
+    @keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  </style>
+</head>
+<body x-data="sigt()" x-init="init()" x-cloak>
+
+<!-- Toast -->
+<div class="fixed top-4 right-4 z-50 max-w-sm" x-show="toast.msg" x-transition>
+  <div class="px-4 py-3 rounded-md text-sm text-white font-medium" :class="toast.error ? 'bg-red-600' : 'bg-navy'" x-text="toast.msg"></div>
+</div>
+
+<!-- LOGIN -->
+<template x-if="!user && ready">
+  <main class="min-h-screen flex items-center justify-center p-4 bg-navy">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-6 text-white">
+        <div class="inline-flex items-center gap-2 text-2xl font-bold">
+          <svg class="w-8 h-8" viewBox="0 0 32 32"><path d="M7 22V10m6 12V14m6 8V8m6 14V12" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+          SIGT
+        </div>
+        <p class="text-slate-300 text-sm mt-1">Sistema de Indicadores de Gestión · Tripoliven, C.A.</p>
+      </div>
+      <form class="card p-6 space-y-4" @submit.prevent="login()">
+        <div><label class="lbl">Usuario</label><input class="inp" x-model="loginForm.username" autocomplete="username" autofocus></div>
+        <div><label class="lbl">Contraseña</label><input class="inp" type="password" x-model="loginForm.password" autocomplete="current-password"></div>
+        <p class="text-sm text-red-600" x-show="loginError" x-text="loginError"></p>
+        <button class="btn btn-p w-full" :disabled="busy">Ingresar</button>
+        <div x-show="demo.length" class="pt-4 border-t border-slate-200">
+          <p class="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wide">Acceso rápido por rol (demostración)</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <template x-for="d in demo" :key="d.id">
+              <button type="button" class="btn btn-s !justify-start text-left" @click="loginDemo(d)">
+                <span class="w-2 h-2 rounded-full" :class="{'bg-brand':d.rol==='jefe','bg-navy':d.rol==='gerente','bg-amber-500':d.rol==='admin'}"></span>
+                <span class="leading-tight"><span class="block" x-text="rolNombre(d)"></span><span class="block text-xs font-normal text-slate-500" x-text="d.nombre.split(' (')[0]"></span></span>
+              </button>
+            </template>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+</template>
+
+<!-- APP -->
+<template x-if="user">
+<div class="min-h-screen md:flex">
+  <!-- Sidebar -->
+  <aside class="bg-navy text-slate-200 md:w-60 md:min-h-screen md:fixed md:inset-y-0 flex flex-col">
+    <div class="px-4 py-4 flex items-center justify-between md:block">
+      <div>
+        <div class="flex items-center gap-2 text-white font-bold text-lg">
+          <svg class="w-6 h-6" viewBox="0 0 32 32"><path d="M7 22V10m6 12V14m6 8V8m6 14V12" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none"/></svg> SIGT
+        </div>
+        <div class="text-xs text-slate-400">Tripoliven, C.A.</div>
+      </div>
+      <button class="md:hidden btn btn-s !py-1 !px-2 text-xs" @click="logout()">Salir</button>
+    </div>
+    <nav class="flex md:flex-col gap-1 px-2 pb-2 md:pb-0 overflow-x-auto md:overflow-visible">
+      <template x-for="n in nav()" :key="n.id">
+        <button class="whitespace-nowrap flex items-center justify-between gap-2 px-3 py-2 rounded text-sm font-medium text-left"
+                :class="view===n.id ? 'bg-brand text-white' : 'hover:bg-slate-800'" @click="go(n.id)">
+          <span x-text="n.label"></span>
+          <span x-show="n.badge" class="text-xs bg-amber-500 text-navy rounded-full px-2 font-bold" x-text="n.badge"></span>
+        </button>
+      </template>
+    </nav>
+    <div class="hidden md:block mt-auto p-4 border-t border-slate-800 text-sm">
+      <div class="text-white font-semibold leading-tight" x-text="user.nombre.split(' (')[0]"></div>
+      <div class="text-xs text-slate-400" x-text="rolNombre(user) + (user.area ? ' · ' + user.area : '')"></div>
+      <button class="btn btn-s w-full mt-3 !py-1.5" @click="logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 md:ml-60 p-4 md:p-8 min-w-0">
+
+    <!-- ============ JEFE: CARGA RÁPIDA ============ -->
+    <section x-show="view==='carga'" class="max-w-3xl mx-auto">
+      <h1 class="text-2xl font-bold mb-1">Carga rápida mensual</h1>
+      <p class="text-slate-600 text-sm mb-5">Ingrese solo los datos base. El sistema calcula el resultado y el semáforo por usted.</p>
+
+      <div class="card p-4 mb-4" x-show="pendientesTotal()" x-transition>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Pendientes de carga</div>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="p in listaPendientes()" :key="p.ind.id + p.periodo">
+            <button class="text-sm px-3 py-1.5 rounded-full border border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    @click="elegirPendiente(p)"><b x-text="p.ind.codigo"></b> · <span x-text="p.etiqueta"></span></button>
+          </template>
+        </div>
+      </div>
+      <div class="card p-4 mb-4 text-sm text-green-800 bg-green-50 border-green-200" x-show="!pendientesTotal() && indicadores.length">✔ Está al día con todas sus cargas.</div>
+
+      <div class="card p-4 md:p-6 space-y-5">
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="lbl">Indicador</label>
+            <select class="inp" x-model.number="f.indicador_id" @change="cambiarIndicador()">
+              <option value="">Seleccione…</option>
+              <template x-for="i in indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template>
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Período</label>
+            <select class="inp" x-model="f.periodo" @change="cambiarPeriodo()" :disabled="!periodosInd.length">
+              <template x-for="p in periodosInd" :key="p.periodo">
+                <option :value="p.periodo" x-text="p.etiqueta + (p.actual ? ' (en curso)' : '') + estadoSufijo(p)"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <template x-if="ind">
+          <div class="space-y-5 fade-in">
+            <div class="text-sm bg-slate-50 border border-slate-200 rounded p-3 space-y-1">
+              <div class="text-slate-700" x-text="ind.objetivo"></div>
+              <div class="text-xs text-slate-500">
+                Meta: <b x-text="umbralTxt(ind)"></b> · Fórmula: <code class="bg-white border px-1 rounded" x-text="formulaLegible(ind)"></code>
+              </div>
+            </div>
+
+            <!-- ya cargado -->
+            <div x-show="medActual && medActual.estado!=='observado'" class="rounded p-3 text-sm border" :class="medActual && medActual.estado==='aprobado' ? 'bg-green-50 border-green-200 text-green-900' : 'bg-sky-50 border-sky-200 text-sky-900'">
+              <b x-text="medActual && medActual.estado==='aprobado' ? 'Carga aprobada.' : 'Carga enviada, en revisión.'"></b>
+              <span x-text="medActual ? ' Cargada por ' + medActual.cargado_por + ' el ' + fecha(medActual.cargado_en) + '.' : ''"></span>
+              <span x-show="medActual && medActual.nota_revision" x-text="' Nota del auditor: ' + (medActual && medActual.nota_revision)"></span>
+            </div>
+            <div x-show="medActual && medActual.estado==='observado'" class="rounded p-3 text-sm border bg-amber-50 border-amber-300 text-amber-900">
+              <b>Carga devuelta por el Gerente / Auditor.</b> Corrija y reenvíe.<br>
+              <span x-text="'Observación: ' + (medActual ? medActual.nota_revision : '')"></span>
+            </div>
+
+            <!-- variables -->
+            <div class="grid sm:grid-cols-2 gap-4">
+              <template x-for="v in ind.variables" :key="v.clave">
+                <div>
+                  <label class="lbl" x-text="v.etiqueta"></label>
+                  <input class="inp !text-lg !font-semibold" type="number" inputmode="decimal" step="any" min="0"
+                         :disabled="bloqueado" x-model="f.valores[v.clave]" @input.debounce.200ms="calcular()" placeholder="0">
+                </div>
+              </template>
+            </div>
+
+            <!-- resultado -->
+            <div class="rounded-lg border-2 p-4 flex items-center justify-between gap-4 transition-colors"
+                 :class="calc && calc.ok ? semBorde(calc.semaforo) : 'border-slate-200 bg-slate-50'">
+              <div>
+                <div class="text-xs uppercase font-semibold tracking-wide text-slate-500">Resultado</div>
+                <div class="text-4xl font-bold" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad) : '—'"></div>
+                <div class="text-sm text-red-600" x-show="calc && !calc.ok && f.tocado" x-text="calc && calc.error"></div>
+              </div>
+              <div x-show="calc && calc.ok" class="text-right">
+                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white font-bold" :class="semBg(calc && calc.semaforo)" x-text="semTxt(calc && calc.semaforo)"></span>
+                <div class="text-xs text-slate-500 mt-1" x-text="'Meta ' + umbralTxt(ind)"></div>
+              </div>
+            </div>
+
+            <!-- análisis obligatorio -->
+            <div x-show="calc && calc.ok && calc.requiere_analisis" x-transition class="space-y-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+              <div class="text-sm font-semibold text-amber-900">Indicador fuera de meta — el análisis y el plan de mejora son obligatorios (ISO 9001:2015).</div>
+              <div>
+                <label class="lbl">Resultados del análisis <span class="text-red-600">*</span></label>
+                <textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.analisis" placeholder="¿Qué causó la desviación?"></textarea>
+              </div>
+              <div>
+                <label class="lbl">Correcciones / plan de mejora <span class="text-red-600">*</span></label>
+                <textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.plan_mejora" placeholder="Acciones, responsable y fecha compromiso"></textarea>
+              </div>
+              <div class="text-xs text-amber-800" x-show="!bloqueado && !analisisOk()">Mínimo 10 caracteres en cada campo.</div>
+            </div>
+
+            <div class="flex justify-end" x-show="!bloqueado">
+              <button class="btn btn-p w-full sm:w-auto" :disabled="!puedeEnviar() || busy" @click="enviar()" x-text="medActual && medActual.estado==='observado' ? 'Reenviar para revisión' : 'Enviar carga'"></button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ============ HISTORIAL / CARGAS ============ -->
+    <section x-show="view==='historial'">
+      <h1 class="text-2xl font-bold mb-4" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <select class="inp !w-auto" x-model="filtro.indicador_id" @change="cargarHistorial()">
+          <option value="">Todos los indicadores</option>
+          <template x-for="i in indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template>
+        </select>
+        <select class="inp !w-auto" x-model="filtro.estado" @change="cargarHistorial()">
+          <option value="">Todos los estados</option><option value="enviado">En revisión</option><option value="aprobado">Aprobado</option><option value="observado">Devuelto</option>
+        </select>
+        <a class="btn btn-s ml-auto" x-show="user.rol!=='jefe'" href="/api/export/mediciones.csv">Exportar CSV</a>
+      </div>
+      <div class="space-y-3">
+        <template x-for="m in historial" :key="'h'+m.id">
+          <div class="card" x-data="{open:false}">
+            <button class="w-full text-left p-3 flex flex-wrap items-center gap-x-4 gap-y-1" @click="open=!open">
+              <span class="font-bold w-16" x-text="m.codigo"></span>
+              <span class="flex-1 min-w-[10rem] text-sm" x-text="m.indicador"></span>
+              <span class="text-sm text-slate-500" x-text="m.periodo_etiqueta"></span>
+              <span class="font-semibold" x-text="fmt(m.resultado, m.unidad)"></span>
+              <span class="w-3 h-3 rounded-full" :class="semBg(m.semaforo)" :title="semTxt(m.semaforo)"></span>
+              <span class="text-xs px-2 py-0.5 rounded-full border" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span>
+            </button>
+            <div x-show="open" class="border-t border-slate-100 p-3 space-y-3" x-transition>
+              <div x-html="detalleHtml(m)"></div>
+              <div class="flex gap-2" x-show="user.rol==='gerente'">
+                <input class="inp" x-model="notasHist[m.id]" placeholder="Agregar nota de auditoría" @keydown.enter.prevent="agregarNota(m)">
+                <button class="btn btn-s whitespace-nowrap" :disabled="busy" @click="agregarNota(m)">Agregar nota</button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <p class="text-sm text-slate-500" x-show="!historial.length">No hay cargas registradas.</p>
+      </div>
+    </section>
+
+    <!-- ============ BANDEJA ============ -->
+    <section x-show="view==='bandeja'" class="max-w-4xl">
+      <h1 class="text-2xl font-bold mb-1">Bandeja de aprobación</h1>
+      <p class="text-slate-600 text-sm mb-5">Cargas enviadas por los jefes de área, pendientes de revisión.</p>
+      <div class="space-y-4">
+        <template x-for="m in bandeja" :key="m.id">
+          <div class="card p-4 space-y-3 fade-in">
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex-1 min-w-[12rem]">
+                <div class="text-xs text-slate-500" x-text="m.area + ' · ' + m.periodo_etiqueta + (m.version>1 ? ' · reenvío v'+m.version : '')"></div>
+                <div class="font-bold"><span x-text="m.codigo"></span> · <span x-text="m.indicador"></span></div>
+              </div>
+              <div class="text-2xl font-bold" x-text="fmt(m.resultado, m.unidad)"></div>
+              <span class="inline-flex px-3 py-1 rounded-full text-white text-sm font-bold" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span>
+            </div>
+            <div x-html="detalleHtml(m)"></div>
+            <div>
+              <label class="lbl">Nota de auditoría / motivo de devolución</label>
+              <textarea class="inp" rows="2" x-model="notas[m.id]" placeholder="Opcional al aprobar; obligatoria al devolver"></textarea>
+            </div>
+            <div class="flex flex-wrap gap-2 justify-end">
+              <button class="btn btn-d" :disabled="busy" @click="revisar(m,'observar')">Devolver con observación</button>
+              <button class="btn btn-p" :disabled="busy" @click="revisar(m,'aprobar')">Aprobar formalmente</button>
+            </div>
+          </div>
+        </template>
+        <div class="card p-8 text-center text-slate-500" x-show="!bandeja.length">✔ No hay cargas pendientes de revisión.</div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL ============ -->
+    <section x-show="view==='panel'">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <h1 class="text-2xl font-bold flex-1">Panel de análisis</h1>
+        <select class="inp !w-auto" x-model="panelArea" @change="cargarPanel()">
+          <option value="">Todas las áreas</option>
+          <template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template>
+        </select>
+      </div>
+      <template x-if="dash">
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          <template x-for="k in kpis()" :key="k.t">
+            <div class="card p-3 border-l-4" :style="'border-left-color:'+k.c">
+              <div class="text-xs uppercase tracking-wide text-slate-500 font-semibold" x-text="k.t"></div>
+              <div class="text-2xl font-bold" x-text="k.v"></div>
+            </div>
+          </template>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="card p-4 lg:col-span-2">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <h2 class="font-semibold flex-1">Tendencia vs. meta</h2>
+              <select class="inp !w-auto !py-1 text-sm max-w-full" x-model.number="tendInd" @change="dibujar()">
+                <template x-for="i in dash.indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template>
+              </select>
+            </div>
+            <div class="h-72"><canvas id="ch-tend"></canvas></div>
+          </div>
+          <div class="card p-4">
+            <h2 class="font-semibold mb-2">Distribución de semáforos</h2>
+            <div class="h-72"><canvas id="ch-dist"></canvas></div>
+          </div>
+        </div>
+        <div class="card p-4">
+          <h2 class="font-semibold mb-1">Cumplimiento por departamento</h2>
+          <p class="text-xs text-slate-500 mb-2">% de indicadores por semáforo según su última medición; la parte verde es el cumplimiento.</p>
+          <div class="h-72"><canvas id="ch-area"></canvas></div>
+        </div>
+        <div class="card overflow-x-auto">
+          <table class="w-full">
+            <thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Último período</th><th class="th">Resultado</th><th class="th">Meta</th><th class="th">Semáforo</th></tr></thead>
+            <tbody>
+              <template x-for="i in dash.indicadores" :key="i.id">
+                <tr class="hover:bg-slate-50 cursor-pointer" @click="tendInd=i.id; dibujar(); window.scrollTo({top:0,behavior:'smooth'})">
+                  <td class="td font-semibold" x-text="i.codigo"></td><td class="td" x-text="i.nombre"></td><td class="td" x-text="i.area"></td>
+                  <td class="td"><span x-text="i.ultimo ? i.ultimo.etiqueta : '—'"></span><span x-show="i.pendiente" class="ml-1 text-xs text-amber-700">(carga pendiente)</span></td>
+                  <td class="td font-semibold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad) : '—'"></td>
+                  <td class="td" x-text="umbralTxt(i)"></td>
+                  <td class="td"><span x-show="i.ultimo" class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-full" :class="semBg(i.ultimo && i.ultimo.semaforo)"></span><span x-text="semTxt(i.ultimo && i.ultimo.semaforo)"></span></span></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </template>
+    </section>
+
+    <!-- ============ FICHAS (ADMIN) ============ -->
+    <section x-show="view==='fichas'">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <h1 class="text-2xl font-bold flex-1">Fichas técnicas de indicadores</h1>
+        <button class="btn btn-p" @click="nuevaFicha()">+ Nuevo indicador</button>
+      </div>
+      <div class="card overflow-x-auto">
+        <table class="w-full">
+          <thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Frecuencia</th><th class="th">Unidad</th><th class="th">Meta / Límite</th><th class="th">Estado</th><th class="th"></th></tr></thead>
+          <tbody>
+            <template x-for="i in indicadores" :key="i.id">
+              <tr :class="!i.activo && 'opacity-50'">
+                <td class="td font-semibold" x-text="i.codigo"></td>
+                <td class="td"><div x-text="i.nombre"></div><div class="text-xs text-slate-500 font-mono" x-text="i.formula"></div></td>
+                <td class="td" x-text="i.area"></td><td class="td capitalize" x-text="i.frecuencia"></td><td class="td" x-text="i.unidad"></td>
+                <td class="td whitespace-nowrap"><span x-text="(i.sentido==='mayor'?'≥ ':'≤ ')+i.meta+' / '+i.limite"></span><div class="text-xs text-slate-500" x-text="i.sentido==='mayor'?'mayor es mejor':'menor es mejor'"></div></td>
+                <td class="td" x-text="i.activo ? 'Activo' : 'Archivado'"></td>
+                <td class="td whitespace-nowrap text-right">
+                  <button class="btn btn-s !py-1" @click="editarFicha(i)">Editar</button>
+                  <button class="btn btn-d !py-1" @click="eliminarFicha(i)">Eliminar</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- modal -->
+      <div class="fixed inset-0 z-40 bg-navy/60 flex items-start justify-center overflow-y-auto p-4" x-show="modal" x-transition.opacity>
+        <form class="card w-full max-w-2xl p-5 my-8 space-y-4" @submit.prevent="guardarFicha()" @keydown.escape.window="modal=false">
+          <h2 class="text-lg font-bold" x-text="ficha.id ? 'Editar indicador' : 'Nuevo indicador'"></h2>
+          <div class="grid sm:grid-cols-3 gap-3">
+            <div><label class="lbl">Código</label><input class="inp" x-model="ficha.codigo" required></div>
+            <div class="sm:col-span-2"><label class="lbl">Nombre</label><input class="inp" x-model="ficha.nombre" required></div>
+          </div>
+          <div><label class="lbl">Objetivo</label><textarea class="inp" rows="2" x-model="ficha.objetivo"></textarea></div>
+          <div class="grid sm:grid-cols-3 gap-3">
+            <div><label class="lbl">Área</label><select class="inp" x-model.number="ficha.area_id" required><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select></div>
+            <div><label class="lbl">Unidad</label><select class="inp" x-model="ficha.unidad"><template x-for="u in ['%','días','TM','USD','cantidad']"><option x-text="u"></option></template></select></div>
+            <div><label class="lbl">Frecuencia</label><select class="inp" x-model="ficha.frecuencia"><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option></select></div>
+          </div>
+          <div class="grid sm:grid-cols-3 gap-3">
+            <div><label class="lbl">Sentido</label><select class="inp" x-model="ficha.sentido"><option value="mayor">Mayor es mejor</option><option value="menor">Menor es mejor (inversa)</option></select></div>
+            <div><label class="lbl" x-text="'Meta (verde '+(ficha.sentido==='mayor'?'≥':'≤')+')'"></label><input class="inp" type="number" step="any" x-model.number="ficha.meta" required></div>
+            <div><label class="lbl" x-text="'Límite crítico (rojo '+(ficha.sentido==='mayor'?'<':'>')+')'"></label><input class="inp" type="number" step="any" x-model.number="ficha.limite" required></div>
+          </div>
+          <p class="text-xs text-slate-500" x-text="semaforoAyuda()"></p>
+          <div>
+            <label class="lbl">Variables que carga el jefe de área</label>
+            <div class="space-y-2">
+              <template x-for="(v,idx) in ficha.variables" :key="idx">
+                <div class="flex gap-2">
+                  <input class="inp !w-40 font-mono text-sm" x-model="v.clave" placeholder="clave" pattern="[a-z][a-z0-9_]*" @input="validarFormula()">
+                  <input class="inp" x-model="v.etiqueta" placeholder="Etiqueta visible">
+                  <button type="button" class="btn btn-s !px-3" @click="ficha.variables.splice(idx,1); validarFormula()" :disabled="ficha.variables.length<2">✕</button>
+                </div>
+              </template>
+            </div>
+            <button type="button" class="btn btn-s !py-1 mt-2" @click="ficha.variables.push({clave:'',etiqueta:''})" :disabled="ficha.variables.length>=8">+ Variable</button>
+          </div>
+          <div>
+            <label class="lbl">Fórmula</label>
+            <input class="inp font-mono" x-model="ficha.formula" @input.debounce.300ms="validarFormula()" required>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <template x-for="v in ficha.variables.filter(v=>v.clave)"><button type="button" class="text-xs px-2 py-0.5 border rounded font-mono hover:bg-slate-100" @click="ficha.formula += (ficha.formula&&!ficha.formula.endsWith(' ')?' ':'')+v.clave; validarFormula()" x-text="v.clave"></button></template>
+            </div>
+            <p class="text-xs mt-1" :class="formulaMsg.ok ? 'text-green-700' : 'text-red-600'" x-text="formulaMsg.txt"></p>
+          </div>
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="ficha.activo"> Indicador activo</label>
+          <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <button type="button" class="btn btn-s" @click="modal=false">Cancelar</button>
+            <button class="btn btn-p" :disabled="busy">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============ BITÁCORA ============ -->
+    <section x-show="view==='bitacora'">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <h1 class="text-2xl font-bold flex-1">Bitácora de trazabilidad</h1>
+        <select class="inp !w-auto" x-model="bitAccion" @change="cargarBitacora()">
+          <option value="">Todas las acciones</option>
+          <template x-for="a in ['CARGA','REENVIO','APROBACION','OBSERVACION','NOTA_AUDITORIA','INDICADOR_CREADO','INDICADOR_EDITADO','INDICADOR_ARCHIVADO','INDICADOR_ELIMINADO','INICIO_SESION']"><option :value="a" x-text="a.replace('_',' ').toLowerCase()"></option></template>
+        </select>
+        <button class="btn btn-s" x-show="user.rol!=='jefe'" @click="verificarBitacora()">Verificar integridad</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">Registro de solo inserción con cadena de hashes SHA-256: cualquier alteración posterior invalida la verificación.</p>
+      <div class="card overflow-x-auto">
+        <table class="w-full">
+          <thead><tr><th class="th">#</th><th class="th">Fecha</th><th class="th">Usuario</th><th class="th">Acción</th><th class="th">Detalle</th><th class="th">Hash</th></tr></thead>
+          <tbody>
+            <template x-for="b in bitacora" :key="b.id">
+              <tr>
+                <td class="td text-slate-400" x-text="b.id"></td>
+                <td class="td whitespace-nowrap" x-text="fecha(b.fecha)"></td>
+                <td class="td"><div x-text="b.usuario.split(' (')[0]"></div><div class="text-xs text-slate-500" x-text="b.rol"></div></td>
+                <td class="td"><span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100" x-text="b.accion"></span></td>
+                <td class="td text-xs text-slate-700 max-w-md" x-text="resumenBit(b)"></td>
+                <td class="td font-mono text-xs text-slate-400" x-text="b.hash.slice(0,10)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+</template>
+</body>
+</html>

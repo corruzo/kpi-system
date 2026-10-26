@@ -1,0 +1,515 @@
+"""SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A."""
+import csv
+import io
+import os
+import threading
+from contextlib import asynccontextmanager
+from datetime import date
+from pathlib import Path
+from typing import Literal
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from . import audit, calc, security
+from .database import Base, SessionLocal, engine, get_db
+from .models import Area, Bitacora, Indicador, Medicion, NotaAuditoria, Usuario, ahora
+from .seed import CLAVE_DEMO, sembrar
+
+STATIC = Path(__file__).parent / "static"
+DEMO = os.getenv("SIGT_DEMO", "1") == "1"
+_lock = threading.Lock()  # serializa escrituras para mantener íntegra la cadena de la bitácora
+
+
+@asynccontextmanager
+async def lifespan(_):
+    Base.metadata.create_all(engine)
+    if DEMO:
+        with SessionLocal() as db:
+            sembrar(db)
+    yield
+
+
+app = FastAPI(title="SIGT Tripoliven", lifespan=lifespan)
+
+
+# ------------------------------------------------------------- seguridad
+def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:
+    uid = security.leer_token(request.cookies.get(security.COOKIE))
+    u = db.get(Usuario, uid) if uid else None
+    if not u or not u.activo:
+        raise HTTPException(401, "Sesión no válida o expirada.")
+    return u
+
+
+def requiere(*roles: str):
+    def dep(u: Usuario = Depends(usuario_actual)) -> Usuario:
+        if u.rol not in roles:
+            raise HTTPException(403, "No tiene permisos para esta acción.")
+        return u
+    return dep
+
+
+def escritura():
+    with _lock:
+        yield
+
+
+def iso(d):
+    return d.isoformat() + "Z" if d else None
+
+
+# ---------------------------------------------------------- serializadores
+def u_out(u: Usuario):
+    return {"id": u.id, "username": u.username, "nombre": u.nombre, "rol": u.rol,
+            "area_id": u.area_id, "area": u.area.nombre if u.area else None}
+
+
+def ind_out(i: Indicador):
+    return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo,
+            "area_id": i.area_id, "area": i.area.nombre, "unidad": i.unidad,
+            "frecuencia": i.frecuencia, "sentido": i.sentido, "formula": i.formula,
+            "variables": i.variables, "meta": i.meta, "limite": i.limite, "activo": i.activo}
+
+
+def med_out(m: Medicion):
+    i = m.indicador
+    return {"id": m.id, "indicador_id": i.id, "codigo": i.codigo, "indicador": i.nombre,
+            "area": i.area.nombre, "area_id": i.area_id, "unidad": i.unidad,
+            "frecuencia": i.frecuencia, "variables": i.variables, "periodo": m.periodo,
+            "periodo_etiqueta": calc.etiqueta(i.frecuencia, m.periodo),
+            "valores": m.valores, "resultado": m.resultado, "semaforo": m.semaforo,
+            "meta": m.meta, "limite": m.limite, "sentido": m.sentido, "estado": m.estado,
+            "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
+            "cargado_por": m.cargado_por.nombre, "cargado_en": iso(m.cargado_en),
+            "revisado_por": m.revisado_por.nombre if m.revisado_por else None,
+            "revisado_en": iso(m.revisado_en), "nota_revision": m.nota_revision,
+            "notas": [{"id": n.id, "usuario": n.usuario.nombre, "fecha": iso(n.fecha),
+                       "texto": n.texto} for n in m.notas]}
+
+
+def bit_out(b: Bitacora):
+    return {"id": b.id, "fecha": iso(b.fecha), "usuario": b.usuario_nombre, "rol": b.rol,
+            "accion": b.accion, "entidad": b.entidad, "entidad_id": b.entidad_id,
+            "indicador_id": b.indicador_id, "area_id": b.area_id, "detalle": b.detalle,
+            "hash": b.hash}
+
+
+# ------------------------------------------------------------- esquemas
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class CalcIn(BaseModel):
+    indicador_id: int
+    valores: dict[str, float | None]
+
+
+class CargaIn(CalcIn):
+    periodo: str
+    analisis: str = ""
+    plan_mejora: str = ""
+
+
+class RevisionIn(BaseModel):
+    accion: Literal["aprobar", "observar"]
+    nota: str = ""
+
+
+class NotaIn(BaseModel):
+    texto: str = Field(min_length=3, max_length=2000)
+
+
+class VariableIn(BaseModel):
+    clave: str = Field(pattern=r"^[a-z][a-z0-9_]{0,39}$")
+    etiqueta: str = Field(min_length=2, max_length=80)
+
+
+class IndicadorIn(BaseModel):
+    codigo: str = Field(min_length=2, max_length=20)
+    nombre: str = Field(min_length=3, max_length=150)
+    objetivo: str = ""
+    area_id: int
+    unidad: Literal["%", "días", "TM", "USD", "cantidad"]
+    frecuencia: Literal["mensual", "trimestral", "semestral"]
+    sentido: Literal["mayor", "menor"]
+    formula: str
+    variables: list[VariableIn] = Field(min_length=1, max_length=8)
+    meta: float
+    limite: float
+    activo: bool = True
+
+    @field_validator("codigo")
+    @classmethod
+    def _cod(cls, v):
+        return v.strip().upper()
+
+
+class FormulaIn(BaseModel):
+    formula: str
+    claves: list[str]
+
+
+# --------------------------------------------------------------- helpers
+def _ind_visible(db: Session, u: Usuario, ind_id: int) -> Indicador:
+    ind = db.get(Indicador, ind_id)
+    if not ind or (u.rol != "admin" and not ind.activo):
+        raise HTTPException(404, "Indicador no encontrado.")
+    if u.rol == "jefe" and ind.area_id != u.area_id:
+        raise HTTPException(403, "Este indicador pertenece a otra área.")
+    return ind
+
+
+def _calcular(ind: Indicador, valores: dict) -> dict:
+    claves = [v["clave"] for v in ind.variables]
+    faltan = [v["etiqueta"] for v in ind.variables if valores.get(v["clave"]) is None]
+    if faltan:
+        return {"ok": False, "error": "Complete: " + ", ".join(faltan) + "."}
+    if any(valores[c] < 0 for c in claves):
+        return {"ok": False, "error": "Los valores no pueden ser negativos."}
+    try:
+        res = calc.evaluar(ind.formula, {c: float(valores[c]) for c in claves})
+    except calc.FormulaError as e:
+        return {"ok": False, "error": str(e)}
+    sem = calc.semaforo(res, ind.meta, ind.limite, ind.sentido)
+    return {"ok": True, "resultado": res, "semaforo": sem, "requiere_analisis": sem != "verde"}
+
+
+def _estados(db: Session, ind_id: int) -> dict[str, str]:
+    return dict(db.execute(select(Medicion.periodo, Medicion.estado)
+                           .where(Medicion.indicador_id == ind_id)).all())
+
+
+# ------------------------------------------------------------------ auth
+@app.post("/api/login")
+def login(datos: LoginIn, response: Response, db: Session = Depends(get_db),
+          _=Depends(escritura)):
+    u = db.scalar(select(Usuario).where(Usuario.username == datos.username.strip().lower()))
+    if not u or not u.activo or not security.verificar_password(datos.password, u.password_hash):
+        raise HTTPException(401, "Usuario o contraseña incorrectos.")
+    audit.registrar(db, u, "INICIO_SESION", "usuario", u.id)
+    db.commit()
+    response.set_cookie(security.COOKIE, security.crear_token(u.id), httponly=True,
+                        samesite="lax", max_age=security.DURACION)
+    return u_out(u)
+
+
+@app.post("/api/logout")
+def logout(response: Response):
+    response.delete_cookie(security.COOKIE)
+    return {"ok": True}
+
+
+@app.get("/api/me")
+def me(u: Usuario = Depends(usuario_actual)):
+    return u_out(u)
+
+
+@app.get("/api/demo-usuarios")
+def demo_usuarios(db: Session = Depends(get_db)):
+    if not DEMO:
+        return []
+    sel = ["j.sistemas", "j.produccion", "j.mantenimiento", "gerente", "admin"]
+    us = db.scalars(select(Usuario).where(Usuario.username.in_(sel))).all()
+    us.sort(key=lambda x: sel.index(x.username))
+    return [{**u_out(u), "password": CLAVE_DEMO} for u in us]
+
+
+@app.get("/api/areas")
+def areas(db: Session = Depends(get_db), _=Depends(usuario_actual)):
+    return [{"id": a.id, "nombre": a.nombre} for a in db.scalars(select(Area).order_by(Area.nombre))]
+
+
+# ------------------------------------------------------------ indicadores
+@app.get("/api/indicadores")
+def listar_indicadores(db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    q = select(Indicador).order_by(Indicador.codigo)
+    if u.rol == "jefe":
+        q = q.where(Indicador.area_id == u.area_id)
+    if u.rol != "admin":
+        q = q.where(Indicador.activo.is_(True))
+    hoy = date.today()
+    out = []
+    for i in db.scalars(q):
+        d = ind_out(i)
+        pend = calc.periodos_pendientes(i.frecuencia, hoy, _estados(db, i.id))
+        d["pendientes"] = [{"periodo": p, "etiqueta": calc.etiqueta(i.frecuencia, p)} for p in pend]
+        out.append(d)
+    return out
+
+
+def _validar_ficha(db: Session, d: IndicadorIn, actual_id: int | None = None):
+    claves = [v.clave for v in d.variables]
+    if len(set(claves)) != len(claves):
+        raise HTTPException(422, "Las claves de las variables no pueden repetirse.")
+    try:
+        calc.validar_formula(d.formula, claves)
+        calc.validar_umbrales(d.meta, d.limite, d.sentido)
+    except (calc.FormulaError, ValueError) as e:
+        raise HTTPException(422, str(e))
+    if not db.get(Area, d.area_id):
+        raise HTTPException(422, "Área inexistente.")
+    dup = db.scalar(select(Indicador).where(Indicador.codigo == d.codigo))
+    if dup and dup.id != actual_id:
+        raise HTTPException(422, f"Ya existe un indicador con el código {d.codigo}.")
+
+
+@app.post("/api/formula/validar")
+def validar_formula(d: FormulaIn, _=Depends(requiere("admin"))):
+    try:
+        calc.validar_formula(d.formula, d.claves)
+        return {"ok": True}
+    except calc.FormulaError as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/indicadores", status_code=201)
+def crear_indicador(d: IndicadorIn, db: Session = Depends(get_db),
+                    u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    _validar_ficha(db, d)
+    ind = Indicador(**d.model_dump(exclude={"variables"}), variables=[v.model_dump() for v in d.variables])
+    db.add(ind)
+    db.flush()
+    audit.registrar(db, u, "INDICADOR_CREADO", "indicador", ind.id,
+                    {"codigo": ind.codigo, "nombre": ind.nombre, "formula": ind.formula,
+                     "meta": ind.meta, "limite": ind.limite, "sentido": ind.sentido}, ind)
+    db.commit()
+    return ind_out(ind)
+
+
+@app.put("/api/indicadores/{ind_id}")
+def editar_indicador(ind_id: int, d: IndicadorIn, db: Session = Depends(get_db),
+                     u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    ind = db.get(Indicador, ind_id)
+    if not ind:
+        raise HTTPException(404, "Indicador no encontrado.")
+    _validar_ficha(db, d, ind_id)
+    nuevos = {**d.model_dump(exclude={"variables"}), "variables": [v.model_dump() for v in d.variables]}
+    cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items() if getattr(ind, k) != v}
+    for k, v in nuevos.items():
+        setattr(ind, k, v)
+    if cambios:
+        audit.registrar(db, u, "INDICADOR_EDITADO", "indicador", ind.id,
+                        {"codigo": ind.codigo, "cambios": cambios}, ind)
+    db.commit()
+    return ind_out(ind)
+
+
+@app.delete("/api/indicadores/{ind_id}")
+def eliminar_indicador(ind_id: int, db: Session = Depends(get_db),
+                       u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    ind = db.get(Indicador, ind_id)
+    if not ind:
+        raise HTTPException(404, "Indicador no encontrado.")
+    tiene = db.scalar(select(Medicion.id).where(Medicion.indicador_id == ind_id).limit(1))
+    if tiene:  # se conserva la trazabilidad: se archiva en lugar de borrar
+        ind.activo = False
+        audit.registrar(db, u, "INDICADOR_ARCHIVADO", "indicador", ind.id, {"codigo": ind.codigo}, ind)
+        db.commit()
+        return {"ok": True, "archivado": True}
+    audit.registrar(db, u, "INDICADOR_ELIMINADO", "indicador", ind.id,
+                    {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
+    db.delete(ind)
+    db.commit()
+    return {"ok": True, "archivado": False}
+
+
+@app.get("/api/indicadores/{ind_id}/periodos")
+def periodos(ind_id: int, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    ind = _ind_visible(db, u, ind_id)
+    hoy = date.today()
+    meds = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind_id))}
+    pend = calc.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in meds.items()})
+    return {"sugerido": pend[0] if pend else None,
+            "periodos": [{"periodo": p, "etiqueta": calc.etiqueta(ind.frecuencia, p),
+                          "actual": i == 0, "pendiente": p in pend,
+                          "medicion": med_out(meds[p]) if p in meds else None}
+                         for i, p in enumerate(calc.periodos_recientes(ind.frecuencia, hoy))]}
+
+
+# ------------------------------------------------------------ mediciones
+@app.post("/api/calcular")
+def calcular(d: CalcIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe"))):
+    return _calcular(_ind_visible(db, u, d.indicador_id), d.valores)
+
+
+@app.post("/api/mediciones", status_code=201)
+def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe")),
+           _=Depends(escritura)):
+    ind = _ind_visible(db, u, d.indicador_id)
+    if not ind.activo:
+        raise HTTPException(409, "El indicador está archivado.")
+    if not calc.periodo_valido(ind.frecuencia, d.periodo) or \
+            calc.es_futuro(ind.frecuencia, d.periodo, date.today()):
+        raise HTTPException(422, "Período no válido para la frecuencia del indicador.")
+    r = _calcular(ind, d.valores)
+    if not r["ok"]:
+        raise HTTPException(422, r["error"])
+    analisis, plan = d.analisis.strip(), d.plan_mejora.strip()
+    if r["requiere_analisis"] and (len(analisis) < 10 or len(plan) < 10):
+        raise HTTPException(422, "El indicador está fuera de meta: el análisis de resultados y "
+                                 "las correcciones / plan de mejora son obligatorios (ISO 9001:2015, 9.1.3 y 10.2).")
+    valores = {v["clave"]: float(d.valores[v["clave"]]) for v in ind.variables}
+    m = db.scalar(select(Medicion).where(Medicion.indicador_id == ind.id, Medicion.periodo == d.periodo))
+    if m and m.estado != "observado":
+        raise HTTPException(409, "Este período ya fue cargado y no puede modificarse.")
+    reenvio = m is not None
+    if m is None:
+        m = Medicion(indicador_id=ind.id, periodo=d.periodo, version=1)
+        db.add(m)
+    else:
+        m.version += 1
+    m.valores, m.resultado, m.semaforo = valores, r["resultado"], r["semaforo"]
+    m.meta, m.limite, m.sentido = ind.meta, ind.limite, ind.sentido
+    m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
+    m.cargado_por_id, m.cargado_en = u.id, ahora()
+    m.revisado_por_id = m.revisado_en = None
+    m.nota_revision = ""
+    db.flush()
+    audit.registrar(db, u, "REENVIO" if reenvio else "CARGA", "medicion", m.id,
+                    {"periodo": m.periodo, "valores": valores, "resultado": m.resultado,
+                     "semaforo": m.semaforo, "analisis": analisis, "plan_mejora": plan,
+                     "version": m.version}, ind)
+    db.commit()
+    return med_out(m)
+
+
+@app.get("/api/mediciones")
+def listar_mediciones(estado: str | None = None, indicador_id: int | None = None,
+                      area_id: int | None = None, limite: int = 300,
+                      db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    q = select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc()).limit(min(limite, 1000))
+    if u.rol == "jefe":
+        q = q.where(Indicador.area_id == u.area_id)
+    elif area_id:
+        q = q.where(Indicador.area_id == area_id)
+    if estado:
+        q = q.where(Medicion.estado == estado)
+    if indicador_id:
+        q = q.where(Medicion.indicador_id == indicador_id)
+    return [med_out(m) for m in db.scalars(q)]
+
+
+def _med(db, u, med_id) -> Medicion:
+    m = db.get(Medicion, med_id)
+    if not m:
+        raise HTTPException(404, "Carga no encontrada.")
+    return m
+
+
+@app.post("/api/mediciones/{med_id}/revision")
+def revisar(med_id: int, d: RevisionIn, db: Session = Depends(get_db),
+            u: Usuario = Depends(requiere("gerente")), _=Depends(escritura)):
+    m = _med(db, u, med_id)
+    if m.estado != "enviado":
+        raise HTTPException(409, "Solo se pueden revisar cargas en estado «enviado».")
+    nota = d.nota.strip()
+    if d.accion == "observar" and len(nota) < 5:
+        raise HTTPException(422, "Indique el motivo de la devolución.")
+    m.estado = "aprobado" if d.accion == "aprobar" else "observado"
+    m.revisado_por_id, m.revisado_en, m.nota_revision = u.id, ahora(), nota
+    audit.registrar(db, u, "APROBACION" if d.accion == "aprobar" else "OBSERVACION", "medicion",
+                    m.id, {"periodo": m.periodo, "nota": nota}, m.indicador)
+    db.commit()
+    return med_out(m)
+
+
+@app.post("/api/mediciones/{med_id}/notas", status_code=201)
+def agregar_nota(med_id: int, d: NotaIn, db: Session = Depends(get_db),
+                 u: Usuario = Depends(requiere("gerente")), _=Depends(escritura)):
+    m = _med(db, u, med_id)
+    n = NotaAuditoria(medicion_id=m.id, usuario_id=u.id, texto=d.texto.strip(), fecha=ahora())
+    db.add(n)
+    db.flush()
+    audit.registrar(db, u, "NOTA_AUDITORIA", "medicion", m.id,
+                    {"periodo": m.periodo, "texto": n.texto}, m.indicador)
+    db.commit()
+    db.refresh(m)
+    return med_out(m)
+
+
+@app.get("/api/export/mediciones.csv")
+def exportar(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Código", "Indicador", "Área", "Período", "Resultado", "Unidad", "Meta", "Límite",
+                "Semáforo", "Estado", "Cargado por", "Cargado en", "Análisis", "Plan de mejora"])
+    for m in db.scalars(select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo)):
+        i = m.indicador
+        w.writerow([i.codigo, i.nombre, i.area.nombre, m.periodo, m.resultado, i.unidad, m.meta,
+                    m.limite, m.semaforo, m.estado, m.cargado_por.nombre, iso(m.cargado_en),
+                    m.analisis, m.plan_mejora])
+    return StreamingResponse(iter(["﻿" + buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=sigt_mediciones.csv"})
+
+
+# ------------------------------------------------------------- dashboard
+@app.get("/api/dashboard")
+def dashboard(area_id: int | None = None, db: Session = Depends(get_db),
+              _=Depends(requiere("gerente", "admin"))):
+    hoy = date.today()
+    q = select(Indicador).where(Indicador.activo.is_(True)).order_by(Indicador.codigo)
+    if area_id:
+        q = q.where(Indicador.area_id == area_id)
+    inds, por_area = [], {}
+    resumen = {"total": 0, "verde": 0, "amarillo": 0, "rojo": 0, "sin_datos": 0, "pendientes_carga": 0}
+    for i in db.scalars(q):
+        meds = db.scalars(select(Medicion).where(Medicion.indicador_id == i.id)
+                          .order_by(Medicion.periodo)).all()
+        validas = [m for m in meds if m.estado in ("enviado", "aprobado")]
+        ultimo = validas[-1] if validas else None
+        pend = calc.periodos_pendientes(i.frecuencia, hoy, {m.periodo: m.estado for m in meds})
+        inds.append({**ind_out(i), "pendiente": bool(pend),
+                     "ultimo": {"periodo": ultimo.periodo, "etiqueta": calc.etiqueta(i.frecuencia, ultimo.periodo),
+                                "resultado": ultimo.resultado, "semaforo": ultimo.semaforo,
+                                "estado": ultimo.estado} if ultimo else None,
+                     "serie": [{"periodo": m.periodo, "etiqueta": calc.etiqueta(i.frecuencia, m.periodo),
+                                "resultado": m.resultado, "semaforo": m.semaforo, "meta": m.meta,
+                                "limite": m.limite} for m in validas]})
+        a = por_area.setdefault(i.area.nombre, {"area": i.area.nombre, "total": 0, "verde": 0,
+                                                "amarillo": 0, "rojo": 0, "sin_datos": 0})
+        a["total"] += 1
+        resumen["total"] += 1
+        k = ultimo.semaforo if ultimo else "sin_datos"
+        a[k] += 1
+        resumen[k] += 1
+        resumen["pendientes_carga"] += bool(pend)
+    for a in por_area.values():
+        a["cumplimiento"] = round(100 * a["verde"] / a["total"], 1)
+    resumen["por_aprobar"] = len(db.scalars(select(Medicion.id).where(Medicion.estado == "enviado")).all())
+    resumen["cumplimiento"] = round(100 * resumen["verde"] / resumen["total"], 1) if resumen["total"] else 0
+    return {"resumen": resumen, "indicadores": inds, "por_area": list(por_area.values())}
+
+
+# -------------------------------------------------------------- bitácora
+@app.get("/api/bitacora")
+def bitacora(accion: str | None = None, indicador_id: int | None = None, limite: int = 200,
+             db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    q = select(Bitacora).order_by(Bitacora.id.desc()).limit(min(limite, 1000))
+    if u.rol == "jefe":
+        q = q.where(Bitacora.area_id == u.area_id, Bitacora.entidad != "usuario")
+    if accion:
+        q = q.where(Bitacora.accion == accion)
+    if indicador_id:
+        q = q.where(Bitacora.indicador_id == indicador_id)
+    codigos = dict(db.execute(select(Indicador.id, Indicador.codigo)).all())
+    return [{**bit_out(b), "codigo": codigos.get(b.indicador_id)} for b in db.scalars(q)]
+
+
+@app.get("/api/bitacora/verificar")
+def verificar_bitacora(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+    return audit.verificar(db)
+
+
+# ---------------------------------------------------------------- estáticos
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})

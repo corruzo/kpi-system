@@ -1,0 +1,285 @@
+/* SIGT · lógica de interfaz (Alpine.js) */
+const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos: '#94a3b8' };
+const NAVY = '#0f172a', BRAND = '#0284c7';
+const ROLES = { jefe: 'Jefe de Área', gerente: 'Gerente / Auditor SGC', admin: 'Administrador SGC' };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = (v, d) => Number(v).toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: d });
+
+function sigt() {
+  return {
+    ready: false, user: null, demo: [], view: '', busy: false,
+    loginForm: { username: '', password: '' }, loginError: '',
+    toast: { msg: '', error: false }, _toastT: null,
+    indicadores: [], areas: [],
+    // carga rápida
+    f: { indicador_id: '', periodo: '', valores: {}, analisis: '', plan_mejora: '', tocado: false },
+    periodosInd: [], calc: null, _seq: 0,
+    // listas
+    historial: [], filtro: { indicador_id: '', estado: '' }, notasHist: {},
+    bandeja: [], notas: {},
+    dash: null, panelArea: '', tendInd: null,
+    ficha: { variables: [] }, modal: false, formulaMsg: { ok: true, txt: '' },
+    bitacora: [], bitAccion: '',
+
+    // ------------------------------------------------------------ base
+    async init() {
+      try { this.user = await this.api('/api/me', {}, true); await this.alIngresar(); }
+      catch { this.user = null; try { this.demo = await this.api('/api/demo-usuarios', {}, true); } catch { } }
+      this.ready = true;
+    },
+    async api(url, opt = {}, silencioso = false) {
+      const o = { credentials: 'same-origin', ...opt };
+      if (o.body && typeof o.body !== 'string') { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
+      const r = await fetch(url, o);
+      if (!r.ok) {
+        let d = {}; try { d = await r.json(); } catch { }
+        let msg = d.detail || 'Error inesperado.';
+        if (Array.isArray(msg)) msg = msg.map(e => e.msg).join('; ');
+        if (r.status === 401 && this.user) { this.user = null; this.avisar('Su sesión expiró.', true); }
+        else if (!silencioso) this.avisar(msg, true);
+        throw new Error(msg);
+      }
+      return r.json();
+    },
+    avisar(msg, error = false) {
+      this.toast = { msg, error }; clearTimeout(this._toastT);
+      this._toastT = setTimeout(() => this.toast.msg = '', 4500);
+    },
+    async login() {
+      this.busy = true; this.loginError = '';
+      try { this.user = await this.api('/api/login', { method: 'POST', body: this.loginForm }, true); this.loginForm.password = ''; await this.alIngresar(); }
+      catch (e) { this.loginError = e.message; }
+      this.busy = false;
+    },
+    loginDemo(d) { this.loginForm = { username: d.username, password: d.password }; this.login(); },
+    async logout() { await this.api('/api/logout', { method: 'POST' }); this.user = null; this.view = ''; this.demo = await this.api('/api/demo-usuarios', {}, true); },
+    rolNombre: u => ROLES[u.rol],
+    async alIngresar() {
+      await this.cargarIndicadores();
+      if (this.user.rol !== 'jefe') this.areas = await this.api('/api/areas');
+      if (this.user.rol === 'gerente') this.bandeja = await this.api('/api/mediciones?estado=enviado');
+      await this.go({ jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol]);
+    },
+    async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores'); },
+    nav() {
+      const r = this.user.rol;
+      if (r === 'jefe') return [{ id: 'carga', label: 'Carga rápida', badge: this.pendientesTotal() || '' }, { id: 'historial', label: 'Mis cargas' }, { id: 'bitacora', label: 'Bitácora' }];
+      if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis' }, { id: 'bandeja', label: 'Bandeja de aprobación', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas' }, { id: 'bitacora', label: 'Bitácora' }];
+      return [{ id: 'fichas', label: 'Fichas de indicadores' }, { id: 'panel', label: 'Panel de análisis' }, { id: 'bitacora', label: 'Bitácora' }];
+    },
+    async go(v) {
+      this.view = v;
+      if (v === 'carga' && !this.f.indicador_id && this.indicadores.length) {
+        const p = this.listaPendientes()[0];
+        if (p) await this.elegirPendiente(p); else { this.f.indicador_id = this.indicadores[0].id; await this.cambiarIndicador(); }
+      }
+      if (v === 'historial') await this.cargarHistorial();
+      if (v === 'bandeja') await this.cargarBandeja();
+      if (v === 'panel') await this.cargarPanel();
+      if (v === 'fichas') { await this.cargarIndicadores(); }
+      if (v === 'bitacora') await this.cargarBitacora();
+    },
+
+    // --------------------------------------------------------- formatos
+    fmt(v, u) {
+      if (v === null || v === undefined) return '—';
+      return { '%': () => nf(v, 2) + '%', 'días': () => nf(v, 1) + ' d', 'USD': () => '$' + nf(v, 2), 'TM': () => nf(v, 1) + ' TM' }[u]?.() ?? nf(v, 2);
+    },
+    fecha: iso => iso ? new Date(iso).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '',
+    semBg: s => ({ verde: 'bg-green-600', amarillo: 'bg-amber-500', rojo: 'bg-red-600' }[s] || 'bg-slate-300'),
+    semBorde: s => ({ verde: 'border-green-600 bg-green-50', amarillo: 'border-amber-500 bg-amber-50', rojo: 'border-red-600 bg-red-50' }[s] || ''),
+    semTxt: s => ({ verde: 'Cumple', amarillo: 'Alerta', rojo: 'Crítico' }[s] || ''),
+    estadoTxt: e => ({ enviado: 'En revisión', aprobado: 'Aprobado', observado: 'Devuelto' }[e]),
+    estadoClase: e => ({ enviado: 'border-sky-300 bg-sky-50 text-sky-800', aprobado: 'border-green-300 bg-green-50 text-green-800', observado: 'border-amber-300 bg-amber-50 text-amber-800' }[e]),
+    estadoSufijo(p) { return p.medicion ? ' — ' + this.estadoTxt(p.medicion.estado) : ''; },
+    umbralTxt(i) {
+      const [a, b] = i.sentido === 'mayor' ? ['≥', '<'] : ['≤', '>'];
+      return `${a} ${this.fmt(i.meta, i.unidad)} · crítico ${b} ${this.fmt(i.limite, i.unidad)}`;
+    },
+    formulaLegible(i) {
+      let t = i.formula;
+      [...i.variables].sort((a, b) => b.clave.length - a.clave.length).forEach(v => t = t.replace(new RegExp('\\b' + v.clave + '\\b', 'g'), v.etiqueta));
+      return t;
+    },
+
+    // ---------------------------------------------------- carga rápida
+    get ind() { return this.indicadores.find(i => i.id === this.f.indicador_id); },
+    get medActual() { return this.periodosInd.find(p => p.periodo === this.f.periodo)?.medicion || null; },
+    get bloqueado() { return !!this.medActual && this.medActual.estado !== 'observado'; },
+    pendientesTotal() { return this.indicadores.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
+    listaPendientes() { return this.indicadores.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
+    async elegirPendiente(p) { this.f.indicador_id = p.ind.id; await this.cambiarIndicador(p.periodo); },
+    async cambiarIndicador(periodo) {
+      this.calc = null; this.periodosInd = [];
+      if (!this.f.indicador_id) return;
+      await this.refrescarPeriodos();
+      this.f.periodo = periodo || this._sugerido || this.periodosInd[0].periodo;
+      this.cambiarPeriodo();
+    },
+    async refrescarPeriodos() {
+      const r = await this.api(`/api/indicadores/${this.f.indicador_id}/periodos`);
+      this.periodosInd = r.periodos; this._sugerido = r.sugerido;
+    },
+    cambiarPeriodo() {
+      const m = this.medActual;
+      this.f.valores = m ? { ...m.valores } : {};
+      this.f.analisis = m?.analisis || ''; this.f.plan_mejora = m?.plan_mejora || ''; this.f.tocado = false;
+      this.calc = m && m.estado !== 'observado' ? { ok: true, resultado: m.resultado, semaforo: m.semaforo, requiere_analisis: m.semaforo !== 'verde' } : null;
+      if (m?.estado === 'observado') this.calcular();
+    },
+    async calcular() {
+      this.f.tocado = true;
+      const vals = {}; let completo = true;
+      for (const v of this.ind.variables) {
+        const x = this.f.valores[v.clave];
+        if (x === '' || x === undefined || x === null) { vals[v.clave] = null; completo = false; } else vals[v.clave] = Number(x);
+      }
+      if (!completo) { this.calc = null; return; }
+      const n = ++this._seq;
+      try { const r = await this.api('/api/calcular', { method: 'POST', body: { indicador_id: this.ind.id, valores: vals } }, true); if (n === this._seq) this.calc = r; }
+      catch { }
+    },
+    analisisOk() { return this.f.analisis.trim().length >= 10 && this.f.plan_mejora.trim().length >= 10; },
+    puedeEnviar() { return !this.bloqueado && this.calc?.ok && (!this.calc.requiere_analisis || this.analisisOk()); },
+    async enviar() {
+      this.busy = true;
+      try {
+        const vals = Object.fromEntries(this.ind.variables.map(v => [v.clave, Number(this.f.valores[v.clave])]));
+        await this.api('/api/mediciones', { method: 'POST', body: { indicador_id: this.ind.id, periodo: this.f.periodo, valores: vals, analisis: this.f.analisis, plan_mejora: this.f.plan_mejora } });
+        this.avisar('Carga enviada correctamente.');
+        const per = this.f.periodo;
+        await this.cargarIndicadores(); await this.refrescarPeriodos(); this.f.periodo = per; this.cambiarPeriodo();
+      } catch { }
+      this.busy = false;
+    },
+
+    // ------------------------------------------------------- historial
+    async cargarHistorial() {
+      const q = new URLSearchParams(); if (this.filtro.indicador_id) q.set('indicador_id', this.filtro.indicador_id); if (this.filtro.estado) q.set('estado', this.filtro.estado);
+      this.historial = await this.api('/api/mediciones?' + q);
+    },
+    detalleHtml(m) {
+      const filas = m.variables.map(v => `<tr><td class="pr-4 text-slate-500">${esc(v.etiqueta)}</td><td class="font-semibold">${esc(nf(m.valores[v.clave], 2))}</td></tr>`).join('');
+      const bloque = (t, x) => x ? `<div class="mt-2"><div class="text-xs font-semibold uppercase text-slate-500">${t}</div><div class="text-sm whitespace-pre-line">${esc(x)}</div></div>` : '';
+      const notas = m.notas.map(n => `<div class="text-sm bg-sky-50 border border-sky-200 rounded p-2 mt-1"><b>${esc(n.usuario.split(' (')[0])}</b> · ${esc(this.fecha(n.fecha))}<br>${esc(n.texto)}</div>`).join('');
+      return `<div class="text-sm"><table class="text-sm">${filas}</table>
+        ${bloque('Resultados del análisis', m.analisis)}${bloque('Correcciones / plan de mejora', m.plan_mejora)}
+        <div class="text-xs text-slate-500 mt-2">Cargado por ${esc(m.cargado_por)} · ${esc(this.fecha(m.cargado_en))} · versión ${m.version}
+        ${m.revisado_por ? ` · Revisado por ${esc(m.revisado_por.split(' (')[0])} · ${esc(this.fecha(m.revisado_en))}` : ''}</div>
+        ${m.nota_revision ? `<div class="text-sm bg-amber-50 border border-amber-200 rounded p-2 mt-2"><b>Nota de revisión:</b> ${esc(m.nota_revision)}</div>` : ''}
+        ${notas ? `<div class="mt-2 text-xs font-semibold uppercase text-slate-500">Notas de auditoría</div>${notas}` : ''}</div>`;
+    },
+    async agregarNota(m) {
+      const t = (this.notasHist[m.id] || '').trim(); if (t.length < 3) return;
+      this.busy = true;
+      try { await this.api(`/api/mediciones/${m.id}/notas`, { method: 'POST', body: { texto: t } }); this.notasHist[m.id] = ''; this.avisar('Nota registrada.'); await this.cargarHistorial(); } catch { }
+      this.busy = false;
+    },
+
+    // ---------------------------------------------------------- bandeja
+    async cargarBandeja() { this.bandeja = await this.api('/api/mediciones?estado=enviado'); },
+    async revisar(m, accion) {
+      const nota = (this.notas[m.id] || '').trim();
+      if (accion === 'observar' && nota.length < 5) { this.avisar('Indique el motivo de la devolución.', true); return; }
+      this.busy = true;
+      try {
+        await this.api(`/api/mediciones/${m.id}/revision`, { method: 'POST', body: { accion, nota } });
+        this.avisar(accion === 'aprobar' ? 'Carga aprobada.' : 'Carga devuelta al jefe de área.');
+        await this.cargarBandeja();
+      } catch { }
+      this.busy = false;
+    },
+
+    // ------------------------------------------------------------ panel
+    kpis() {
+      const r = this.dash.resumen;
+      return [{ t: 'Indicadores', v: r.total, c: NAVY }, { t: 'Cumplimiento', v: r.cumplimiento + '%', c: BRAND }, { t: 'En verde', v: r.verde, c: SEM.verde },
+      { t: 'En alerta', v: r.amarillo, c: SEM.amarillo }, { t: 'Críticos', v: r.rojo, c: SEM.rojo }, { t: 'Por aprobar / pendientes', v: `${r.por_aprobar} / ${r.pendientes_carga}`, c: SEM.sin_datos }];
+    },
+    async cargarPanel() {
+      this.dash = await this.api('/api/dashboard' + (this.panelArea ? '?area_id=' + this.panelArea : ''));
+      if (!this.dash.indicadores.some(i => i.id === this.tendInd)) this.tendInd = this.dash.indicadores[0]?.id;
+      this.$nextTick(() => this.dibujar());
+    },
+    dibujar() {
+      if (!this.dash || typeof Chart === 'undefined') return;
+      const nuevo = (id, cfg) => { const c = document.getElementById(id); if (!c) return; Chart.getChart(c)?.destroy(); new Chart(c, cfg); };
+      Chart.defaults.font.family = 'system-ui, sans-serif';
+      const r = this.dash.resumen, i = this.dash.indicadores.find(x => x.id === this.tendInd);
+      if (i) {
+        const s = i.serie, plano = a => a.map(x => Alpine.raw(x));
+        nuevo('ch-tend', {
+          type: 'line',
+          data: {
+            labels: s.map(p => p.etiqueta), datasets: [
+              { label: 'Resultado', data: s.map(p => p.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: s.map(p => SEM[p.semaforo]), pointRadius: 6, pointBorderColor: '#fff', borderWidth: 2, tension: 0 },
+              { label: 'Meta', data: s.map(p => p.meta), borderColor: NAVY, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
+              { label: 'Límite crítico', data: s.map(p => p.limite), borderColor: SEM.rojo, borderDash: [2, 4], pointRadius: 0, borderWidth: 1.5 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${this.fmt(c.parsed.y, i.unidad)}` } } }, scales: { y: { title: { display: true, text: i.unidad } } } }
+        });
+      }
+      nuevo('ch-dist', {
+        type: 'doughnut',
+        data: { labels: ['Cumple', 'Alerta', 'Crítico', 'Sin datos'], datasets: [{ data: [r.verde, r.amarillo, r.rojo, r.sin_datos], backgroundColor: [SEM.verde, SEM.amarillo, SEM.rojo, SEM.sin_datos], borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+      });
+      const A = this.dash.por_area, pct = k => A.map(a => Math.round(1000 * a[k] / a.total) / 10);
+      nuevo('ch-area', {
+        type: 'bar',
+        data: { labels: A.map(a => a.area), datasets: [['Cumple', 'verde'], ['Alerta', 'amarillo'], ['Crítico', 'rojo']].map(([l, k]) => ({ label: l, data: pct(k), backgroundColor: SEM[k] })) },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } } }, scales: { x: { stacked: true }, y: { stacked: true, max: 100, ticks: { callback: v => v + '%' } } } }
+      });
+    },
+
+    // ----------------------------------------------------------- fichas
+    nuevaFicha() {
+      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', sentido: 'mayor', meta: 90, limite: 80, formula: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], activo: true };
+      this.formulaMsg = { ok: true, txt: 'Use las claves de las variables, + − * /, paréntesis y min/max/abs/round. Ej.: gestionadas / recibidas * 100' };
+      this.modal = true;
+    },
+    editarFicha(i) { this.ficha = JSON.parse(JSON.stringify(i)); this.formulaMsg = { ok: true, txt: '' }; this.modal = true; },
+    semaforoAyuda() {
+      const f = this.ficha, u = f.unidad;
+      return f.sentido === 'mayor' ? `Verde: ≥ ${f.meta} · Amarillo: entre ${f.limite} y ${f.meta} · Rojo: < ${f.limite} (${u})`
+        : `Verde: ≤ ${f.meta} · Amarillo: entre ${f.meta} y ${f.limite} · Rojo: > ${f.limite} (${u})`;
+    },
+    async validarFormula() {
+      const claves = this.ficha.variables.map(v => v.clave).filter(Boolean);
+      if (!this.ficha.formula) return;
+      try { const r = await this.api('/api/formula/validar', { method: 'POST', body: { formula: this.ficha.formula, claves } }, true); this.formulaMsg = r.ok ? { ok: true, txt: '✔ Fórmula válida' } : { ok: false, txt: r.error }; } catch { }
+    },
+    async guardarFicha() {
+      this.busy = true;
+      try {
+        const f = this.ficha, id = f.id;
+        const body = { codigo: f.codigo, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula, variables: f.variables, meta: f.meta, limite: f.limite, activo: f.activo };
+        await this.api(id ? `/api/indicadores/${id}` : '/api/indicadores', { method: id ? 'PUT' : 'POST', body });
+        this.modal = false; this.avisar('Ficha guardada.'); await this.cargarIndicadores();
+      } catch { }
+      this.busy = false;
+    },
+    async eliminarFicha(i) {
+      if (!confirm(`¿Eliminar el indicador ${i.codigo}?\nSi tiene cargas registradas se archivará para conservar la trazabilidad.`)) return;
+      try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.cargarIndicadores(); } catch { }
+    },
+
+    // --------------------------------------------------------- bitácora
+    async cargarBitacora() { this.bitacora = await this.api('/api/bitacora' + (this.bitAccion ? '?accion=' + this.bitAccion : '')); },
+    async verificarBitacora() {
+      const r = await this.api('/api/bitacora/verificar');
+      this.avisar(r.ok ? `Integridad verificada: ${r.total} registros sin alteraciones.` : `¡Alteración detectada en el registro #${r.primer_error_id}!`, !r.ok);
+    },
+    resumenBit(b) {
+      const d = b.detalle || {}, c = b.codigo ? b.codigo + ' · ' : '';
+      switch (b.accion) {
+        case 'CARGA': case 'REENVIO': return `${c}${d.periodo}: resultado ${d.resultado} (${d.semaforo}). Valores: ` + Object.entries(d.valores || {}).map(([k, v]) => `${k}=${v}`).join(', ') + (d.plan_mejora ? `. Plan: ${d.plan_mejora}` : '');
+        case 'APROBACION': case 'OBSERVACION': return `${c}${d.periodo}` + (d.nota ? `: ${d.nota}` : '');
+        case 'NOTA_AUDITORIA': return `${c}${d.periodo}: ${d.texto}`;
+        case 'INDICADOR_EDITADO': return `${d.codigo}: cambios en ` + Object.keys(d.cambios || {}).join(', ');
+        case 'INICIO_SESION': return 'Inicio de sesión';
+        default: return `${d.codigo || ''} ${d.nombre || ''}`;
+      }
+    },
+  };
+}
