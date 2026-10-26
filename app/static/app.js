@@ -17,7 +17,8 @@ const nf = (v, d) => Number(v).toLocaleString('es-VE', { minimumFractionDigits: 
 
 function sigt() {
   return {
-    ready: false, user: null, view: '', busy: false, menu: false, ACCIONES,
+    ready: false, user: null, view: '', busy: false, menu: false, mas: false, ACCIONES, fq: { q: '', area: '', frecuencia: '', estado: 'activo' },
+    prueba: { valores: {}, res: null },
     loginForm: { username: '', password: '' }, loginError: '',
     toast: { msg: '', error: false }, _toastT: null,
     indicadores: [], areas: [],
@@ -72,7 +73,7 @@ function sigt() {
       await this.cargarIndicadores();
       if (this.user.rol !== 'jefe') this.areas = await this.api('/api/areas');
       if (this.user.rol === 'admin') this.usuarios = await this.api('/api/usuarios');
-      if (this.user.rol === 'gerente') this.bandeja = await this.api('/api/mediciones?estado=enviado');
+      if (['gerente', 'admin'].includes(this.user.rol)) this.bandeja = await this.api('/api/mediciones?estado=enviado');
       await this.go({ jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol]);
     },
     async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores'); },
@@ -80,14 +81,21 @@ function sigt() {
       const r = this.user.rol;
       if (r === 'jefe') return [{ id: 'carga', label: 'Carga rápida', corto: 'Cargar', badge: this.pendientesTotal() || '' }, { id: 'historial', label: 'Mis cargas', corto: 'Historial' }, { id: 'bitacora', label: 'Bitácora' }];
       if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'bitacora', label: 'Bitácora' }];
-      return [{ id: 'fichas', label: 'Indicadores', corto: 'Fichas' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bitacora', label: 'Bitácora' }];
+      return [{ id: 'fichas', label: 'Indicadores', corto: 'Fichas' }, { id: 'panel', label: 'Panel de análisis', corto: 'Panel' },
+      { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'carga', label: 'Cargar datos', corto: 'Cargar', badge: this.pendientesTotal() || '' },
+      { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'bitacora', label: 'Bitácora' }];
     },
+    // En móvil: 4 accesos + «Más» cuando hay más de 5 secciones
+    navMovil() { const n = this.nav(); return n.length > 5 ? [...n.slice(0, 4), { id: '_mas', label: 'Más', corto: 'Más', badge: n.slice(4).reduce((a, x) => a + (x.badge || 0), 0) || '' }] : n; },
+    navMas() { return this.nav().slice(4); },
+    get masActivo() { return this.navMas().some(n => n.id === this.view); },
     async go(v) {
       this.view = v; this.menu = false;
       window.scrollTo({ top: 0 });
-      if (v === 'carga' && !this.f.indicador_id && this.indicadores.length) {
+      this.mas = false;
+      if (v === 'carga' && !this.f.indicador_id && this.indicadoresCarga.length) {
         const p = this.listaPendientes()[0];
-        if (p) await this.elegirPendiente(p); else { this.f.indicador_id = this.indicadores[0].id; await this.cambiarIndicador(); }
+        if (p) await this.elegirPendiente(p); else { this.f.indicador_id = this.indicadoresCarga[0].id; await this.cambiarIndicador(); }
       }
       if (v === 'historial') await this.cargarHistorial();
       if (v === 'bandeja') await this.cargarBandeja();
@@ -123,8 +131,9 @@ function sigt() {
     get ind() { return this.indicadores.find(i => i.id === this.f.indicador_id); },
     get medActual() { return this.periodosInd.find(p => p.periodo === this.f.periodo)?.medicion || null; },
     get bloqueado() { return !!this.medActual && this.medActual.estado !== 'observado'; },
-    pendientesTotal() { return this.indicadores.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
-    listaPendientes() { return this.indicadores.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
+    get indicadoresCarga() { return this.indicadores.filter(i => i.activo); },
+    pendientesTotal() { return this.indicadoresCarga.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
+    listaPendientes() { return this.indicadoresCarga.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
     async elegirPendiente(p) { this.f.indicador_id = p.ind.id; await this.cambiarIndicador(p.periodo); },
     async cambiarIndicador(periodo) {
       this.calc = null; this.periodosInd = [];
@@ -176,7 +185,8 @@ function sigt() {
       this.historial = await this.api('/api/mediciones?' + q);
     },
     detalleHtml(m) {
-      const filas = m.variables.map(v => `<tr><td class="pr-4 text-slate-500">${esc(v.etiqueta)}</td><td class="font-semibold">${esc(nf(m.valores[v.clave], 2))}</td></tr>`).join('');
+      const et = Object.fromEntries(m.variables.map(v => [v.clave, v.etiqueta]));
+      const filas = Object.entries(m.valores).map(([k, val]) => `<tr><td class="pr-4 text-slate-500">${esc(et[k] || k)}</td><td class="font-semibold">${esc(nf(val, 2))}</td></tr>`).join('');
       const bloque = (t, x) => x ? `<div class="mt-2"><div class="text-xs font-semibold uppercase text-slate-500">${t}</div><div class="text-sm whitespace-pre-line">${esc(x)}</div></div>` : '';
       const notas = m.notas.map(n => `<div class="text-sm bg-sky-50 border border-sky-200 rounded p-2 mt-1"><b>${esc(n.usuario.split(' (')[0])}</b> · ${esc(this.fecha(n.fecha))}<br>${esc(n.texto)}</div>`).join('');
       return `<div class="text-sm"><table class="text-sm">${filas}</table>
@@ -250,12 +260,29 @@ function sigt() {
     },
 
     // ----------------------------------------------------------- fichas
-    nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', sentido: 'mayor', meta: 90, limite: 80, formula: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], activo: true };
-      this.formulaMsg = { ok: true, txt: 'Use las claves de las variables, + − * /, paréntesis y min/max/abs/round. Ej.: gestionadas / recibidas * 100' };
-      this.modal = true;
+    get fichasFiltradas() {
+      const q = this.fq.q.trim().toLowerCase();
+      return this.indicadores.filter(i =>
+        (!q || (i.codigo + ' ' + i.nombre + ' ' + i.area).toLowerCase().includes(q)) &&
+        (!this.fq.area || i.area_id === Number(this.fq.area)) &&
+        (!this.fq.frecuencia || i.frecuencia === this.fq.frecuencia) &&
+        (this.fq.estado === '' || (this.fq.estado === 'activo') === i.activo));
     },
-    editarFicha(i) { this.ficha = JSON.parse(JSON.stringify(i)); this.formulaMsg = { ok: true, txt: '' }; this.modal = true; },
+    nuevaFicha() {
+      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', sentido: 'mayor', meta: 90, limite: 80, formula: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], activo: true, n_mediciones: 0 };
+      this.abrirFicha('Use las claves de las variables, + − * /, paréntesis y min/max/abs/round. Ej.: gestionadas / recibidas * 100');
+    },
+    editarFicha(i) { this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.variables.forEach(v => v._manual = true); this.abrirFicha(''); this.validarFormula(); },
+    duplicarFicha(i) {
+      this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true };
+      this.ficha.variables.forEach(v => v._manual = true);
+      this.abrirFicha('Ficha duplicada: asigne un código nuevo.'); this.validarFormula();
+    },
+    abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.modal = true; },
+    get fichaBloqueada() { return (this.ficha.n_mediciones || 0) > 0; },
+    slug: t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, 'v$1').slice(0, 30),
+    autoClave(v) { if (!this.fichaBloqueada && !v._manual) { v.clave = this.slug(v.etiqueta); this.validarFormula(); } },
+    mover(idx, d) { const a = this.ficha.variables, j = idx + d; if (j < 0 || j >= a.length) return; [a[idx], a[j]] = [a[j], a[idx]]; },
     semaforoAyuda() {
       const f = this.ficha, u = f.unidad;
       return f.sentido === 'mayor' ? `Verde: ≥ ${f.meta} · Amarillo: entre ${f.limite} y ${f.meta} · Rojo: < ${f.limite} (${u})`
@@ -264,24 +291,39 @@ function sigt() {
     async validarFormula() {
       const claves = this.ficha.variables.map(v => v.clave).filter(Boolean);
       if (!this.ficha.formula) return;
-      try { const r = await this.api('/api/formula/validar', { method: 'POST', body: { formula: this.ficha.formula, claves } }, true); this.formulaMsg = r.ok ? { ok: true, txt: '✔ Fórmula válida' } : { ok: false, txt: r.error }; } catch { }
+      try {
+        const r = await this.api('/api/formula/validar', { method: 'POST', body: { formula: this.ficha.formula, claves } }, true);
+        this.formulaMsg = !r.ok ? { ok: false, txt: r.error } : r.sin_usar.length ? { ok: true, aviso: true, txt: '✔ Válida, pero no usa: ' + r.sin_usar.join(', ') } : { ok: true, txt: '✔ Fórmula válida' };
+        if (r.ok) this.probar();
+      } catch { }
+    },
+    async probar() {
+      const f = this.ficha, valores = {};
+      for (const v of f.variables.filter(v => v.clave)) { const x = this.prueba.valores[v.clave]; if (x === '' || x === undefined || x === null) { this.prueba.res = null; return; } valores[v.clave] = Number(x); }
+      try { this.prueba.res = await this.api('/api/formula/probar', { method: 'POST', body: { formula: f.formula, valores, meta: Number(f.meta), limite: Number(f.limite), sentido: f.sentido } }, true); } catch { }
+    },
+    cuerpoFicha(f) {
+      return { codigo: f.codigo, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula, variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta })), meta: f.meta, limite: f.limite, activo: f.activo };
     },
     async guardarFicha() {
       this.busy = true;
       try {
         const f = this.ficha, id = f.id;
-        const body = { codigo: f.codigo, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula, variables: f.variables, meta: f.meta, limite: f.limite, activo: f.activo };
-        await this.api(id ? `/api/indicadores/${id}` : '/api/indicadores', { method: id ? 'PUT' : 'POST', body });
-        this.modal = false; this.avisar('Ficha guardada.'); await this.cargarIndicadores();
+        await this.api(id ? `/api/indicadores/${id}` : '/api/indicadores', { method: id ? 'PUT' : 'POST', body: this.cuerpoFicha(f) });
+        this.modal = false; this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.'); await this.cargarIndicadores();
       } catch { }
       this.busy = false;
     },
+    async alternarActivo(i) {
+      const accion = i.activo ? 'archivar' : 'restaurar';
+      if (i.activo && !confirm(`¿Archivar ${i.codigo}? Dejará de aparecer para cargar datos; el historial se conserva.`)) return;
+      try { await this.api(`/api/indicadores/${i.id}`, { method: 'PUT', body: this.cuerpoFicha({ ...i, activo: !i.activo }) }); this.avisar(`Indicador ${i.activo ? 'archivado' : 'restaurado'}.`); await this.cargarIndicadores(); } catch { }
+    },
     async eliminarFicha(i) {
-      if (!confirm(`¿Eliminar el indicador ${i.codigo}?\nSi tiene cargas registradas se archivará para conservar la trazabilidad.`)) return;
+      const msg = i.n_mediciones ? `${i.codigo} tiene ${i.n_mediciones} carga(s) registradas: no se borrará, se archivará para conservar la trazabilidad. ¿Continuar?` : `¿Eliminar definitivamente el indicador ${i.codigo}?`;
+      if (!confirm(msg)) return;
       try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.cargarIndicadores(); } catch { }
     },
-
-    verTendencia(i) { this.tendInd = i.id; this.dibujar(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
 
     // ----------------------------------------------------- administración
     setup() {

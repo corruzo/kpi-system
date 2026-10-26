@@ -45,3 +45,9 @@ Tailwind, Alpine y Chart.js se sirven desde `app/static/` (sin CDN ni dependenci
 
 ## Vercel
 `vercel.json` + `api/index.py` ejecutan la app como función serverless. Variables obligatorias (Project → Settings → Environment Variables): `SIGT_ENV=production`, `SIGT_SECRET`, `SIGT_DATABASE_URL` (use el **pooler** de Supabase, no `db.<proyecto>.supabase.co`, que es solo IPv6), `SIGT_ADMIN_USER`, `SIGT_ADMIN_PASSWORD`. Tras cambiar variables hay que redesplegar. Si falla, revise Deployments → Logs: el mensaje indica la variable que falta.
+
+## Permisos del Administrador SGC
+Acceso a todo el sistema: fichas, áreas y usuarios; carga de datos en cualquier área; bandeja de aprobación, notas de auditoría, panel, cargas, exportación y bitácora. Por segregación de funciones (ISO 9001), nadie puede aprobar ni devolver una carga que realizó él mismo.
+
+## Gestión de indicadores
+Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, eliminar (con cargas se archiva), claves de variables generadas automáticamente, reordenar variables, validación de fórmula con aviso de variables sin usar y probador con resultado y semáforo en vivo. Con cargas registradas no se puede cambiar la frecuencia ni las claves de las variables; los cambios de meta o fórmula quedan en la bitácora y no alteran el histórico.

@@ -123,3 +123,36 @@ def test_admin_integridad(client, datos):
         b.accion = "X"
         with pytest.raises(RuntimeError):
             db.flush()
+
+
+def test_admin_es_superusuario_con_segregacion_de_funciones(client):
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    area = c.post("/api/areas", json={"nombre": "Calidad"}).json()["id"]
+    ind = c.post("/api/indicadores", json={
+        "codigo": "CAL-01", "nombre": "Lotes conformes", "area_id": area, "unidad": "%",
+        "frecuencia": "mensual", "sentido": "mayor", "formula": "ok / total * 100", "meta": 98, "limite": 95,
+        "variables": [{"clave": "ok", "etiqueta": "Conformes"}, {"clave": "total", "etiqueta": "Analizados"}]}).json()["id"]
+    pr = c.post("/api/formula/probar", json={"formula": "ok / total * 100", "valores": {"ok": 99, "total": 100},
+                                             "meta": 98, "limite": 95, "sentido": "mayor"}).json()
+    assert pr["ok"] and pr["semaforo"] == "verde"
+    assert c.post("/api/formula/validar", json={"formula": "ok * 2", "claves": ["ok", "total"]}).json()["sin_usar"] == ["total"]
+    per = c.get(f"/api/indicadores/{ind}/periodos").json()["periodos"][1]["periodo"]
+    r = c.post("/api/mediciones", json={"indicador_id": ind, "periodo": per, "valores": {"ok": 99, "total": 100}})
+    assert r.status_code == 201  # el admin puede cargar en cualquier área
+    mid = r.json()["id"]
+    assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "aprobar"}).status_code == 403  # carga propia
+    entrar(c, "gerente")
+    assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "aprobar"}).status_code == 200
+    # con cargas, la ficha no admite cambiar frecuencia ni claves
+    entrar(c, "admin", "clave-admin-123")
+    ficha = c.get("/api/indicadores").json()
+    ficha = next(i for i in ficha if i["id"] == ind)
+    assert ficha["n_mediciones"] == 1
+    base = {k: ficha[k] for k in ("codigo", "nombre", "objetivo", "area_id", "unidad", "sentido", "formula",
+                                  "variables", "meta", "limite", "activo")}
+    assert c.put(f"/api/indicadores/{ind}", json={**base, "frecuencia": "trimestral"}).status_code == 422
+    malas = [{"clave": "ok", "etiqueta": "Conformes"}, {"clave": "tot", "etiqueta": "Analizados"}]
+    assert c.put(f"/api/indicadores/{ind}", json={**base, "frecuencia": "mensual", "variables": malas,
+                                                  "formula": "ok / tot * 100"}).status_code == 422
+    assert c.put(f"/api/indicadores/{ind}", json={**base, "frecuencia": "mensual", "meta": 97}).status_code == 200

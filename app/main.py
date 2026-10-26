@@ -140,7 +140,7 @@ def med_out(m: Medicion):
             "valores": m.valores, "resultado": m.resultado, "semaforo": m.semaforo,
             "meta": m.meta, "limite": m.limite, "sentido": m.sentido, "estado": m.estado,
             "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
-            "cargado_por": m.cargado_por.nombre, "cargado_en": iso(m.cargado_en),
+            "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
             "revisado_por": m.revisado_por.nombre if m.revisado_por else None,
             "revisado_en": iso(m.revisado_en), "nota_revision": m.nota_revision,
             "notas": [{"id": n.id, "usuario": n.usuario.nombre, "fecha": iso(n.fecha),
@@ -430,9 +430,12 @@ def listar_indicadores(db: Session = Depends(get_db), u: Usuario = Depends(usuar
     if u.rol != "admin":
         q = q.where(Indicador.activo.is_(True))
     hoy = date.today()
+    conteo = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id))
+                             .group_by(Medicion.indicador_id)).all())
     out = []
     for i in db.scalars(q):
         d = ind_out(i)
+        d["n_mediciones"] = conteo.get(i.id, 0)
         pend = calc.periodos_pendientes(i.frecuencia, hoy, _estados(db, i.id))
         d["pendientes"] = [{"periodo": p, "etiqueta": calc.etiqueta(i.frecuencia, p)} for p in pend]
         out.append(d)
@@ -458,10 +461,29 @@ def _validar_ficha(db: Session, d: IndicadorIn, actual_id: int | None = None):
 @app.post("/api/formula/validar")
 def validar_formula(d: FormulaIn, _=Depends(requiere("admin"))):
     try:
-        calc.validar_formula(d.formula, d.claves)
-        return {"ok": True}
+        sin_usar = calc.validar_formula(d.formula, d.claves)
+        return {"ok": True, "sin_usar": sin_usar}
     except calc.FormulaError as e:
         return {"ok": False, "error": str(e)}
+
+
+class ProbarIn(BaseModel):
+    formula: str
+    valores: dict[str, float]
+    meta: float
+    limite: float
+    sentido: Literal["mayor", "menor"]
+
+
+@app.post("/api/formula/probar")
+def probar_formula(d: ProbarIn, _=Depends(requiere("admin"))):
+    """Calcula resultado y semáforo con valores de ejemplo antes de guardar la ficha."""
+    try:
+        calc.validar_umbrales(d.meta, d.limite, d.sentido)
+        r = calc.evaluar(d.formula, d.valores)
+    except (calc.FormulaError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "resultado": r, "semaforo": calc.semaforo(r, d.meta, d.limite, d.sentido)}
 
 
 @app.post("/api/indicadores", status_code=201)
@@ -485,6 +507,12 @@ def editar_indicador(ind_id: int, d: IndicadorIn, db: Session = Depends(get_db),
     if not ind:
         raise HTTPException(404, "Indicador no encontrado.")
     _validar_ficha(db, d, ind_id)
+    if db.scalar(select(Medicion.id).where(Medicion.indicador_id == ind_id).limit(1)):
+        if d.frecuencia != ind.frecuencia:
+            raise HTTPException(422, "No se puede cambiar la frecuencia de un indicador con cargas registradas.")
+        if {v.clave for v in d.variables} != {v["clave"] for v in ind.variables}:
+            raise HTTPException(422, "No se pueden agregar, quitar ni renombrar claves de variables de un indicador "
+                                     "con cargas registradas. Archívelo y cree uno nuevo.")
     nuevos = {**d.model_dump(exclude={"variables"}), "variables": [v.model_dump() for v in d.variables]}
     cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items() if getattr(ind, k) != v}
     for k, v in nuevos.items():
@@ -530,12 +558,12 @@ def periodos(ind_id: int, db: Session = Depends(get_db), u: Usuario = Depends(us
 
 # ------------------------------------------------------------ mediciones
 @app.post("/api/calcular")
-def calcular(d: CalcIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe"))):
+def calcular(d: CalcIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe", "admin"))):
     return _calcular(_ind_visible(db, u, d.indicador_id), d.valores)
 
 
 @app.post("/api/mediciones", status_code=201)
-def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe")),
+def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("jefe", "admin")),
            _=Depends(escritura)):
     ind = _ind_visible(db, u, d.indicador_id)
     if not ind.activo:
@@ -600,8 +628,10 @@ def _med(db, u, med_id) -> Medicion:
 
 @app.post("/api/mediciones/{med_id}/revision")
 def revisar(med_id: int, d: RevisionIn, db: Session = Depends(get_db),
-            u: Usuario = Depends(requiere("gerente")), _=Depends(escritura)):
+            u: Usuario = Depends(requiere("gerente", "admin")), _=Depends(escritura)):
     m = _med(db, u, med_id)
+    if m.cargado_por_id == u.id:
+        raise HTTPException(403, "Segregación de funciones: una carga propia debe revisarla otra persona.")
     if m.estado != "enviado":
         raise HTTPException(409, "Solo se pueden revisar cargas en estado «enviado».")
     nota = d.nota.strip()
@@ -617,7 +647,7 @@ def revisar(med_id: int, d: RevisionIn, db: Session = Depends(get_db),
 
 @app.post("/api/mediciones/{med_id}/notas", status_code=201)
 def agregar_nota(med_id: int, d: NotaIn, db: Session = Depends(get_db),
-                 u: Usuario = Depends(requiere("gerente")), _=Depends(escritura)):
+                 u: Usuario = Depends(requiere("gerente", "admin")), _=Depends(escritura)):
     m = _med(db, u, med_id)
     n = NotaAuditoria(medicion_id=m.id, usuario_id=u.id, texto=d.texto.strip(), fecha=ahora())
     db.add(n)

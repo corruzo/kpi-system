@@ -58,8 +58,11 @@ def _parse(formula: str, claves):
     return tree.body
 
 
-def validar_formula(formula: str, claves) -> None:
-    _parse(formula, claves)
+def validar_formula(formula: str, claves) -> list[str]:
+    """Valida la fórmula y devuelve las variables declaradas que no se usan en ella."""
+    tree = _parse(formula, claves)
+    usadas = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+    return [c for c in claves if c not in usadas]
 
 
 def _eval(n, v):
