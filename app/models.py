@@ -25,6 +25,21 @@ class Parametro(Base):
     valor: Mapped[str] = mapped_column(Text, default="")
 
 
+class Ejercicio(Base):
+    """Ejercicio fiscal cerrado (o reabierto). Los ejercicios sin fila se consideran abiertos."""
+    __tablename__ = "ejercicios"
+    anio: Mapped[int] = mapped_column(Integer, primary_key=True)             # año en que termina
+    estado: Mapped[str] = mapped_column(String(10), default="cerrado")      # cerrado | abierto
+    cerrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    cerrado_en: Mapped[datetime | None] = mapped_column(DateTime)
+    nota: Mapped[str | None] = mapped_column(Text, default="")
+    resumen: Mapped[dict | None] = mapped_column(JSON)                      # foto de los resultados al cerrar
+    reabierto_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    reabierto_en: Mapped[datetime | None] = mapped_column(DateTime)
+    nota_reapertura: Mapped[str | None] = mapped_column(Text, default="")
+    cerrado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[cerrado_por_id])
+
+
 class Catalogo(Base):
     """Listas de apoyo de la ficha: gerencias, procesos (con su objetivo), objetivos organizacionales, cargos."""
     __tablename__ = "catalogos"
@@ -45,6 +60,7 @@ class Usuario(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     sesion_v: Mapped[int] = mapped_column(Integer, default=0)  # sube al cambiar la clave: invalida sesiones
+    tour_visto: Mapped[bool | None] = mapped_column(Boolean, default=False)  # guía de bienvenida ya vista/omitida
     area: Mapped[Area | None] = relationship()
 
 
@@ -113,6 +129,7 @@ class Medicion(Base):
     decimales: Mapped[int | None] = mapped_column(Integer)
     meta_tope: Mapped[float | None] = mapped_column(Float)
     limite_tope: Mapped[float | None] = mapped_column(Float)
+    ejercicio: Mapped[int | None] = mapped_column(Integer)   # año en que termina el ejercicio fiscal del período
     indicador: Mapped[Indicador] = relationship()
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id])
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id])

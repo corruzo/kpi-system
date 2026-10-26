@@ -2,10 +2,14 @@
 import csv
 import io
 import logging
+import base64
+import hashlib
+import io as _io
 import threading
 import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -19,10 +23,10 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from . import audit, calc, importar, reportes, security
-from .bootstrap import bootstrap_admin, parametros_por_defecto, preparar_base
+from .bootstrap import bootstrap_admin, parametros_por_defecto, preparar_base, recalcular_ejercicios
 from .config import PRODUCCION, TRUST_PROXY
 from .database import SessionLocal, get_db
-from .models import (Area, Bitacora, Catalogo, Indicador, Medicion, NotaAuditoria, Parametro, Usuario, ahora)
+from .models import (Area, Bitacora, Catalogo, Ejercicio, Indicador, Medicion, NotaAuditoria, Parametro, Usuario, ahora)
 
 STATIC = Path(__file__).parent / "static"
 _lock = threading.Lock()  # serializa escrituras para mantener íntegra la cadena de la bitácora
@@ -70,6 +74,7 @@ def iniciar():
             bootstrap_admin()
             parametros_por_defecto()
             refrescar_parametros(True)
+            recalcular_ejercicios()
             _iniciado = True
 
 
@@ -148,7 +153,8 @@ def iso(d):
 # ---------------------------------------------------------- serializadores
 def u_out(u: Usuario):
     return {"id": u.id, "username": u.username, "nombre": u.nombre, "rol": u.rol,
-            "area_id": u.area_id, "area": u.area.nombre if u.area else None, "activo": u.activo}
+            "area_id": u.area_id, "area": u.area.nombre if u.area else None, "activo": u.activo,
+            "tour_visto": bool(u.tour_visto)}
 
 
 def _dec(i) -> int:
@@ -311,6 +317,14 @@ class FormulaIn(BaseModel):
 
 
 # --------------------------------------------------------------- helpers
+def _exigir_abierto(db: Session, y: int | None):
+    """Un ejercicio fiscal cerrado es de solo lectura."""
+    e = db.get(Ejercicio, y) if y is not None else None
+    if e and e.estado == "cerrado":
+        raise HTTPException(409, f"El ejercicio fiscal {calc.etiqueta_ejercicio(y)} está cerrado: no admite cambios. "
+                                 "El administrador puede reabrirlo desde Ejercicios fiscales.")
+
+
 def _ind_visible(db: Session, u: Usuario, ind_id: int) -> Indicador:
     ind = db.get(Indicador, ind_id)
     if not ind or (u.rol != "admin" and not ind.activo):
@@ -654,10 +668,12 @@ def periodos(ind_id: int, db: Session = Depends(get_db), u: Usuario = Depends(us
     hoy = date.today()
     meds = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind_id))}
     pend = calc.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in meds.items()})
+    cerrados = {e.anio for e in db.scalars(select(Ejercicio)) if e.estado == "cerrado"}
     return {"sugerido": pend[0] if pend else None,
             "periodos": [{"periodo": p, "etiqueta": calc.etiqueta(ind.frecuencia, p),
                           "actual": i == 0, "pendiente": p in pend, "corta": calc.etiqueta_corta(ind.frecuencia, p),
                           "ejercicio": calc.etiqueta_ejercicio(calc.ejercicio_de(ind.frecuencia, p)),
+                          "cerrado": calc.ejercicio_de(ind.frecuencia, p) in cerrados,
                           "medicion": med_out(meds[p]) if p in meds else None}
                          for i, p in enumerate(calc.periodos_recientes(ind.frecuencia, hoy))]}
 
@@ -677,6 +693,8 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
     if not calc.periodo_valido(ind.frecuencia, d.periodo) or \
             calc.es_futuro(ind.frecuencia, d.periodo, date.today()):
         raise HTTPException(422, "Período no válido para la frecuencia del indicador.")
+    ejercicio = calc.ejercicio_de(ind.frecuencia, d.periodo)
+    _exigir_abierto(db, ejercicio)
     r = _calcular(ind, d.valores)
     if not r["ok"]:
         raise HTTPException(422, r["error"])
@@ -698,6 +716,7 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
     m.meta, m.limite, m.sentido = ind.meta, ind.limite, ind.sentido
     m.meta_tope, m.limite_tope = ind.meta_tope, ind.limite_tope
     m.formula, m.constantes, m.decimales = ind.formula, ind.constantes or [], _dec(ind)
+    m.ejercicio = ejercicio
     m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
     m.cargado_por_id, m.cargado_en = u.id, ahora()
     m.revisado_por_id = m.revisado_en = None
@@ -714,8 +733,8 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
 @app.get("/api/mediciones")
 def listar_mediciones(estado: str | None = None, indicador_id: int | None = None,
                       area_id: int | None = None, periodo: str | None = None,
-                      semaforo: str | None = None, desde: int = 0, limite: int = 100,
-                      db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+                      semaforo: str | None = None, ejercicio: int | None = None, desde: int = 0,
+                      limite: int = 100, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
          .offset(max(desde, 0)).limit(min(limite, 500)))
     if u.rol == "jefe":
@@ -723,7 +742,7 @@ def listar_mediciones(estado: str | None = None, indicador_id: int | None = None
     elif area_id:
         q = q.where(Indicador.area_id == area_id)
     for col, val in ((Medicion.estado, estado), (Medicion.indicador_id, indicador_id),
-                     (Medicion.periodo, periodo), (Medicion.semaforo, semaforo)):
+                     (Medicion.periodo, periodo), (Medicion.semaforo, semaforo), (Medicion.ejercicio, ejercicio)):
         if val:
             q = q.where(col == val)
     return [med_out(m) for m in db.scalars(q)]
@@ -733,6 +752,7 @@ def _med(db, u, med_id) -> Medicion:
     m = db.get(Medicion, med_id)
     if not m:
         raise HTTPException(404, "Carga no encontrada.")
+    _exigir_abierto(db, m.ejercicio)
     return m
 
 
@@ -815,7 +835,7 @@ def reporte_xlsx(anio: int | None = None, area_id: int | None = None, estado: st
         meds = [m for m in meds if calc.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
     por_aprobar = len(db.scalars(select(Medicion.id).join(Indicador).where(
         Medicion.estado == "enviado", *([Indicador.area_id == area_id] if area_id else []))).all())
-    datos = reportes.reporte_general(meds, inds, u.nombre, " · ".join(filtros), por_aprobar)
+    datos = reportes.reporte_general(meds, inds, u.nombre, " · ".join(filtros), por_aprobar, _logo_bytes(db))
     audit.registrar(db, u, "REPORTE_EXPORTADO", "reporte", None, {"filtros": filtros, "filas": len(meds)})
     db.commit()
     return _descarga(datos, f"SIGT_reporte_{date.today():%Y%m%d}.xlsx")
@@ -830,41 +850,315 @@ def bitacora_xlsx(db: Session = Depends(get_db), u: Usuario = Depends(requiere("
 
 
 # ------------------------------------------------------------- dashboard
-@app.get("/api/dashboard")
-def dashboard(area_id: int | None = None, db: Session = Depends(get_db),
-              _=Depends(requiere("gerente", "admin"))):
-    hoy = date.today()
-    q = select(Indicador).where(Indicador.activo.is_(True)).order_by(Indicador.codigo)
+# ------------------------------------------------ ejercicios fiscales y dashboard
+def _limites(y: int) -> tuple[date, date]:
+    ini = calc._inicio_ejercicio(y)
+    return ini, calc._suma_meses(ini, 12) - timedelta(days=1)
+
+
+def _estado_ejercicio(db: Session, y: int, hoy: date) -> str:
+    e = db.get(Ejercicio, y)
+    if e and e.estado == "cerrado":
+        return "cerrado"
+    ini, fin = _limites(y)
+    return "vigente" if ini <= hoy <= fin else ("futuro" if ini > hoy else "terminado")
+
+
+def _calcular_ejercicio(db: Session, y: int, area_id: int | None = None, hoy: date | None = None) -> dict:
+    """Foto del ejercicio fiscal y: estado de cada indicador, resumen, desglose por área y faltantes de carga."""
+    hoy = hoy or date.today()
+    q = select(Indicador).order_by(Indicador.codigo)
     if area_id:
         q = q.where(Indicador.area_id == area_id)
-    inds, por_area = [], {}
-    resumen = {"total": 0, "verde": 0, "amarillo": 0, "rojo": 0, "sin_datos": 0, "pendientes_carga": 0}
+    meds_por = defaultdict(list)
+    for m in db.scalars(select(Medicion).where(Medicion.ejercicio == y)):
+        meds_por[m.indicador_id].append(m)
+    filas, por_area = [], {}
+    res = {"total": 0, "verde": 0, "amarillo": 0, "rojo": 0, "sin_datos": 0, "por_aprobar": 0, "devueltas": 0,
+           "cargas": 0, "esperados": 0, "faltantes": 0}
     for i in db.scalars(q):
-        meds = db.scalars(select(Medicion).where(Medicion.indicador_id == i.id)
-                          .order_by(Medicion.periodo)).all()
-        validas = [m for m in meds if m.estado in ("enviado", "aprobado")]
+        ms = sorted(meds_por.get(i.id, []), key=lambda m: m.periodo)
+        if not i.activo and not ms:
+            continue
+        validas = [m for m in ms if m.estado in ("enviado", "aprobado")]
         ultimo = validas[-1] if validas else None
-        pend = calc.periodos_pendientes(i.frecuencia, hoy, {m.periodo: m.estado for m in meds})
-        inds.append({**ind_out(i), "pendiente": bool(pend),
-                     "ultimo": {"periodo": ultimo.periodo, "etiqueta": calc.etiqueta(i.frecuencia, ultimo.periodo),
-                                "resultado": ultimo.resultado, "semaforo": ultimo.semaforo,
-                                "estado": ultimo.estado} if ultimo else None,
-                     "serie": [{"periodo": m.periodo, "etiqueta": calc.etiqueta(i.frecuencia, m.periodo),
-                                "resultado": m.resultado, "semaforo": m.semaforo, "meta": m.meta,
-                                "limite": m.limite} for m in validas]})
-        a = por_area.setdefault(i.area.nombre, {"area": i.area.nombre, "total": 0, "verde": 0,
-                                                "amarillo": 0, "rojo": 0, "sin_datos": 0})
-        a["total"] += 1
-        resumen["total"] += 1
+        esperados = [] if i.frecuencia == "eventual" else \
+            [p for p in calc.periodos_del_ejercicio(i.frecuencia, y) if calc.rango(i.frecuencia, p)[1] < hoy]
+        if not ms and i.creado_en:  # indicador nuevo: no se exigen períodos anteriores a su creación
+            esperados = [p for p in esperados if calc.rango(i.frecuencia, p)[1] >= i.creado_en.date()]
+        cubiertos = {m.periodo for m in validas}
+        faltan = [p for p in esperados if p not in cubiertos]
+        celdas = [None] * 12
+        for m in ms:
+            if m.estado != "observado":
+                idx = (calc.rango(i.frecuencia, m.periodo)[1].month - calc.INICIO) % 12
+                celdas[idx] = {"semaforo": m.semaforo, "resultado": m.resultado, "periodo": m.periodo,
+                               "etiqueta": calc.etiqueta(i.frecuencia, m.periodo)}
+        tend = None
+        if len(validas) >= 2:
+            delta = round(validas[-1].resultado - validas[-2].resultado, 4)
+            tend = {"delta": delta, "mejora": (delta > 0) if i.sentido == "mayor" else (delta < 0) if delta else None}
         k = ultimo.semaforo if ultimo else "sin_datos"
-        a[k] += 1
-        resumen[k] += 1
-        resumen["pendientes_carga"] += bool(pend)
+        a = por_area.setdefault(i.area.nombre, {"area": i.area.nombre, "total": 0, "verde": 0, "amarillo": 0,
+                                                "rojo": 0, "sin_datos": 0, "esperados": 0, "faltantes": 0})
+        for d_ in (a, res):
+            d_["total"] += 1
+            d_[k] += 1
+            d_["esperados"] += len(esperados)
+            d_["faltantes"] += len(faltan)
+        res["por_aprobar"] += sum(m.estado == "enviado" for m in ms)
+        res["devueltas"] += sum(m.estado == "observado" for m in ms)
+        res["cargas"] += len(validas)
+        filas.append({**ind_out(i), "ultimo": ({"periodo": ultimo.periodo, "etiqueta": calc.etiqueta(i.frecuencia, ultimo.periodo),
+                                                 "resultado": ultimo.resultado, "semaforo": ultimo.semaforo,
+                                                 "estado": ultimo.estado} if ultimo else None),
+                      "serie": [{"periodo": m.periodo, "etiqueta": calc.etiqueta(i.frecuencia, m.periodo),
+                                 "resultado": m.resultado, "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite}
+                                for m in validas],
+                      "celdas": celdas, "faltantes": [calc.etiqueta(i.frecuencia, p) for p in faltan],
+                      "devueltas": sum(m.estado == "observado" for m in ms), "tendencia": tend})
     for a in por_area.values():
-        a["cumplimiento"] = round(100 * a["verde"] / a["total"], 1)
-    resumen["por_aprobar"] = len(db.scalars(select(Medicion.id).where(Medicion.estado == "enviado")).all())
-    resumen["cumplimiento"] = round(100 * resumen["verde"] / resumen["total"], 1) if resumen["total"] else 0
-    return {"resumen": resumen, "indicadores": inds, "por_area": list(por_area.values())}
+        a["cumplimiento"] = round(100 * a["verde"] / a["total"], 1) if a["total"] else 0
+    res["cumplimiento"] = round(100 * res["verde"] / res["total"], 1) if res["total"] else 0
+    res["carga_al_dia"] = round(100 * (1 - res["faltantes"] / res["esperados"]), 1) if res["esperados"] else 100.0
+    return {"resumen": res, "por_area": list(por_area.values()), "indicadores": filas}
+
+
+def _meses_ejercicio() -> list[str]:
+    return [calc.MES3[(calc.INICIO - 1 + k) % 12] for k in range(12)]
+
+
+def _ej_out(db: Session, y: int, hoy: date) -> dict:
+    ini, fin = _limites(y)
+    e = db.get(Ejercicio, y)
+    return {"anio": y, "etiqueta": calc.etiqueta_ejercicio(y), "desde": ini.isoformat(), "hasta": fin.isoformat(),
+            "estado": _estado_ejercicio(db, y, hoy),
+            "cerrado_por": e.cerrado_por.nombre if e and e.estado == "cerrado" and e.cerrado_por else None,
+            "cerrado_en": iso(e.cerrado_en) if e and e.estado == "cerrado" else None,
+            "nota": (e.nota or "") if e else "", "reabierto_en": iso(e.reabierto_en) if e else None,
+            "nota_reapertura": (e.nota_reapertura or "") if e else ""}
+
+
+def _anios_conocidos(db: Session, hoy: date) -> list[int]:
+    anios = {a for a in db.scalars(select(Medicion.ejercicio).distinct()) if a}
+    anios |= set(db.scalars(select(Ejercicio.anio)))
+    anios.add(calc._ejercicio(hoy))
+    return sorted(anios, reverse=True)
+
+
+@app.get("/api/ejercicios")
+def listar_ejercicios(detalle: bool = False, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Ejercicios fiscales conocidos (con datos, vigente y cerrados). Con detalle: resultados de cada uno."""
+    hoy = date.today()
+    if detalle and u.rol == "jefe":
+        raise HTTPException(403, "No tiene permisos para esta acción.")
+    out = []
+    for y in _anios_conocidos(db, hoy):
+        o = _ej_out(db, y, hoy)
+        if detalle:
+            e = db.get(Ejercicio, y)
+            foto = e.resumen if e and e.estado == "cerrado" and e.resumen else _calcular_ejercicio(db, y, None, hoy)
+            o["resumen"], o["por_area"] = foto["resumen"], foto["por_area"]
+        out.append(o)
+    return {"vigente": calc._ejercicio(hoy), "ejercicios": out}
+
+
+@app.get("/api/ejercicios/{y}/verificacion")
+def verificar_ejercicio(y: int, db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+    """Lista de comprobación previa al cierre: qué falta revisar, corregir o cargar."""
+    hoy = date.today()
+    ini, fin = _limites(y)
+    foto = _calcular_ejercicio(db, y, None, hoy)
+    pend = [{"codigo": m.indicador.codigo, "indicador": m.indicador.nombre, "area": m.indicador.area.nombre,
+             "periodo": calc.etiqueta(m.indicador.frecuencia, m.periodo), "estado": m.estado}
+            for m in db.scalars(select(Medicion).where(Medicion.ejercicio == y, Medicion.estado.in_(("enviado", "observado"))))]
+    faltantes = [{"codigo": i["codigo"], "indicador": i["nombre"], "area": i["area"], "periodos": i["faltantes"]}
+                 for i in foto["indicadores"] if i["faltantes"]]
+    e = _ej_out(db, y, hoy)
+    terminado = fin < hoy
+    return {**e, "terminado": terminado, "pendientes": pend, "faltantes": faltantes,
+            "total_faltantes": sum(len(f["periodos"]) for f in faltantes), "resumen": foto["resumen"],
+            "puede_cerrar": terminado and not pend and e["estado"] != "cerrado"}
+
+
+class CierreIn(BaseModel):
+    nota: str = Field(default="", max_length=2000)
+    aceptar_faltantes: bool = False
+
+
+@app.post("/api/ejercicios/{y}/cerrar")
+def cerrar_ejercicio(y: int, d: CierreIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+                     _=Depends(escritura)):
+    """Cierra el ejercicio: queda de solo lectura y se guarda una foto de sus resultados."""
+    v = verificar_ejercicio(y, db, u)
+    if v["estado"] == "cerrado":
+        raise HTTPException(409, "El ejercicio ya está cerrado.")
+    if not v["terminado"]:
+        raise HTTPException(422, "El ejercicio aún no ha terminado: solo puede cerrarse después de su último día.")
+    if v["pendientes"]:
+        raise HTTPException(422, f"Hay {len(v['pendientes'])} carga(s) en revisión o devueltas: resuélvalas antes de cerrar.")
+    if v["total_faltantes"] and not d.aceptar_faltantes:
+        raise HTTPException(422, f"Faltan {v['total_faltantes']} período(s) por cargar. Confirme que desea cerrar sin ellos.")
+    foto = _calcular_ejercicio(db, y, None, date.today())
+    resumen = {"resumen": foto["resumen"], "por_area": foto["por_area"], "faltantes": v["total_faltantes"],
+               "indicadores": [{"codigo": i["codigo"], "nombre": i["nombre"], "area": i["area"],
+                                "ultimo": i["ultimo"]} for i in foto["indicadores"]]}
+    e = db.get(Ejercicio, y) or Ejercicio(anio=y)
+    e.estado, e.cerrado_por_id, e.cerrado_en, e.nota, e.resumen = "cerrado", u.id, ahora(), d.nota.strip(), resumen
+    db.add(e)
+    audit.registrar(db, u, "EJERCICIO_CERRADO", "ejercicio", y,
+                    {"ejercicio": calc.etiqueta_ejercicio(y), "nota": d.nota.strip(), "faltantes": v["total_faltantes"],
+                     "cumplimiento": foto["resumen"]["cumplimiento"]})
+    db.commit()
+    return _ej_out(db, y, date.today())
+
+
+class ReaperturaIn(BaseModel):
+    nota: str = Field(min_length=5, max_length=2000)
+
+
+@app.post("/api/ejercicios/{y}/reabrir")
+def reabrir_ejercicio(y: int, d: ReaperturaIn, db: Session = Depends(get_db),
+                      u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    e = db.get(Ejercicio, y)
+    if not e or e.estado != "cerrado":
+        raise HTTPException(409, "El ejercicio no está cerrado.")
+    e.estado, e.reabierto_por_id, e.reabierto_en, e.nota_reapertura = "abierto", u.id, ahora(), d.nota.strip()
+    audit.registrar(db, u, "EJERCICIO_REABIERTO", "ejercicio", y,
+                    {"ejercicio": calc.etiqueta_ejercicio(y), "nota": d.nota.strip()})
+    db.commit()
+    return _ej_out(db, y, date.today())
+
+
+@app.get("/api/dashboard")
+def dashboard(area_id: int | None = None, ejercicio: int | None = None, db: Session = Depends(get_db),
+              _=Depends(requiere("gerente", "admin"))):
+    """Panel de análisis de un ejercicio fiscal (por defecto el vigente), con comparativo contra el anterior."""
+    hoy = date.today()
+    y = ejercicio or calc._ejercicio(hoy)
+    ini, fin = _limites(y)
+    foto = _calcular_ejercicio(db, y, area_id, hoy)
+    ant = _calcular_ejercicio(db, y - 1, area_id, hoy)
+    ant_area = {a["area"]: a["cumplimiento"] for a in ant["por_area"]}
+    for a in foto["por_area"]:
+        a["cumplimiento_anterior"] = ant_area.get(a["area"])
+    total_dias = (fin - ini).days + 1
+    avance = max(0.0, min(1.0, ((min(hoy, fin) - ini).days + 1) / total_dias)) if hoy >= ini else 0.0
+    atencion = []
+    for i in foto["indicadores"]:
+        u_ = i["ultimo"]
+        if u_ and u_["semaforo"] == "rojo":
+            atencion.append({"nivel": 3, "codigo": i["codigo"], "nombre": i["nombre"], "area": i["area"], "id": i["id"],
+                             "motivo": f"Crítico en {u_['etiqueta']}", "semaforo": "rojo", "resultado": u_["resultado"],
+                             "unidad": i["unidad"], "decimales": i["decimales"]})
+        elif u_ and u_["semaforo"] == "amarillo" and i["tendencia"] and i["tendencia"]["mejora"] is False:
+            atencion.append({"nivel": 2, "codigo": i["codigo"], "nombre": i["nombre"], "area": i["area"], "id": i["id"],
+                             "motivo": f"En alerta y empeorando ({u_['etiqueta']})", "semaforo": "amarillo",
+                             "resultado": u_["resultado"], "unidad": i["unidad"], "decimales": i["decimales"]})
+        if i["faltantes"] and _estado_ejercicio(db, y, hoy) in ("vigente", "terminado"):
+            atencion.append({"nivel": 1, "codigo": i["codigo"], "nombre": i["nombre"], "area": i["area"], "id": i["id"],
+                             "motivo": f"Sin cargar: {', '.join(i['faltantes'][:3])}" + ("…" if len(i["faltantes"]) > 3 else ""),
+                             "semaforo": None, "resultado": None, "unidad": i["unidad"], "decimales": i["decimales"]})
+    atencion.sort(key=lambda a: -a["nivel"])
+    return {**foto, "ejercicio": {**_ej_out(db, y, hoy), "avance": round(avance, 4), "meses": _meses_ejercicio()},
+            "anterior": {"etiqueta": calc.etiqueta_ejercicio(y - 1), "cumplimiento": ant["resumen"]["cumplimiento"],
+                         "total": ant["resumen"]["total"]} if ant["resumen"]["cargas"] else None,
+            "atencion": atencion[:12]}
+
+
+# ------------------------------------------------------ logo e inicio guiado
+LOGO_MAX_BYTES = 600_000
+
+
+def _logo_bytes(db: Session) -> bytes | None:
+    p = db.get(Parametro, "logo")
+    if not p or not p.valor:
+        return None
+    try:
+        return base64.b64decode(p.valor.split(",", 1)[1])
+    except Exception:
+        return None
+
+
+def _logo_url(db: Session) -> str | None:
+    datos = _logo_bytes(db)
+    return f"/api/logo?v={hashlib.sha1(datos).hexdigest()[:10]}" if datos else None
+
+
+@app.get("/api/publico")
+def datos_publicos(db: Session = Depends(get_db)):
+    """Datos de marca visibles antes de iniciar sesión (nombre de la empresa y logo)."""
+    p = leer_parametros(db)
+    return {"empresa": p.get("empresa", ""), "logo_url": _logo_url(db)}
+
+
+@app.get("/api/logo", include_in_schema=False)
+def ver_logo(db: Session = Depends(get_db)):
+    datos = _logo_bytes(db)
+    if not datos:
+        raise HTTPException(404, "Sin logo.")
+    return Response(datos, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
+class LogoIn(BaseModel):
+    imagen: str = Field(max_length=LOGO_MAX_BYTES * 2)  # data URL (png/jpeg/webp)
+
+
+@app.put("/api/logo")
+def guardar_logo(d: LogoIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+                 _=Depends(escritura)):
+    """Recibe una imagen, la valida y la re-codifica como PNG (≤ 600 px): descarta metadatos y contenido activo."""
+    from PIL import Image, UnidentifiedImageError
+    if not d.imagen.startswith("data:image/") or "," not in d.imagen:
+        raise HTTPException(422, "Formato no válido: suba una imagen PNG, JPG o WebP.")
+    cab, b64 = d.imagen.split(",", 1)
+    if not any(t in cab for t in ("image/png", "image/jpeg", "image/webp")):
+        raise HTTPException(422, "Solo se admiten imágenes PNG, JPG o WebP.")
+    try:
+        crudo = base64.b64decode(b64, validate=True)
+        if len(crudo) > LOGO_MAX_BYTES:
+            raise HTTPException(422, "La imagen supera 600 KB.")
+        img = Image.open(_io.BytesIO(crudo))
+        img.verify()
+        img = Image.open(_io.BytesIO(crudo)).convert("RGBA")
+    except HTTPException:
+        raise
+    except (ValueError, UnidentifiedImageError, OSError):
+        raise HTTPException(422, "No se pudo leer la imagen: verifique que no esté dañada.")
+    img.thumbnail((600, 600))
+    out = _io.BytesIO()
+    img.save(out, "PNG", optimize=True)
+    valor = "data:image/png;base64," + base64.b64encode(out.getvalue()).decode()
+    fila = db.get(Parametro, "logo")
+    if fila:
+        fila.valor = valor
+    else:
+        db.add(Parametro(clave="logo", valor=valor))
+    audit.registrar(db, u, "LOGO_ACTUALIZADO", "parametro", None, {"bytes": len(out.getvalue()), "ancho": img.width, "alto": img.height})
+    db.commit()
+    return {"logo_url": _logo_url(db)}
+
+
+@app.delete("/api/logo")
+def quitar_logo(db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    fila = db.get(Parametro, "logo")
+    if fila:
+        db.delete(fila)
+        audit.registrar(db, u, "LOGO_ELIMINADO", "parametro", None, {})
+        db.commit()
+    return {"logo_url": None}
+
+
+class TourIn(BaseModel):
+    visto: bool = True
+
+
+@app.post("/api/tour")
+def marcar_tour(d: TourIn, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Recuerda si el usuario ya vio (o decidió omitir) la guía de bienvenida."""
+    u.tour_visto = d.visto
+    db.commit()
+    return {"tour_visto": u.tour_visto}
 
 
 # -------------------------------------------------------------- bitácora
@@ -902,7 +1196,8 @@ def ver_parametros(db: Session = Depends(get_db), _=Depends(usuario_actual)):
     p = leer_parametros(db)
     return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
             "codigo_formato": p.get("codigo_formato", ""), "ejercicio_inicio": calc.INICIO,
-            "ejercicio_actual": calc.etiqueta_ejercicio(calc._ejercicio(date.today()))}
+            "ejercicio_actual": calc.etiqueta_ejercicio(calc._ejercicio(date.today())),
+            "ejercicio_vigente": calc._ejercicio(date.today()), "logo_url": _logo_url(db)}
 
 
 @app.put("/api/parametros")
@@ -913,6 +1208,9 @@ def editar_parametros(d: ParametrosIn, db: Session = Depends(get_db),
             select(Medicion.id).join(Indicador).where(~Indicador.frecuencia.in_(("mensual", "eventual"))).limit(1)):
         raise HTTPException(409, "Ya existen cargas bimestrales, trimestrales, cuatrimestrales, semestrales o anuales: "
                                  "cambiar el mes de inicio del ejercicio fiscal alteraría sus períodos.")
+    if d.ejercicio_inicio != calc.INICIO and db.scalar(select(Ejercicio.anio).where(Ejercicio.estado == "cerrado").limit(1)):
+        raise HTTPException(409, "Hay ejercicios fiscales cerrados: reábralos antes de cambiar el mes de inicio.")
+    cambio_inicio = d.ejercicio_inicio != calc.INICIO
     cambios = {}
     for k, v in {**d.model_dump(), "ejercicio_inicio": str(d.ejercicio_inicio)}.items():
         if actual.get(k) != v:
@@ -925,6 +1223,9 @@ def editar_parametros(d: ParametrosIn, db: Session = Depends(get_db),
     if cambios:
         audit.registrar(db, u, "PARAMETROS_EDITADOS", "parametro", None, {"cambios": cambios})
     db.commit()
+    leer_parametros(db)
+    if cambio_inicio:
+        recalcular_ejercicios(solo_nulos=False)
     return ver_parametros(db, u)
 
 
@@ -989,7 +1290,7 @@ def eliminar_catalogo(cid: int, db: Session = Depends(get_db), u: Usuario = Depe
 def _params_ficha(db: Session) -> dict:
     p = leer_parametros(db)
     return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
-            "codigo_formato": p.get("codigo_formato", "")}
+            "codigo_formato": p.get("codigo_formato", ""), "logo_bytes": _logo_bytes(db)}
 
 
 def _contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
@@ -1013,7 +1314,7 @@ def ficha_indicador(ind_id: int, ejercicio: int | None = None, db: Session = Dep
     resultados por período del ejercicio fiscal y análisis."""
     ind = _ind_visible(db, u, ind_id)
     y, ejercicios, periodos = _contexto_ficha(db, ind, ejercicio)
-    return {"indicador": {**ind_out(ind), "meta_texto": reportes.meta_texto(ind)}, "parametros": _params_ficha(db),
+    return {"indicador": {**ind_out(ind), "meta_texto": reportes.meta_texto(ind)}, "parametros": {k: v for k, v in _params_ficha(db).items() if k != "logo_bytes"} | {"logo_url": _logo_url(db)},
             "ejercicio": y, "ejercicio_etiqueta": calc.etiqueta_ejercicio(y),
             "ejercicios": [{"valor": e, "etiqueta": calc.etiqueta_ejercicio(e)} for e in ejercicios],
             "periodos": [{**{k: v for k, v in x.items() if k != "medicion"},
@@ -1143,6 +1444,7 @@ def importar_confirmar(d: ImpIn, db: Session = Depends(get_db), u: Usuario = Dep
                 raise HTTPException(422, f"{i.codigo}: período «{med.periodo}» no válido para la frecuencia.")
             if med.periodo in periodos_ok:
                 raise HTTPException(422, f"{i.codigo}: período {med.periodo} repetido.")
+            _exigir_abierto(db, calc.ejercicio_de(ind.frecuencia, med.periodo))
             r = _calcular(ind, {k: v for k, v in med.valores.items()})
             if not r["ok"]:
                 raise HTTPException(422, f"{i.codigo} {med.periodo}: {r['error']}")
@@ -1152,6 +1454,7 @@ def importar_confirmar(d: ImpIn, db: Session = Depends(get_db), u: Usuario = Dep
                          meta_tope=ind.meta_tope, limite_tope=ind.limite_tope, estado="aprobado",
                          analisis=med.analisis.strip(), plan_mejora=med.plan_mejora.strip(), version=1,
                          formula=ind.formula, constantes=ind.constantes or [], decimales=_dec(ind),
+                         ejercicio=calc.ejercicio_de(ind.frecuencia, med.periodo),
                          cargado_por_id=u.id, cargado_en=ahora_, revisado_por_id=u.id, revisado_en=ahora_,
                          nota_revision=f"Importado desde Excel «{d.archivo}» (hoja «{i.hoja}»).")
             db.add(m)

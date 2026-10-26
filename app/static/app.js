@@ -11,6 +11,7 @@ const ICONOS = {
   org: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
   importar: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12',
   ficha: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  ejercicios: 'M8 7V3m8 4V3M5 11h14M6 5h12a1 1 0 011 1v13a1 1 0 01-1 1H6a1 1 0 01-1-1V6a1 1 0 011-1z',
   reportes: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4',
   bitacora: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
 };
@@ -75,6 +76,8 @@ function sigt() {
     prueba: { valores: {}, res: null }, ay: '', guia: false, ejemplos: EJEMPLOS, funcDoc: FUNC_DOC,
     filtro2: { semaforo: '', periodo: '', area_id: '' }, histMas: false, reabrirNota: {},
     rep: { anio: '', area_id: '', estado: '' }, repFicha: { area_id: '', indicador_id: '' },
+    marca: { empresa: '', logo_url: null }, ejLista: [], ejSel: null, ejVista: [], cierre: { abierto: false, e: null, v: null, nota: '', aceptar: false }, reap: { abierto: false, e: null, nota: '' },
+    tour: { on: false, i: 0, pasos: [], hole: null, pop: { top: 0, left: 0, w: 340 } },
     params: {}, parForm: {}, catalogos: [], catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
     fv: { id: null, ejercicio: '', data: null }, imp: { prev: null, sel: {}, cat: {}, res: null, crearAreas: true, cargando: false }, bitUsuario: '', bitMas: false, fichaAbierta: false, ayudaCarga: false,
     loginForm: { username: '', password: '' }, loginError: '',
@@ -94,6 +97,7 @@ function sigt() {
 
     // ------------------------------------------------------------ base
     async init() {
+      try { this.marca = await (await fetch('/api/publico')).json(); } catch { }
       try { this.user = await this.api('/api/me', {}, true); await this.alIngresar(); }
       catch { this.user = null; }
       this.ready = true;
@@ -130,20 +134,22 @@ function sigt() {
     async alIngresar() {
       await this.cargarIndicadores();
       this.params = await this.api('/api/parametros');
+      await this.cargarEjercicios();
       if (this.user.rol !== 'jefe') this.areas = await this.api('/api/areas');
       if (this.user.rol === 'admin') this.catalogos = await this.api('/api/catalogos');
       if (this.user.rol === 'admin') this.usuarios = await this.api('/api/usuarios');
       if (['gerente', 'admin'].includes(this.user.rol)) this.bandeja = await this.api('/api/mediciones?estado=enviado');
       await this.go({ jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol]);
+      if (!this.user.tour_visto) setTimeout(() => this.iniciarTour(), 900);
     },
     async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores'); },
     nav() {
       const r = this.user.rol;
       if (r === 'jefe') return [{ id: 'carga', label: 'Carga rápida', corto: 'Cargar', badge: this.pendientesTotal() || '' }, { id: 'historial', label: 'Mis cargas', corto: 'Historial' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }];
-      if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }];
+      if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }, { id: 'ejercicios', label: 'Ejercicios fiscales', corto: 'Ejercicios' }];
       return [{ id: 'fichas', label: 'Indicadores', corto: 'Fichas' }, { id: 'panel', label: 'Panel de análisis', corto: 'Panel' },
       { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'carga', label: 'Cargar datos', corto: 'Cargar', badge: this.pendientesTotal() || '' },
-      { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'importar', label: 'Importar', corto: 'Importar' }, { id: 'bitacora', label: 'Bitácora', corto: 'Bitácora' }];
+      { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'reportes', label: 'Reportes', corto: 'Reportes' }, { id: 'ejercicios', label: 'Ejercicios fiscales', corto: 'Ejercicios' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'importar', label: 'Importar', corto: 'Importar' }, { id: 'bitacora', label: 'Bitácora', corto: 'Bitácora' }];
     },
     // En móvil: 4 accesos + «Más» cuando hay más de 5 secciones
     navMovil() { const n = this.nav(); return n.length > 5 ? [...n.slice(0, 4), { id: '_mas', label: 'Más', corto: 'Más', badge: n.slice(4).reduce((a, x) => a + (x.badge || 0), 0) || '' }] : n; },
@@ -160,6 +166,7 @@ function sigt() {
       if (v === 'historial') await this.cargarHistorial();
       if (v === 'bandeja') await this.cargarBandeja();
       if (v === 'panel') await this.cargarPanel();
+      if (v === 'ejercicios') await this.cargarEjerciciosVista();
       if (v === 'fichas') await this.cargarIndicadores();
       if (v === 'org') { this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); this.catalogos = await this.api('/api/catalogos'); this.parForm = { ...this.params }; }
       if (v === 'bitacora') await this.cargarBitacora();
@@ -196,7 +203,11 @@ function sigt() {
     // ---------------------------------------------------- carga rápida
     get ind() { return this.indicadores.find(i => i.id === this.f.indicador_id); },
     get medActual() { return this.periodosInd.find(p => p.periodo === this.f.periodo)?.medicion || null; },
-    get bloqueado() { return !!this.medActual && this.medActual.estado !== 'observado'; },
+    get gruposPeriodos() {
+      const g = []; for (const p of this.periodosInd) { let x = g.find(y => y.etiqueta === p.ejercicio); if (!x) g.push(x = { etiqueta: p.ejercicio, periodos: [] }); x.periodos.push(p); } return g;
+    },
+    get periodoCerrado() { return !!this.periodosInd.find(p => p.periodo === this.f.periodo)?.cerrado; },
+    get bloqueado() { return this.periodoCerrado || (!!this.medActual && this.medActual.estado !== 'observado'); },
     get indicadoresCarga() { return this.indicadores.filter(i => i.activo); },
     pendientesTotal() { return this.indicadoresCarga.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
     listaPendientes() { return this.indicadoresCarga.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
@@ -248,6 +259,7 @@ function sigt() {
     // ------------------------------------------------------- historial
     async cargarHistorial(reset = true) {
       const q = new URLSearchParams({ limite: 50, desde: reset ? 0 : this.historial.length });
+      if (this.ejSel) q.set('ejercicio', this.ejSel);
       for (const [k, v] of Object.entries({ ...this.filtro, ...this.filtro2 })) if (v) q.set(k, v);
       const r = await this.api('/api/mediciones?' + q);
       this.historial = reset ? r : [...this.historial, ...r]; this.histMas = r.length === 50;
@@ -260,10 +272,7 @@ function sigt() {
       this.busy = false;
     },
     // ------------------------------------------------------------ reportes
-    get ejercicios() {
-      const m0 = this.params.ejercicio_inicio || 1, hoy = new Date(), y = hoy.getFullYear() + (m0 > 1 && hoy.getMonth() + 1 >= m0 ? 1 : 0);
-      return Array.from({ length: 7 }, (_, k) => ({ valor: y - k, etiqueta: m0 === 1 ? String(y - k) : `${y - k - 1}-${y - k}` }));
-    },
+    get ejercicios() { return this.ejLista.map(e => ({ valor: e.anio, etiqueta: e.etiqueta })); },
     descargarFichas() {
       const q = new URLSearchParams(); if (this.rep.anio) q.set('ejercicio', this.rep.anio);
       for (const [k, v] of Object.entries(this.repFicha)) if (v) q.set(k, v);
@@ -282,7 +291,7 @@ function sigt() {
       this.busy = false;
     },
     // ------------------------------------------------------ ficha del indicador
-    async verFicha(id, ejercicio = '') {
+    async verFicha(id, ejercicio = this.ejSel || '') {
       this.fv = { id, ejercicio, data: null, volver: this.view };
       await this.go('ficha'); await this.cargarFicha();
     },
@@ -408,13 +417,20 @@ function sigt() {
 
     // ------------------------------------------------------------ panel
     kpis() {
-      const r = this.dash.resumen;
-      return [{ t: 'Indicadores', v: r.total, c: NAVY }, { t: 'Cumplimiento', v: r.cumplimiento + '%', c: BRAND }, { t: 'En verde', v: r.verde, c: SEM.verde },
-      { t: 'En alerta', v: r.amarillo, c: SEM.amarillo }, { t: 'Críticos', v: r.rojo, c: SEM.rojo }, { t: 'Por aprobar / pendientes', v: `${r.por_aprobar} / ${r.pendientes_carga}`, c: SEM.sin_datos }];
+      const r = this.dash.resumen, ant = this.dash.anterior, d = ant && r.sin_datos < r.total ? Math.round((r.cumplimiento - ant.cumplimiento) * 10) / 10 : null;
+      return [
+        { t: 'Indicadores', v: r.total, c: NAVY },
+        { t: 'Cumplimiento', v: r.cumplimiento + '%', c: BRAND, sub: d === null ? (r.sin_datos === r.total ? 'Aún sin mediciones' : 'Sin ejercicio anterior') : `${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${nf(Math.abs(d), 1)} pts vs ${ant.etiqueta}`, subc: d > 0 ? 'text-green-700' : d < 0 ? 'text-red-700' : 'text-slate-500' },
+        { t: 'En verde', v: r.verde, c: SEM.verde }, { t: 'En alerta', v: r.amarillo, c: SEM.amarillo }, { t: 'Críticos', v: r.rojo, c: SEM.rojo },
+        { t: 'Carga al día', v: r.carga_al_dia + '%', c: '#7c3aed', sub: r.faltantes ? `${r.faltantes} período(s) sin cargar` : 'Todo cargado', subc: r.faltantes ? 'text-amber-700' : 'text-green-700' }];
     },
+    celdaClase: c => c ? ({ verde: 'bg-green-500 text-white', amarillo: 'bg-amber-400 text-slate-900', rojo: 'bg-red-500 text-white' }[c.semaforo]) : 'bg-slate-100 text-slate-300',
+    tendTxt(t) { return !t ? '—' : `${t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '='} ${nf(Math.abs(t.delta), 2)}`; },
+    tendClase(t) { return !t || t.mejora === null ? 'text-slate-400' : t.mejora ? 'text-green-700' : 'text-red-700'; },
     async cargarPanel() {
-      this.dash = await this.api('/api/dashboard' + (this.panelArea ? '?area_id=' + this.panelArea : ''));
-      if (!this.dash.indicadores.some(i => i.id === this.tendInd)) this.tendInd = this.dash.indicadores[0]?.id;
+      const q = new URLSearchParams(); if (this.ejSel) q.set('ejercicio', this.ejSel); if (this.panelArea) q.set('area_id', this.panelArea);
+      this.dash = await this.api('/api/dashboard?' + q);
+      if (!this.dash.indicadores.some(i => i.id === this.tendInd)) this.tendInd = this.dash.indicadores.find(i => i.serie.length)?.id || this.dash.indicadores[0]?.id;
       this.$nextTick(() => this.dibujar());
     },
     dibujar() {
@@ -422,31 +438,184 @@ function sigt() {
       const nuevo = (id, cfg) => { const c = document.getElementById(id); if (!c) return; Chart.getChart(c)?.destroy(); new Chart(c, cfg); };
       Chart.defaults.font.family = 'ui-sans-serif, system-ui, "Segoe UI", sans-serif'; Chart.defaults.color = '#5f5d52'; Chart.defaults.borderColor = '#e8e5da';
       const r = this.dash.resumen, i = this.dash.indicadores.find(x => x.id === this.tendInd);
-      if (i) {
-        const s = i.serie, plano = a => a.map(x => Alpine.raw(x));
+      if (i && i.serie.length) {
+        const s = i.serie;
         nuevo('ch-tend', {
           type: 'line',
           data: {
             labels: s.map(p => p.etiqueta), datasets: [
-              { label: 'Resultado', data: s.map(p => p.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: s.map(p => SEM[p.semaforo]), pointRadius: 6, pointBorderColor: '#fff', borderWidth: 2, tension: 0 },
+              { label: 'Resultado', data: s.map(p => p.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: s.map(p => SEM[p.semaforo]), pointRadius: 6, pointBorderColor: '#fff', borderWidth: 2.5, tension: .25 },
               { label: 'Meta', data: s.map(p => p.meta), borderColor: NAVY, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
               { label: 'Límite crítico', data: s.map(p => p.limite), borderColor: SEM.rojo, borderDash: [2, 4], pointRadius: 0, borderWidth: 1.5 }]
           },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${this.fmt(c.parsed.y, i.unidad, i.decimales)}` } } }, scales: { y: { title: { display: true, text: i.unidad } } } }
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${this.fmt(c.parsed.y, i.unidad, i.decimales)}` } } }, scales: { y: { title: { display: true, text: i.unidad } }, x: { grid: { display: false } } } }
         });
-      }
+      } else Chart.getChart(document.getElementById('ch-tend'))?.destroy();
       nuevo('ch-dist', {
         type: 'doughnut',
-        data: { labels: ['Cumple', 'Alerta', 'Crítico', 'Sin datos'], datasets: [{ data: [r.verde, r.amarillo, r.rojo, r.sin_datos], backgroundColor: [SEM.verde, SEM.amarillo, SEM.rojo, SEM.sin_datos], borderWidth: 2, borderColor: '#fff' }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+        data: { labels: ['Cumple', 'Alerta', 'Crítico', 'Sin datos'], datasets: [{ data: [r.verde, r.amarillo, r.rojo, r.sin_datos], backgroundColor: [SEM.verde, SEM.amarillo, SEM.rojo, SEM.sin_datos], borderWidth: 3, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } }
       });
       const A = this.dash.por_area, pct = k => A.map(a => Math.round(1000 * a[k] / a.total) / 10);
+      const ds = [['Cumple', 'verde'], ['Alerta', 'amarillo'], ['Crítico', 'rojo']].map(([l, k]) => ({ type: 'bar', label: l, data: pct(k), backgroundColor: SEM[k], borderRadius: 6, borderSkipped: false }));
+      if (this.dash.anterior) ds.push({ type: 'line', label: 'Cumplimiento ' + this.dash.anterior.etiqueta, data: A.map(a => a.cumplimiento_anterior), showLine: false, pointStyle: 'rectRot', pointRadius: 7, pointBackgroundColor: NAVY, pointBorderColor: '#fff', pointBorderWidth: 2 });
       nuevo('ch-area', {
-        type: 'bar',
-        data: { labels: A.map(a => a.area), datasets: [['Cumple', 'verde'], ['Alerta', 'amarillo'], ['Crítico', 'rojo']].map(([l, k]) => ({ label: l, data: pct(k), backgroundColor: SEM[k] })) },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } } }, scales: { x: { stacked: true }, y: { stacked: true, max: 100, ticks: { callback: v => v + '%' } } } }
+        data: { labels: A.map(a => a.area), datasets: ds },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } } }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, max: 100, ticks: { callback: v => v + '%' } } } }
       });
     },
+
+    // --------------------------------------------------- ejercicios fiscales
+    async cargarEjercicios() {
+      const r = await this.api('/api/ejercicios'); this.ejLista = r.ejercicios; this.ejVigente = r.vigente;
+      let g = null; try { g = Number(localStorage.getItem('sigt_ej')); } catch { }
+      this.ejSel = this.ejLista.some(e => e.anio === g) ? g : r.vigente;
+    },
+    get ejActual() { return this.ejLista.find(e => e.anio === this.ejSel) || {}; },
+    estadoEj: e => ({ vigente: 'Vigente', terminado: 'Terminado · por cerrar', cerrado: 'Cerrado', futuro: 'Próximo' }[e] || e),
+    claseEj: e => ({ vigente: 'border-green-300 bg-green-50 text-green-800', terminado: 'border-amber-300 bg-amber-50 text-amber-800', cerrado: 'border-slate-300 bg-slate-100 text-slate-700', futuro: 'border-sky-300 bg-sky-50 text-sky-800' }[e] || ''),
+    async cambiarEjercicio() {
+      try { localStorage.setItem('sigt_ej', String(this.ejSel)); } catch { }
+      if (['panel', 'historial', 'reportes'].includes(this.view)) await this.go(this.view);
+      this.avisar('Ejercicio ' + this.ejActual.etiqueta + (this.ejActual.estado === 'cerrado' ? ' (cerrado, solo lectura)' : ''));
+    },
+    async cargarEjerciciosVista() { const r = await this.api('/api/ejercicios?detalle=1'); this.ejVista = r.ejercicios; this.ejLista = r.ejercicios; },
+    get anchoAmplio() { return window.innerWidth >= 640; },
+    get ejTerminados() { return this.ejLista.filter(e => e.estado === 'terminado'); },
+    get ejPorCerrar() { return this.ejVista.filter(e => e.estado === 'terminado'); },
+    fechaCorta: d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+    async abrirCierre(e) {
+      this.cierre = { abierto: true, e, v: null, nota: '', aceptar: false };
+      try { this.cierre.v = await this.api(`/api/ejercicios/${e.anio}/verificacion`); } catch { this.cierre.abierto = false; }
+    },
+    async confirmarCierre() {
+      this.busy = true;
+      try { await this.api(`/api/ejercicios/${this.cierre.e.anio}/cerrar`, { method: 'POST', body: { nota: this.cierre.nota, aceptar_faltantes: this.cierre.aceptar } }); this.cierre.abierto = false; this.avisar('Ejercicio cerrado y archivado.'); await this.cargarEjerciciosVista(); } catch { }
+      this.busy = false;
+    },
+    async confirmarReapertura() {
+      this.busy = true;
+      try { await this.api(`/api/ejercicios/${this.reap.e.anio}/reabrir`, { method: 'POST', body: { nota: this.reap.nota } }); this.reap.abierto = false; this.avisar('Ejercicio reabierto.'); await this.cargarEjerciciosVista(); } catch { }
+      this.busy = false;
+    },
+    verEjercicio(e) { this.ejSel = e.anio; try { localStorage.setItem('sigt_ej', String(e.anio)); } catch { } return this.go('panel'); },
+    descargarEjercicio(e) { return this.descargar('/api/reportes/general.xlsx?anio=' + e.anio, `reporte_${e.etiqueta}.xlsx`); },
+    descargarFichasEjercicio(e) { return this.descargar('/api/reportes/fichas.xlsx?ejercicio=' + e.anio, `fichas_${e.etiqueta}.xlsx`); },
+
+    // --------------------------------------------------------------- logo
+    get logoUrl() { return this.params.logo_url || this.marca.logo_url; },
+    reducirImagen(file, max = 600) {
+      return new Promise((ok, mal) => {
+        const fr = new FileReader();
+        fr.onerror = () => mal(new Error('No se pudo leer el archivo.'));
+        fr.onload = () => {
+          const img = new Image();
+          img.onerror = () => mal(new Error('El archivo no es una imagen válida.'));
+          img.onload = () => {
+            const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+            c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); ok(c.toDataURL('image/png'));
+          };
+          img.src = fr.result;
+        };
+        fr.readAsDataURL(file);
+      });
+    },
+    async subirLogo(ev) {
+      const f = ev.target.files[0]; if (!f) return;
+      if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { this.avisar('Use una imagen PNG, JPG o WebP.', true); ev.target.value = ''; return; }
+      this.busy = true;
+      let img; try { img = await this.reducirImagen(f); } catch (e) { this.avisar(e.message, true); this.busy = false; ev.target.value = ''; return; }
+      try {
+        const r = await this.api('/api/logo', { method: 'PUT', body: { imagen: img } });
+        this.params.logo_url = r.logo_url; this.marca.logo_url = r.logo_url; this.avisar('Logo actualizado.');
+      } catch { }
+      this.busy = false; ev.target.value = '';
+    },
+    async quitarLogo() {
+      if (!confirm('¿Quitar el logo de la empresa?')) return;
+      try { await this.api('/api/logo', { method: 'DELETE' }); this.params.logo_url = null; this.marca.logo_url = null; this.avisar('Logo eliminado.'); } catch { }
+    },
+
+    // ------------------------------------------------------ guía de bienvenida
+    pasosBase() {
+      const r = this.user.rol, nav = (id, t, d) => ({ sel: `[data-tour="nav-${id}"]`, alt: '[data-tour="nav-_mas"]', t, d });
+      const ini = { t: '¡Bienvenido al SIGT!', d: 'Este sistema reúne los indicadores de gestión de Tripoliven: cargar datos, aprobarlos, analizarlos y generar reportes. Le mostramos en un minuto para qué sirve cada parte. Puede omitir la guía cuando quiera y repetirla desde el menú de su perfil.' };
+      const ej = { sel: '[data-tour="ej-selector"]', t: 'Ejercicio fiscal', d: 'Todo el sistema se organiza por ejercicio fiscal (por ejemplo 2025-2026). Aquí elige cuál ver: así los registros de años distintos no se mezclan. Los ejercicios cerrados quedan de solo lectura.' };
+      const menu = { sel: '[data-tour="menu-usuario"]', t: 'Su perfil', d: 'Desde aquí cambia su contraseña, vuelve a ver esta guía o cierra la sesión.' };
+      const info = { sel: '.info', t: 'Botones «i»', d: 'Cada vez que vea un botón con una «i», tóquelo: explica el campo o el concepto en lenguaje sencillo.' };
+      const fin = { t: '¡Listo!', d: 'Ya conoce lo esencial. Si tiene dudas, use los botones «i» o repita esta guía desde su perfil.' };
+      if (r === 'jefe') return [ini,
+        { sel: '[data-tour="carga-selectores"]', t: 'Elija indicador y período', d: 'Seleccione el indicador de su área y el período a reportar. Los pendientes aparecen resaltados arriba.' },
+        { sel: '[data-tour="carga-resultado"]', t: 'Resultado y semáforo automáticos', d: 'Digite solo los datos base: el sistema calcula el resultado y el semáforo. Si queda en alerta o crítico, deberá escribir el análisis y el plan de mejora.' },
+        nav('carga', 'Carga rápida', 'Aquí registra mes a mes los datos de sus indicadores. Tarda menos de 2 minutos por indicador.'),
+        nav('historial', 'Mis cargas', 'Consulte lo que ha enviado, su estado (en revisión, aprobado, devuelto) y las observaciones del auditor.'),
+        nav('reportes', 'Reportes', 'Descargue en Excel las cargas y las fichas técnicas de su área.'), ej, info, menu, fin];
+      if (r === 'gerente') return [ini,
+        { sel: '[data-tour="panel-resumen"]', t: 'Estado del ejercicio', d: 'Resume el ejercicio elegido: avance del tiempo, cumplimiento y si ya está cerrado.' },
+        { sel: '[data-tour="panel-atencion"]', t: 'Requiere atención', d: 'Indicadores críticos, en alerta y empeorando, o con cargas pendientes. Toque uno para abrir su ficha.' },
+        { sel: '[data-tour="panel-mapa"]', t: 'Mapa de calor', d: 'Cada fila es un indicador y cada columna un mes del ejercicio: de un vistazo ve dónde están los problemas.' },
+        nav('panel', 'Panel de análisis', 'Resultados, tendencias, comparativo con el año anterior y cumplimiento por departamento.'),
+        nav('bandeja', 'Bandeja de aprobación', 'Las cargas enviadas por los jefes esperan aquí su aprobación o devolución con observaciones.'),
+        nav('historial', 'Todas las cargas', 'Historial completo con filtros. Desde aquí puede agregar notas de auditoría o reabrir una carga aprobada con un error.'),
+        nav('reportes', 'Reportes', 'Informe general en Excel y fichas técnicas en el formato del SGC.'),
+        nav('ejercicios', 'Ejercicios fiscales', 'Consulte el estado de cada ejercicio y sus resultados finales.'), ej, info, menu, fin];
+      return [ini,
+        { sel: '[data-tour="fichas-nuevo"]', t: 'Crear indicadores', d: 'Aquí define cada indicador: proceso, responsables, fórmula, metas y semáforo. Los botones «i» y la guía de fórmulas le ayudan.' },
+        nav('fichas', 'Indicadores', 'Fichas técnicas: cree, edite, duplique, archive y vea cada indicador.'),
+        nav('panel', 'Panel de análisis', 'Resumen del ejercicio, mapa de calor, atención requerida y comparativo con el año anterior.'),
+        nav('bandeja', 'Bandeja de aprobación', 'Cargas pendientes de revisión.'),
+        nav('carga', 'Cargar datos', 'Como administrador puede cargar datos de cualquier área.'),
+        nav('historial', 'Todas las cargas', 'Historial con filtros, notas de auditoría y reapertura de cargas.'),
+        nav('reportes', 'Reportes', 'Excel del informe general y de las fichas técnicas.'),
+        nav('ejercicios', 'Ejercicios fiscales', 'Cierre cada ejercicio cuando termine: queda archivado en solo lectura y el siguiente empieza limpio.'),
+        nav('org', 'Organización', 'Áreas, usuarios, listas de apoyo y parámetros: ejercicio fiscal y logo de la empresa.'),
+        nav('importar', 'Importar', 'Traiga al sistema las fichas de años anteriores desde Excel.'),
+        nav('bitacora', 'Bitácora', 'Registro inalterable de todo lo que ocurre en el sistema. Solo usted puede verlo.'), ej, info, menu, fin];
+    },
+    visible(sel) { return [...document.querySelectorAll(sel)].find(e => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'); },
+    async iniciarTour() {
+      if (this.tour.on) return;
+      this.menu = false; this.mas = false;
+      const inicial = { jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol];
+      if (this.view !== inicial) await this.go(inicial);
+      this.tour = { on: true, i: -1, pasos: this.pasosBase(), hole: null, pop: { top: 0, left: 0, w: 340 } };
+      await this.pasoTour(1);
+    },
+    async pasoTour(dir) {
+      let i = this.tour.i + dir; const P = this.tour.pasos;
+      for (; i >= 0 && i < P.length; i += dir) {
+        const p = P[i]; if (!p.sel) break;
+        if (this.visible(p.sel) || (p.alt && this.visible(p.alt))) break;
+      }
+      if (i >= P.length) return this.terminarTour();
+      return this.mostrarPaso(Math.max(0, i));
+    },
+    async mostrarPaso(i) {
+      const p = this.tour.pasos[i], el = p.sel ? (this.visible(p.sel) || (p.alt && this.visible(p.alt))) : null;
+      this.tour.i = i; this.tour.hole = null;
+      if (el) {
+        el.scrollIntoView({ block: 'center', inline: 'center' }); await new Promise(r => setTimeout(r, 80));
+        const r = el.getBoundingClientRect(), m = 8; this.tour.hole = { top: r.top - m, left: r.left - m, w: r.width + 2 * m, h: r.height + 2 * m };
+      }
+      await this.$nextTick(); this.ubicarPopover();
+    },
+    ubicarPopover() {
+      const W = Math.min(window.innerWidth - 24, 360), h = this.tour.hole, pop = this.$refs.tourpop, H = pop ? pop.offsetHeight : 200;
+      let top, left;
+      if (!h) { top = Math.max(12, (window.innerHeight - H) / 2); left = (window.innerWidth - W) / 2; }
+      else {
+        left = Math.min(Math.max(12, h.left + h.w / 2 - W / 2), window.innerWidth - W - 12);
+        top = h.top + h.h + 14 + H < window.innerHeight ? h.top + h.h + 14 : Math.max(12, h.top - H - 14);
+      }
+      this.tour.pop = { top, left, w: W };
+    },
+    async terminarTour() {
+      this.tour.on = false; this.tour.hole = null;
+      if (!this.user.tour_visto) { try { await this.api('/api/tour', { method: 'POST', body: { visto: true } }, true); this.user.tour_visto = true; } catch { } }
+    },
+    get pasoTourActual() { return this.tour.pasos[this.tour.i] || { t: '', d: '' }; },
+    get pasoEsUltimo() { return this.tour.i >= this.tour.pasos.length - 1; },
 
     // ----------------------------------------------------------- fichas
     get fichasFiltradas() {

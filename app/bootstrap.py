@@ -4,7 +4,7 @@ import os
 
 from sqlalchemy import func, inspect, select, text
 
-from . import audit
+from . import audit, calc
 from .database import ES_POSTGRES, Base, SessionLocal, engine
 from .models import Medicion, Parametro, Usuario
 from .security import hash_password
@@ -59,6 +59,25 @@ def crear_admin(username: str, nombre: str, password: str) -> Usuario:
                         {"username": u.username, "rol": "admin", "origen": "bootstrap"})
         db.commit()
         return u
+
+
+def recalcular_ejercicios(solo_nulos: bool = True) -> int:
+    """Asigna a cada medición el ejercicio fiscal de su período (requiere calc.INICIO ya configurado)."""
+    n = 0
+    with SessionLocal() as db:
+        q = select(Medicion)
+        if solo_nulos:
+            q = q.where(Medicion.ejercicio.is_(None))
+        for m in db.scalars(q):
+            try:
+                y = calc.ejercicio_de(m.indicador.frecuencia, m.periodo)
+            except Exception:
+                continue
+            if m.ejercicio != y:
+                m.ejercicio = y
+                n += 1
+        db.commit()
+    return n
 
 
 def parametros_por_defecto() -> None:

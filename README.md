@@ -75,3 +75,16 @@ El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicado
 
 ## Diseño de la interfaz
 Estilo sobrio y cálido inspirado en Claude.com: fondo crema, títulos en tipografía serif, tarjetas y controles muy redondeados, botones en forma de píldora, cabecera translúcida con navegación en cápsula (escritorio) y barra flotante inferior con menú «Más» (móvil), hojas modales que suben desde abajo en el teléfono y respeto de «reducir movimiento». Conserva los azules corporativos (#0f172a y #0284c7) como acentos. Los estilos se compilan con `npm run build:css` (fuente en `src/input.css` y `tailwind.config.js`).
+
+## Ejercicios fiscales (organización por año de gestión)
+- **Selector global** en la cabecera: panel, historial, reportes y fichas se filtran por ejercicio; los registros de años distintos no se mezclan. Cada período de carga está agrupado por ejercicio.
+- **Ciclo de vida:** vigente → terminado → verificación → **cerrado**. Sección *Ejercicios fiscales* (administrador gestiona, gerente consulta): estado y resultados de cada año, reportes Excel por ejercicio, cierre con lista de comprobación (sin cargas en revisión/devueltas, períodos sin cargar) y reapertura con motivo.
+- Un ejercicio cerrado es de **solo lectura** (cargas, aprobaciones, notas, importaciones) y conserva una foto de sus resultados; todo queda en la bitácora. No se puede cambiar el mes de inicio del ejercicio mientras haya ejercicios cerrados.
+- Aviso al administrador/gerente cuando un ejercicio terminó y sigue abierto.
+
+## Dashboard
+Estado del ejercicio (avance, carga al día), indicadores clave con comparativo contra el ejercicio anterior, «Requiere atención» (críticos, alertas que empeoran, cargas pendientes), mapa de calor indicador × mes, tendencia vs. meta del ejercicio, distribución de semáforos y cumplimiento por departamento con marca del año anterior.
+
+## Guía de bienvenida y logo
+- La primera vez que cada usuario inicia sesión se muestra una **guía paso a paso** según su rol (qué hace cada botón y sección); se puede omitir y repetir desde el menú del perfil («Ver guía de uso»).
+- **Logo de la empresa** (Organización → Parámetros): se sube desde el navegador, se valida y se guarda en la base de datos; aparece en el ingreso, la cabecera, la ficha técnica y los reportes Excel.

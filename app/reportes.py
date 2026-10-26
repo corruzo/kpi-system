@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, LineChart, Reference
+from openpyxl.drawing.image import Image as XLImagen
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -88,6 +89,19 @@ def _legible(formula, variables):
     return t
 
 
+def _poner_logo(ws, logo: bytes | None, celda: str = "A1", alto: int = 36):
+    """Inserta el logo de la empresa (PNG) si existe; devuelve True si se insertó."""
+    if not logo:
+        return False
+    try:
+        img = XLImagen(io.BytesIO(logo))
+        img.width, img.height = int(img.width * alto / img.height), alto
+        ws.add_image(img, celda)
+        return True
+    except Exception:
+        return False
+
+
 def _guardar(wb) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
@@ -95,7 +109,8 @@ def _guardar(wb) -> bytes:
 
 
 # ------------------------------------------------------------------ reporte general
-def reporte_general(mediciones, indicadores, generado_por: str, filtros: str, por_aprobar: int) -> bytes:
+def reporte_general(mediciones, indicadores, generado_por: str, filtros: str, por_aprobar: int,
+                    logo: bytes | None = None) -> bytes:
     """mediciones: [Medicion]; indicadores: [Indicador] (los incluidos en el reporte)."""
     wb = Workbook()
     ahora = _local(datetime.utcnow())
@@ -105,6 +120,8 @@ def reporte_general(mediciones, indicadores, generado_por: str, filtros: str, po
     ws = wb.active
     ws.title = "Resumen"
     _titulo(ws, "Tripoliven, C.A. — Sistema de Indicadores de Gestión", sub, 7)
+    if _poner_logo(ws, logo, "A1", 32):
+        ws["A1"].alignment = Alignment(vertical="center", indent=7)
     ws["A4"], ws["B4"] = "Filtros aplicados", filtros or "Ninguno (todos los datos)"
     ws["A4"].font = Font(name=FUENTE, bold=True, color=GRIS)
     ultimo = {}
@@ -446,6 +463,9 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
             ws[ref].fill = _fill(BRAND)
             ws[ref].alignment = Alignment(horizontal="center", vertical="center")
         ws.row_dimensions[1].height = ws.row_dimensions[2].height = 20
+        if _poner_logo(ws, params.get("logo_bytes"), "A1", 38):
+            c.alignment = Alignment(vertical="center", indent=1)
+            ws["A1"].alignment = Alignment(vertical="center", indent=7, wrap_text=True)
         ws.merge_cells("A3:M3")
         ws["A3"].value = params.get("gerencia_emisora", "")
         ws["A3"].font = Font(name=FUENTE, italic=True, size=10, color=GRIS)

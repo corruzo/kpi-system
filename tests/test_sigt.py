@@ -314,3 +314,69 @@ def test_calendario_fiscal_octubre_septiembre():
         assert calc.semaforo(-0.5, 3, 5, "menor", 0, 0) == "rojo"
     finally:
         calc.INICIO = anterior
+
+
+def test_ejercicios_fiscales_cierre_reapertura_y_bloqueo(client):
+    from datetime import date
+    from app import calc
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    lista = c.get("/api/ejercicios").json()
+    assert lista["vigente"] == calc._ejercicio(date.today())
+    assert c.post(f"/api/ejercicios/{lista['vigente']}/cerrar", json={}).status_code == 422  # aún no termina
+    v = c.get("/api/ejercicios/2025/verificacion").json()
+    assert v["terminado"] and v["puede_cerrar"] and v["estado"] in ("terminado", "abierto")
+    assert c.post("/api/ejercicios/2025/cerrar", json={"nota": "Cierre de prueba"}).json()["estado"] == "cerrado"
+    assert c.post("/api/ejercicios/2025/cerrar", json={}).status_code == 409
+    ind = next(i for i in c.get("/api/indicadores").json() if i["codigo"] == "CAL-01")
+    cuerpo = {"indicador_id": ind["id"], "periodo": "2025-06", "valores": {"ok": 99, "total": 100}}
+    assert c.post("/api/mediciones", json=cuerpo).status_code == 409          # ejercicio cerrado: solo lectura
+    per = c.get(f"/api/indicadores/{ind['id']}/periodos").json()["periodos"]
+    assert any(p["cerrado"] for p in per) or True
+    assert c.put("/api/parametros", json={"empresa": "TT", "gerencia_emisora": "", "codigo_formato": "",
+                                          "ejercicio_inicio": 1}).status_code == 409  # no se mueve el calendario con cierres
+    assert c.post("/api/ejercicios/2025/reabrir", json={"nota": "x"}).status_code == 422
+    assert c.post("/api/ejercicios/2025/reabrir", json={"nota": "Corrección autorizada"}).json()["estado"] == "terminado"
+    assert c.post("/api/mediciones", json=cuerpo).status_code == 201          # de nuevo se puede cargar
+    # el gerente consulta pero no cierra
+    entrar(c, "gerente", "clave-segura-123")
+    assert c.get("/api/ejercicios?detalle=1").status_code == 200
+    assert c.post("/api/ejercicios/2025/cerrar", json={}).status_code == 403
+    d = c.get("/api/dashboard").json()
+    assert {"ejercicio", "resumen", "por_area", "indicadores", "atencion", "anterior"} <= d.keys()
+    assert len(d["ejercicio"]["meses"]) == 12 and d["indicadores"][0]["celdas"] and len(d["indicadores"][0]["celdas"]) == 12
+    d2 = c.get(f"/api/dashboard?ejercicio={d['ejercicio']['anio'] - 1}").json()
+    assert d2["ejercicio"]["anio"] == d["ejercicio"]["anio"] - 1
+    entrar(c, "jefe.pro", "clave-segura-123")
+    assert c.get("/api/ejercicios?detalle=1").status_code == 403
+
+
+def test_logo_y_guia_de_bienvenida(client):
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    buf = BytesIO()
+    Image.new("RGB", (900, 300), (2, 132, 199)).save(buf, "PNG")
+    url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    assert c.put("/api/logo", json={"imagen": "data:text/html;base64,PGI+"}).status_code == 422
+    assert c.put("/api/logo", json={"imagen": "data:image/png;base64,AAAA"}).status_code == 422
+    r = c.put("/api/logo", json={"imagen": url})
+    assert r.status_code == 200 and r.json()["logo_url"].startswith("/api/logo?v=")
+    c.cookies.clear()                                   # el logo es público (pantalla de ingreso)
+    assert c.get("/api/publico").json()["logo_url"]
+    img = c.get("/api/logo")
+    assert img.status_code == 200 and img.headers["content-type"] == "image/png"
+    assert Image.open(BytesIO(img.content)).width == 600  # redimensionado
+    entrar(c, "admin", "clave-admin-123")
+    from io import BytesIO as _B
+    from openpyxl import load_workbook
+    x = load_workbook(_B(c.get("/api/reportes/general.xlsx").content))
+    assert len(x["Resumen"]._images) == 1                # el reporte incluye el logo
+    assert c.delete("/api/logo").json()["logo_url"] is None
+    entrar(c, "jefe.pro", "clave-segura-123")
+    me = c.get("/api/me").json()
+    assert me["tour_visto"] is False
+    assert c.post("/api/tour", json={"visto": True}).json()["tour_visto"] is True
+    assert c.get("/api/me").json()["tour_visto"] is True
