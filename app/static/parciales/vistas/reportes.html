@@ -22,4 +22,12 @@
             <div><label class="lbl">Indicador</label><select class="inp" x-model="repFicha.indicador_id"><option value="">Todos</option><template x-for="i in indicadores.filter(i => !repFicha.area_id || i.area_id==repFicha.area_id)" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template></select></div></div>
           <button class="btn btn-p w-full sm:w-auto" :disabled="busy" @click="descargarFichas()">Descargar fichas en Excel</button>
         </div></div>
+      <div class="card" x-show="user.rol!=='jefe'"><div class="card-h"><h2 class="font-semibold">Verificar un reporte</h2><span class="chip border-slate-200 bg-slate-100 text-slate-600">Autenticidad</span></div>
+        <div class="card-b space-y-3">
+          <p class="text-sm text-slate-700">Suba un Excel descargado del sistema para comprobar que no fue modificado después de su emisión.</p>
+          <label class="btn btn-s cursor-pointer w-full sm:w-auto"><input type="file" accept=".xlsx" class="sr-only" @change="verificarArchivo($event)">Elegir archivo para verificar</label>
+          <div x-show="verif" class="rounded-2xl border p-3.5 text-sm" :class="verif && verif.ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'">
+            <b x-text="verif && verif.ok ? '✔ Reporte auténtico' : '✖ Reporte no válido'"></b><p class="mt-0.5" x-text="verif && verif.motivo"></p>
+            <p class="mt-1 text-xs opacity-80" x-text="verif && ('N.º ' + verif.numero + ' · ' + verif.tipo + ' · ' + verif.generado_por + ' · ' + verif.fecha)"></p></div>
+        </div></div>
     </section>

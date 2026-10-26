@@ -1,5 +1,5 @@
 """Reportes en Excel (.xlsx)."""
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from ...models import Usuario
@@ -26,6 +26,12 @@ def fichas(ejercicio: int | None = None, area_id: int | None = None, indicador_i
            db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Una hoja por indicador con el formato de la ficha técnica del SGC."""
     return _descarga(*reportes.fichas(db, u, ejercicio, area_id, indicador_id))
+
+
+@router.post("/verificar")
+async def verificar(archivo: UploadFile = File(...), db: Session = Depends(get_db), _: Usuario = Depends(requiere("admin", "gerente"))):
+    """Comprueba que un Excel descargado del SIGT conserva exactamente lo que el sistema emitió."""
+    return reportes.verificar(db, await archivo.read(10_000_000))
 
 
 @router.get("/bitacora.xlsx")

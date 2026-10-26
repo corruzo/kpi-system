@@ -162,3 +162,8 @@ def evaluar(formula: str, valores: dict, constantes: dict | None = None, decimal
     if not math.isfinite(r):
         raise FormulaError("El resultado no es un número válido.")
     return round(r, decimales)
+
+
+def analizar(formula: str, nombres) -> ast.expr:
+    """Árbol validado de la fórmula (para traductores como `formula_excel`)."""
+    return _analizar(formula, nombres)

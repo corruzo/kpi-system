@@ -6,13 +6,13 @@ SIGT.modulos.parametros = () => ({
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
       ingreso() { return this.cargarParametros(); },
-      entrar: { org() { this.parForm = { ...this.params }; } },
+      entrar: { org() { this.parForm = { ...this.params, clave_reportes: '' }; } },
     },
 
     async cargarParametros() { this.params = await this.api('/api/parametros'); },
     async guardarParametros() {
       this.busy = true;
-      try { this.params = await this.api('/api/parametros', { method: 'PUT', body: { empresa: this.parForm.empresa, gerencia_emisora: this.parForm.gerencia_emisora, codigo_formato: this.parForm.codigo_formato, ejercicio_inicio: Number(this.parForm.ejercicio_inicio) } }); this.parForm = { ...this.params }; this.avisar('Parámetros guardados.'); } catch { }
+      try { this.params = await this.api('/api/parametros', { method: 'PUT', body: { empresa: this.parForm.empresa, gerencia_emisora: this.parForm.gerencia_emisora, codigo_formato: this.parForm.codigo_formato, ejercicio_inicio: Number(this.parForm.ejercicio_inicio), proteger_reportes: !!this.parForm.proteger_reportes, clave_reportes: this.parForm.clave_reportes || '' } }); this.parForm = { ...this.params, clave_reportes: '' }; this.avisar('Parámetros guardados.'); } catch { }
       this.busy = false;
     },
     get logoUrl() { return this.params.logo_url || this.marca.logo_url; },

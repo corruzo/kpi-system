@@ -20,7 +20,7 @@ SIGT.modulos.nucleo = () => ({
     // ------------------------------------------------------------ comunicación
     async api(url, opt = {}, silencioso = false) {
       const o = { credentials: 'same-origin', ...opt };
-      if (o.body && typeof o.body !== 'string') { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
+      if (o.body && typeof o.body !== 'string' && !(o.body instanceof FormData)) { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
       const r = await fetch(url, o);
       if (!r.ok) {
         let d = {}; try { d = await r.json(); } catch { }

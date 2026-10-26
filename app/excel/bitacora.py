@@ -11,7 +11,6 @@ from .comun import (
     FUENTE,
     GRIS,
     ZEBRA,
-    a_bytes,
     configurar_impresion,
     encabezado_tabla,
     franja_titulo,
@@ -20,7 +19,7 @@ from .comun import (
 )
 
 
-def reporte_bitacora(registros, codigos: dict, generado_por: str, verificacion: dict) -> bytes:
+def reporte_bitacora(registros, codigos: dict, generado_por: str, verificacion: dict) -> Workbook:
     wb = Workbook()
     ws = wb.active
     ws.title = "Bitácora"
@@ -59,4 +58,4 @@ def reporte_bitacora(registros, codigos: dict, generado_por: str, verificacion: 
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(registros))}"
     configurar_impresion(ws, 4)
-    return a_bytes(wb)
+    return wb

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..dominio import calendario
-from ..errores import Conflicto
+from ..errores import Conflicto, Invalido
 from ..models import Ejercicio, Indicador, Medicion, Parametro, Usuario
 from . import auditoria, ejercicios, marca
 
@@ -57,6 +57,7 @@ def resumen(db: Session) -> dict:
     vigente = calendario.ejercicio_de_fecha(hoy)
     return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
             "codigo_formato": p.get("codigo_formato", ""), "ejercicio_inicio": calendario.inicio_mes(),
+            "proteger_reportes": p.get("proteger_reportes") == "1", "clave_reportes_definida": bool(p.get("clave_reportes")),
             "ejercicio_actual": calendario.etiqueta_ejercicio(vigente), "ejercicio_vigente": vigente,
             "logo_url": marca.url_logo(db)}
 
@@ -68,6 +69,12 @@ def datos_para_reportes(db: Session) -> dict:
             "codigo_formato": p.get("codigo_formato", ""), "logo_bytes": marca.bytes_logo(db)}
 
 
+def clave_de_reportes(db: Session) -> str | None:
+    """Contraseña con la que se bloquean los Excel exportados, o None si la protección está desactivada."""
+    p = leer(db)
+    return p.get("clave_reportes") or None if p.get("proteger_reportes") == "1" else None
+
+
 def actualizar(db: Session, usuario: Usuario, datos) -> dict:
     actuales = leer(db)
     cambia_inicio = datos.ejercicio_inicio != calendario.inicio_mes()
@@ -77,10 +84,19 @@ def actualizar(db: Session, usuario: Usuario, datos) -> dict:
         if db.scalar(select(Medicion.id).join(Indicador).where(~Indicador.frecuencia.in_(("mensual", "eventual"))).limit(1)):
             raise Conflicto("Ya existen cargas bimestrales, trimestrales, cuatrimestrales, semestrales o anuales: "
                             "cambiar el mes de inicio del ejercicio fiscal alteraría sus períodos.")
+    nueva_clave = datos.clave_reportes.strip()
+    if datos.proteger_reportes and not (nueva_clave or actuales.get("clave_reportes")):
+        raise Invalido("Defina la contraseña con la que se bloquearán los reportes en Excel.")
+    if nueva_clave and len(nueva_clave) < 6:
+        raise Invalido("La contraseña de los reportes debe tener al menos 6 caracteres.")
+    nuevos = {**datos.model_dump(exclude={"clave_reportes"}), "ejercicio_inicio": str(datos.ejercicio_inicio),
+              "proteger_reportes": "1" if datos.proteger_reportes else "0"}
+    if nueva_clave:
+        nuevos["clave_reportes"] = nueva_clave
     cambios = {}
-    for clave, valor in {**datos.model_dump(), "ejercicio_inicio": str(datos.ejercicio_inicio)}.items():
+    for clave, valor in nuevos.items():
         if actuales.get(clave) != valor:
-            cambios[clave] = [actuales.get(clave), valor]
+            cambios[clave] = ["(oculta)", "(oculta)"] if clave == "clave_reportes" else [actuales.get(clave), valor]
             fila = db.get(Parametro, clave)
             if fila:
                 fila.valor = str(valor)

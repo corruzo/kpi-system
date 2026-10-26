@@ -19,7 +19,6 @@ from .comun import (
     NAVY,
     SEM,
     ZEBRA,
-    a_bytes,
     celda_semaforo,
     configurar_impresion,
     encabezado_tabla,
@@ -29,11 +28,12 @@ from .comun import (
     poner_logo,
     relleno,
 )
+from .sello import colorear_semaforo, formula_semaforo
 
 
 def reporte_general(
     mediciones, indicadores, generado_por: str, filtros: str, por_aprobar: int, logo: bytes | None = None
-) -> bytes:
+) -> Workbook:
     """mediciones: [Medicion]; indicadores: [Indicador] (los incluidos en el reporte)."""
     wb = Workbook()
     ahora = hora_local(datetime.utcnow())
@@ -108,7 +108,7 @@ def reporte_general(
             a["amarillo"],
             a["rojo"],
             a["sin"],
-            a["verde"] / a["total"] if a["total"] else 0,
+            f"=IF(B{k}=0,0,C{k}/B{k})",
         ]
         for j, v in enumerate(fila, 1):
             c = ws.cell(k, j, v)
@@ -120,6 +120,16 @@ def reporte_general(
         ws.cell(k, 7).number_format = "0.0%"
     fin = f0 + len(por_area)
     if por_area:
+        fila_total = fin + 1
+        ws.cell(fila_total, 1, "Total")
+        for j in range(2, 7):
+            ws.cell(fila_total, j, f"=SUM({get_column_letter(j)}{f0 + 1}:{get_column_letter(j)}{fin})")
+        ws.cell(fila_total, 7, f"=IF(B{fila_total}=0,0,C{fila_total}/B{fila_total})").number_format = "0.0%"
+        for j in range(1, 8):
+            c = ws.cell(fila_total, j)
+            c.font, c.border = Font(name=FUENTE, size=10, bold=True), BORDE
+            c.alignment = Alignment(horizontal="left" if j == 1 else "center")
+            c.fill = relleno("E2E8F0")
         ws.conditional_formatting.add(
             f"G{f0 + 1}:G{fin}", DataBarRule(start_type="num", start_value=0, end_type="num", end_value=1, color="16A34A")
         )
@@ -134,7 +144,7 @@ def reporte_general(
         ch.x_axis.delete = ch.y_axis.delete = False  # Excel oculta los ejes si no se indica
         ch.y_axis.numFmt, ch.y_axis.majorGridlines = "0", None
         ch.height, ch.width = 8.5, 20
-        ws.add_chart(ch, f"A{fin + 3}")
+        ws.add_chart(ch, f"A{fin + 4}")
     configurar_impresion(ws, f0, apaisado=False)
 
     # ---------- Mediciones
@@ -200,8 +210,13 @@ def reporte_general(
         ws.cell(k, 6).font = Font(name=FUENTE, size=10, bold=True)
         for j in (13, 15):
             ws.cell(k, j).number_format = "dd/mm/yyyy hh:mm"
-        celda_semaforo(ws.cell(k, 10), m.semaforo)
+        if m.meta_tope is None and m.limite_tope is None:
+            ws.cell(k, 10).value = formula_semaforo(f"F{k}", f"G{k}", f"H{k}", m.sentido == "mayor")
+            ws.cell(k, 10).alignment = Alignment(horizontal="center", vertical="center")
+        else:                                   # con topes, la regla no cabe en una fórmula simple
+            celda_semaforo(ws.cell(k, 10), m.semaforo)
         ws.cell(k, 10).border = BORDE
+    colorear_semaforo(ws, f"J5:J{max(5, 4 + len(ordenadas))}")
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(ordenadas))}"
     configurar_impresion(ws, 4)
@@ -354,7 +369,7 @@ def reporte_general(
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(indicadores))}"
     configurar_impresion(ws, 4)
-    return a_bytes(wb)
+    return wb
 
 
 # ------------------------------------------------------------------ bitácora

@@ -13,6 +13,13 @@ SIGT.modulos.reportes = () => ({
       if (this.user.rol !== 'jefe' && this.rep.area_id && !this.repFicha.area_id) q.set('area_id', this.rep.area_id);
       return this.descargar('/api/reportes/fichas.xlsx?' + q, 'fichas_sigt.xlsx');
     },
+    verif: null,
+    async verificarArchivo(ev) {
+      const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+      const fd = new FormData(); fd.append('archivo', f); this.busy = true; this.verif = null;
+      try { this.verif = await this.api('/api/reportes/verificar', { method: 'POST', body: fd }); } catch { }
+      this.busy = false;
+    },
     descargarReporte() {
       const q = new URLSearchParams(); for (const [k, v] of Object.entries(this.rep)) if (v) q.set(k, v);
       return this.descargar('/api/reportes/general.xlsx?' + q, 'reporte_sigt.xlsx');

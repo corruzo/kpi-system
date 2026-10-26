@@ -76,6 +76,13 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 ## Reportes en Excel
 `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (indicadores clave, cumplimiento por departamento y gráfico), *Mediciones*, *Tendencias* (matriz con semáforos), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) y *Fichas técnicas*. Filtros por año, área y estado; el jefe de área solo obtiene su área. Cada descarga queda en la bitácora. El administrador también puede descargar la bitácora (`/api/reportes/bitacora.xlsx`).
 
+## Reportes protegidos y verificables
+
+- Los Excel exportados llevan **fórmulas vivas**: en cada ficha el resultado se recalcula desde los datos de su período y el semáforo se evalúa con la meta y el límite (`app/dominio/formula_excel.py` traduce la fórmula del sistema; si alguna no tiene equivalente exacto queda el valor calculado).
+- En **Organización → Parámetros** el administrador activa «Bloquear los reportes en Excel con contraseña» y define la contraseña (no se muestra ni se registra en la bitácora). Todas las hojas y la estructura del libro quedan protegidas.
+- Cada reporte lleva un **número** y una hoja **Control** con la huella SHA-256 de su contenido y una firma HMAC del sistema; la emisión queda en la bitácora. En **Reportes → Verificar un reporte** (gerente y administrador) se sube el archivo y se comprueba que no fue alterado.
+- Nota: la protección de Excel evita cambios accidentales, pero puede quitarse con herramientas externas; lo que garantiza la integridad es la verificación.
+
 ## Bitácora: solo administrador
 Únicamente el Administrador SGC puede ver, verificar y exportar los registros del sistema (los demás roles reciben 403 y no ven la sección).
 

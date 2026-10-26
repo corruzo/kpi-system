@@ -58,6 +58,8 @@ class ParametrosIn(BaseModel):
     gerencia_emisora: str = Field(default="", max_length=150)
     codigo_formato: str = Field(default="", max_length=30)
     ejercicio_inicio: int = Field(ge=1, le=12)
+    proteger_reportes: bool = False
+    clave_reportes: str = Field(default="", max_length=64)   # vacía = conservar la actual
 
 
 class LogoIn(BaseModel):

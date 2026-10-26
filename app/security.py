@@ -85,3 +85,8 @@ class LimiteIntentos:
 
     def limpiar(self, k: str):
         self._fallos.pop(k, None)
+
+
+def firmar_reporte(contenido: str) -> str:
+    """Firma HMAC de la huella de un reporte (separada de la firma de las sesiones)."""
+    return hmac.new(_SECRET, b"reporte:" + contenido.encode(), hashlib.sha256).hexdigest()

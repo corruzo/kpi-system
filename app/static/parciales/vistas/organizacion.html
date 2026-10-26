@@ -45,6 +45,11 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Código del formato</label><input class="inp" x-model="parForm.codigo_formato" maxlength="30" placeholder="NC-16-7"></div>
               <div><label class="lbl flex items-center gap-1.5">Inicio del ejercicio fiscal<button type="button" class="info" @click="toggleAyuda('ejercicio')" aria-label="Ayuda">i</button></label><select class="inp" x-model.number="parForm.ejercicio_inicio"><template x-for="(m,k) in ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']" :key="k"><option :value="k+1" x-text="m"></option></template></select></div></div>
             <div class="ayuda" x-show="ay==='ejercicio'">Mes en que comienza el año de gestión. Con inicio en <b>Octubre</b>, el ejercicio 2025-2026 va de octubre 2025 a septiembre 2026 y los trimestres cierran en Dic., Mar., Jun. y Sep. No puede cambiarse cuando ya hay cargas no mensuales.</div>
+            <div class="rounded-2xl border border-slate-200 p-3.5">
+              <label class="flex items-center gap-2.5 text-sm font-medium"><input type="checkbox" class="h-4 w-4 accent-slate-900" x-model="parForm.proteger_reportes"> Bloquear los reportes en Excel con contraseña<button type="button" class="info" @click="toggleAyuda('bloqueo')" aria-label="Ayuda">i</button></label>
+              <div class="ayuda" x-show="ay==='bloqueo'">Los Excel exportados llevan fórmulas vivas (resultado y semáforo) y sus hojas quedan protegidas: nadie puede cambiar las celdas sin la contraseña. Cada archivo lleva además una hoja «Control» firmada por el sistema; en Reportes → Verificar puede comprobar que un archivo no fue alterado.</div>
+              <div class="mt-2.5" x-show="parForm.proteger_reportes"><label class="lbl">Contraseña de los reportes</label><input type="password" class="inp" x-model="parForm.clave_reportes" minlength="6" maxlength="64" autocomplete="new-password" :placeholder="params.clave_reportes_definida ? 'Dejar en blanco para conservar la actual' : 'Mínimo 6 caracteres'"></div>
+            </div>
             <p class="text-xs text-slate-500">Ejercicio vigente: <b x-text="params.ejercicio_actual"></b></p>
             <button class="btn btn-p" :disabled="busy">Guardar parámetros</button>
           </form></div>

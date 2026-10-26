@@ -10,6 +10,7 @@ from openpyxl.utils import get_column_letter
 
 from ..dominio import calendario
 from ..dominio.ficha_texto import formula_documentada, franjas, meta_texto
+from ..dominio.formula_excel import a_excel
 from .comun import (
     BORDE,
     BRAND,
@@ -17,13 +18,13 @@ from .comun import (
     GRIS,
     NAVY,
     SEM,
-    a_bytes,
     celda_semaforo,
     formato_numero,
     hora_local,
     poner_logo,
     relleno,
 )
+from .sello import colorear_semaforo, formula_semaforo
 
 
 def _banda(ws, fila, texto, ncols=13):
@@ -58,7 +59,7 @@ def _lineas(texto: str, ancho: int) -> int:
     return sum(max(1, -(-len(t) // ancho)) for t in (texto or "").split("\n"))
 
 
-def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
+def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
     """fichas: [(Indicador, ejercicio, periodos[{periodo, etiqueta, corta, medicion}])]. Una hoja por indicador."""
     wb = Workbook()
     wb.remove(wb.active)
@@ -199,6 +200,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
             c.alignment = Alignment(horizontal="center", vertical="center")
             c.border = BORDE
         fila = 21
+        fila_variable = {v["clave"]: fila + k for k, v in enumerate(ind.variables)}
         for v in ind.variables:
             e = ws.cell(fila, 1, v["etiqueta"])
             e.font = Font(name=FUENTE, size=10)
@@ -211,6 +213,8 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
                 c.alignment = Alignment(horizontal="center", vertical="center")
                 if j < len(periodos) and periodos[j]["medicion"] and periodos[j]["medicion"].estado != "observado":
                     c.value = periodos[j]["medicion"].valores.get(v["clave"])
+                    if c.value is None and v.get("opcional"):
+                        c.value = v.get("defecto", 0)          # el sistema usó el valor por defecto
                     c.number_format = "#,##0.##"
                 elif j >= len(periodos):
                     c.fill = relleno("F1F5F9")
@@ -228,7 +232,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
             c.border = BORDE
         ini_tabla = fila + 1
         mayor = ind.sentido == "mayor"
-        for per in periodos:
+        for idx, per in enumerate(periodos):
             fila += 1
             m = per["medicion"] if per["medicion"] and per["medicion"].estado != "observado" else None
             mn = ind.meta if mayor else ind.meta_tope
@@ -242,8 +246,22 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
                 if j > 1:
                     c.number_format = fmt
             if m:
-                celda_semaforo(ws.cell(fila, 5), m.semaforo)
+                # el resultado se recalcula desde los datos de la columna del período; si la fórmula no tiene
+                # equivalente en Excel, queda el valor calculado por el sistema
+                col = get_column_letter(2 + idx)
+                celdas = {v["clave"]: f"{col}{fila_variable[v['clave']]}" for v in ind.variables}
+                celdas.update({c["clave"]: repr(c["valor"]) for c in m.constantes_aplicadas})
+                formula = a_excel(m.formula_aplicada, celdas, m.precision)
+                if formula:
+                    ws.cell(fila, 2).value = formula
+                if m.meta_tope is None and m.limite_tope is None:
+                    ws.cell(fila, 5).value = formula_semaforo(f"B{fila}", m.meta, m.limite, m.sentido == "mayor")
+                    ws.cell(fila, 5).alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    celda_semaforo(ws.cell(fila, 5), m.semaforo)
             ws.cell(fila, 5).border = BORDE
+        if periodos:
+            colorear_semaforo(ws, f"E{ini_tabla}:E{fila}")
         fin_tabla = fila
         if periodos:
             ch = LineChart()
@@ -328,4 +346,4 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> bytes:
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.page_margins.left = ws.page_margins.right = 0.4
         ws.oddFooter.right.text = f"{params.get('codigo_formato', '')}"
-    return a_bytes(wb)
+    return wb
