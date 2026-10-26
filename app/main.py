@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from . import audit, calc, security
+from . import audit, calc, reportes, security
 from .bootstrap import bootstrap_admin, preparar_base
 from .config import PRODUCCION, TRUST_PROXY
 from .database import get_db
@@ -124,11 +124,17 @@ def u_out(u: Usuario):
             "area_id": u.area_id, "area": u.area.nombre if u.area else None, "activo": u.activo}
 
 
+def _dec(i) -> int:
+    return i.decimales if i.decimales is not None else 2
+
+
 def ind_out(i: Indicador):
     return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo,
             "area_id": i.area_id, "area": i.area.nombre, "unidad": i.unidad,
             "frecuencia": i.frecuencia, "sentido": i.sentido, "formula": i.formula,
-            "variables": i.variables, "meta": i.meta, "limite": i.limite, "activo": i.activo}
+            "variables": i.variables, "constantes": i.constantes or [], "decimales": _dec(i),
+            "fuente": i.fuente or "", "notas": i.notas or "", "meta": i.meta, "limite": i.limite,
+            "activo": i.activo}
 
 
 def med_out(m: Medicion):
@@ -137,7 +143,9 @@ def med_out(m: Medicion):
             "area": i.area.nombre, "area_id": i.area_id, "unidad": i.unidad,
             "frecuencia": i.frecuencia, "variables": i.variables, "periodo": m.periodo,
             "periodo_etiqueta": calc.etiqueta(i.frecuencia, m.periodo),
-            "valores": m.valores, "resultado": m.resultado, "semaforo": m.semaforo,
+            "valores": m.valores, "resultado": m.resultado,
+            "decimales": m.decimales if m.decimales is not None else _dec(i),
+            "formula": m.formula or i.formula, "constantes": m.constantes if m.constantes is not None else (i.constantes or []), "semaforo": m.semaforo,
             "meta": m.meta, "limite": m.limite, "sentido": m.sentido, "estado": m.estado,
             "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
             "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
@@ -205,21 +213,39 @@ class NotaIn(BaseModel):
     texto: str = Field(min_length=3, max_length=2000)
 
 
+CLAVE_RX = r"^[a-z][a-z0-9_]{0,39}$"
+
+
 class VariableIn(BaseModel):
-    clave: str = Field(pattern=r"^[a-z][a-z0-9_]{0,39}$")
+    clave: str = Field(pattern=CLAVE_RX)
     etiqueta: str = Field(min_length=2, max_length=80)
+    ayuda: str = Field(default="", max_length=300)      # texto de apoyo para quien carga el dato
+    unidad: str = Field(default="", max_length=12)      # sufijo informativo (ej. TM, h, USD)
+    opcional: bool = False                              # si queda vacía se usa «defecto»
+    defecto: float = 0
+    negativo: bool = False                              # permite valores negativos
+
+
+class ConstanteIn(BaseModel):
+    clave: str = Field(pattern=CLAVE_RX)
+    etiqueta: str = Field(min_length=2, max_length=80)
+    valor: float
 
 
 class IndicadorIn(BaseModel):
     codigo: str = Field(min_length=2, max_length=20)
     nombre: str = Field(min_length=3, max_length=150)
-    objetivo: str = ""
+    objetivo: str = Field(default="", max_length=1000)
     area_id: int
-    unidad: Literal["%", "días", "TM", "USD", "cantidad"]
-    frecuencia: Literal["mensual", "trimestral", "semestral"]
+    unidad: str = Field(min_length=1, max_length=12)
+    frecuencia: Literal["mensual", "trimestral", "semestral", "anual"]
     sentido: Literal["mayor", "menor"]
-    formula: str
-    variables: list[VariableIn] = Field(min_length=1, max_length=8)
+    formula: str = Field(min_length=1, max_length=calc.MAX_LARGO * 2)
+    variables: list[VariableIn] = Field(min_length=1, max_length=12)
+    constantes: list[ConstanteIn] = Field(default_factory=list, max_length=12)
+    decimales: int = Field(default=2, ge=0, le=6)
+    fuente: str = Field(default="", max_length=500)
+    notas: str = Field(default="", max_length=2000)
     meta: float
     limite: float
     activo: bool = True
@@ -229,10 +255,16 @@ class IndicadorIn(BaseModel):
     def _cod(cls, v):
         return v.strip().upper()
 
+    @field_validator("unidad")
+    @classmethod
+    def _uni(cls, v):
+        return v.strip()
+
 
 class FormulaIn(BaseModel):
     formula: str
-    claves: list[str]
+    claves: list[str]                 # variables + constantes disponibles
+    variables: list[str] | None = None  # solo las variables (para avisar de las que no se usan)
 
 
 # --------------------------------------------------------------- helpers
@@ -246,18 +278,28 @@ def _ind_visible(db: Session, u: Usuario, ind_id: int) -> Indicador:
 
 
 def _calcular(ind: Indicador, valores: dict) -> dict:
-    claves = [v["clave"] for v in ind.variables]
-    faltan = [v["etiqueta"] for v in ind.variables if valores.get(v["clave"]) is None]
+    """Valida los datos de entrada, evalúa la fórmula y devuelve resultado, semáforo y valores finales."""
+    finales, faltan = {}, []
+    for v in ind.variables:
+        x = valores.get(v["clave"])
+        if x is None:
+            if v.get("opcional"):
+                x = v.get("defecto", 0)
+            else:
+                faltan.append(v["etiqueta"])
+                continue
+        if x < 0 and not v.get("negativo"):
+            return {"ok": False, "error": f"«{v['etiqueta']}» no puede ser negativo."}
+        finales[v["clave"]] = float(x)
     if faltan:
         return {"ok": False, "error": "Complete: " + ", ".join(faltan) + "."}
-    if any(valores[c] < 0 for c in claves):
-        return {"ok": False, "error": "Los valores no pueden ser negativos."}
+    consts = {c["clave"]: c["valor"] for c in (ind.constantes or [])}
     try:
-        res = calc.evaluar(ind.formula, {c: float(valores[c]) for c in claves})
+        res = calc.evaluar(ind.formula, finales, consts, _dec(ind))
     except calc.FormulaError as e:
         return {"ok": False, "error": str(e)}
     sem = calc.semaforo(res, ind.meta, ind.limite, ind.sentido)
-    return {"ok": True, "resultado": res, "semaforo": sem, "requiere_analisis": sem != "verde"}
+    return {"ok": True, "resultado": res, "semaforo": sem, "requiere_analisis": sem != "verde", "valores": finales}
 
 
 def _estados(db: Session, ind_id: int) -> dict[str, str]:
@@ -442,12 +484,23 @@ def listar_indicadores(db: Session = Depends(get_db), u: Usuario = Depends(usuar
     return out
 
 
+def _campos(d: IndicadorIn) -> dict:
+    return {**d.model_dump(exclude={"variables", "constantes", "formula"}), "formula": calc.normalizar(d.formula),
+            "variables": [v.model_dump() for v in d.variables],
+            "constantes": [c.model_dump() for c in d.constantes]}
+
+
 def _validar_ficha(db: Session, d: IndicadorIn, actual_id: int | None = None):
     claves = [v.clave for v in d.variables]
-    if len(set(claves)) != len(claves):
-        raise HTTPException(422, "Las claves de las variables no pueden repetirse.")
+    consts = [c.clave for c in d.constantes]
+    todas = claves + consts
+    if len(set(todas)) != len(todas):
+        raise HTTPException(422, "Las claves de variables y constantes no pueden repetirse.")
+    mal = [c for c in todas if c in calc.RESERVADAS]
+    if mal:
+        raise HTTPException(422, f"La clave «{mal[0]}» está reservada (función o palabra del lenguaje).")
     try:
-        calc.validar_formula(d.formula, claves)
+        calc.validar_formula(d.formula, todas, claves)
         calc.validar_umbrales(d.meta, d.limite, d.sentido)
     except (calc.FormulaError, ValueError) as e:
         raise HTTPException(422, str(e))
@@ -461,8 +514,8 @@ def _validar_ficha(db: Session, d: IndicadorIn, actual_id: int | None = None):
 @app.post("/api/formula/validar")
 def validar_formula(d: FormulaIn, _=Depends(requiere("admin"))):
     try:
-        sin_usar = calc.validar_formula(d.formula, d.claves)
-        return {"ok": True, "sin_usar": sin_usar}
+        sin_usar = calc.validar_formula(d.formula, d.claves, d.variables)
+        return {"ok": True, "sin_usar": sin_usar, "normalizada": calc.normalizar(d.formula)}
     except calc.FormulaError as e:
         return {"ok": False, "error": str(e)}
 
@@ -470,6 +523,8 @@ def validar_formula(d: FormulaIn, _=Depends(requiere("admin"))):
 class ProbarIn(BaseModel):
     formula: str
     valores: dict[str, float]
+    constantes: dict[str, float] = {}
+    decimales: int = Field(default=2, ge=0, le=6)
     meta: float
     limite: float
     sentido: Literal["mayor", "menor"]
@@ -480,7 +535,7 @@ def probar_formula(d: ProbarIn, _=Depends(requiere("admin"))):
     """Calcula resultado y semáforo con valores de ejemplo antes de guardar la ficha."""
     try:
         calc.validar_umbrales(d.meta, d.limite, d.sentido)
-        r = calc.evaluar(d.formula, d.valores)
+        r = calc.evaluar(d.formula, d.valores, d.constantes, d.decimales)
     except (calc.FormulaError, ValueError) as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "resultado": r, "semaforo": calc.semaforo(r, d.meta, d.limite, d.sentido)}
@@ -490,7 +545,7 @@ def probar_formula(d: ProbarIn, _=Depends(requiere("admin"))):
 def crear_indicador(d: IndicadorIn, db: Session = Depends(get_db),
                     u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
     _validar_ficha(db, d)
-    ind = Indicador(**d.model_dump(exclude={"variables"}), variables=[v.model_dump() for v in d.variables])
+    ind = Indicador(**_campos(d))
     db.add(ind)
     db.flush()
     audit.registrar(db, u, "INDICADOR_CREADO", "indicador", ind.id,
@@ -510,11 +565,13 @@ def editar_indicador(ind_id: int, d: IndicadorIn, db: Session = Depends(get_db),
     if db.scalar(select(Medicion.id).where(Medicion.indicador_id == ind_id).limit(1)):
         if d.frecuencia != ind.frecuencia:
             raise HTTPException(422, "No se puede cambiar la frecuencia de un indicador con cargas registradas.")
-        if {v.clave for v in d.variables} != {v["clave"] for v in ind.variables}:
+        if {v.clave for v in d.variables} != {v["clave"] for v in ind.variables} or \
+                {c.clave for c in d.constantes} != {c["clave"] for c in (ind.constantes or [])}:
             raise HTTPException(422, "No se pueden agregar, quitar ni renombrar claves de variables de un indicador "
                                      "con cargas registradas. Archívelo y cree uno nuevo.")
-    nuevos = {**d.model_dump(exclude={"variables"}), "variables": [v.model_dump() for v in d.variables]}
-    cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items() if getattr(ind, k) != v}
+    nuevos = _campos(d)
+    cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items()
+               if getattr(ind, k) != v and not (not getattr(ind, k) and not v)}
     for k, v in nuevos.items():
         setattr(ind, k, v)
     if cambios:
@@ -578,7 +635,7 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
     if r["requiere_analisis"] and (len(analisis) < 10 or len(plan) < 10):
         raise HTTPException(422, "El indicador está fuera de meta: el análisis de resultados y "
                                  "las correcciones / plan de mejora son obligatorios (ISO 9001:2015, 9.1.3 y 10.2).")
-    valores = {v["clave"]: float(d.valores[v["clave"]]) for v in ind.variables}
+    valores = r["valores"]
     m = db.scalar(select(Medicion).where(Medicion.indicador_id == ind.id, Medicion.periodo == d.periodo))
     if m and m.estado != "observado":
         raise HTTPException(409, "Este período ya fue cargado y no puede modificarse.")
@@ -590,6 +647,7 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
         m.version += 1
     m.valores, m.resultado, m.semaforo = valores, r["resultado"], r["semaforo"]
     m.meta, m.limite, m.sentido = ind.meta, ind.limite, ind.sentido
+    m.formula, m.constantes, m.decimales = ind.formula, ind.constantes or [], _dec(ind)
     m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
     m.cargado_por_id, m.cargado_en = u.id, ahora()
     m.revisado_por_id = m.revisado_en = None
@@ -605,17 +663,19 @@ def cargar(d: CargaIn, db: Session = Depends(get_db), u: Usuario = Depends(requi
 
 @app.get("/api/mediciones")
 def listar_mediciones(estado: str | None = None, indicador_id: int | None = None,
-                      area_id: int | None = None, limite: int = 300,
+                      area_id: int | None = None, periodo: str | None = None,
+                      semaforo: str | None = None, desde: int = 0, limite: int = 100,
                       db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    q = select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc()).limit(min(limite, 1000))
+    q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
+         .offset(max(desde, 0)).limit(min(limite, 500)))
     if u.rol == "jefe":
         q = q.where(Indicador.area_id == u.area_id)
     elif area_id:
         q = q.where(Indicador.area_id == area_id)
-    if estado:
-        q = q.where(Medicion.estado == estado)
-    if indicador_id:
-        q = q.where(Medicion.indicador_id == indicador_id)
+    for col, val in ((Medicion.estado, estado), (Medicion.indicador_id, indicador_id),
+                     (Medicion.periodo, periodo), (Medicion.semaforo, semaforo)):
+        if val:
+            q = q.where(col == val)
     return [med_out(m) for m in db.scalars(q)]
 
 
@@ -645,6 +705,22 @@ def revisar(med_id: int, d: RevisionIn, db: Session = Depends(get_db),
     return med_out(m)
 
 
+@app.post("/api/mediciones/{med_id}/reabrir")
+def reabrir(med_id: int, d: RevisionIn, db: Session = Depends(get_db),
+            u: Usuario = Depends(requiere("gerente", "admin")), _=Depends(escritura)):
+    """Devuelve al jefe una carga ya aprobada (p. ej. se detectó un error): queda como «devuelta»."""
+    m = _med(db, u, med_id)
+    if m.estado != "aprobado":
+        raise HTTPException(409, "Solo se pueden reabrir cargas aprobadas.")
+    nota = d.nota.strip()
+    if len(nota) < 5:
+        raise HTTPException(422, "Indique el motivo de la reapertura.")
+    m.estado, m.revisado_por_id, m.revisado_en, m.nota_revision = "observado", u.id, ahora(), nota
+    audit.registrar(db, u, "REAPERTURA", "medicion", m.id, {"periodo": m.periodo, "nota": nota}, m.indicador)
+    db.commit()
+    return med_out(m)
+
+
 @app.post("/api/mediciones/{med_id}/notas", status_code=201)
 def agregar_nota(med_id: int, d: NotaIn, db: Session = Depends(get_db),
                  u: Usuario = Depends(requiere("gerente", "admin")), _=Depends(escritura)):
@@ -659,19 +735,47 @@ def agregar_nota(med_id: int, d: NotaIn, db: Session = Depends(get_db),
     return med_out(m)
 
 
-@app.get("/api/export/mediciones.csv")
-def exportar(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
-    buf = io.StringIO()
-    w = csv.writer(buf, delimiter=";")
-    w.writerow(["Código", "Indicador", "Área", "Período", "Resultado", "Unidad", "Meta", "Límite",
-                "Semáforo", "Estado", "Cargado por", "Cargado en", "Análisis", "Plan de mejora"])
-    for m in db.scalars(select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo)):
-        i = m.indicador
-        w.writerow([i.codigo, i.nombre, i.area.nombre, m.periodo, m.resultado, i.unidad, m.meta,
-                    m.limite, m.semaforo, m.estado, m.cargado_por.nombre, iso(m.cargado_en),
-                    m.analisis, m.plan_mejora])
-    return StreamingResponse(iter(["﻿" + buf.getvalue()]), media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=sigt_mediciones.csv"})
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _descarga(datos: bytes, nombre: str) -> Response:
+    return Response(datos, media_type=XLSX, headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@app.get("/api/reportes/general.xlsx")
+def reporte_xlsx(anio: int | None = None, area_id: int | None = None, estado: str | None = None,
+                 db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Reporte Excel: resumen, mediciones, tendencias, plan de mejora y fichas. El jefe solo ve su área."""
+    if u.rol == "jefe":
+        area_id = u.area_id
+    qi = select(Indicador).order_by(Indicador.codigo)
+    qm = select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo)
+    filtros = []
+    if area_id:
+        qi, qm = qi.where(Indicador.area_id == area_id), qm.where(Indicador.area_id == area_id)
+        a = db.get(Area, area_id)
+        filtros.append(f"Área: {a.nombre if a else area_id}")
+    if anio:
+        qm = qm.where(Medicion.periodo.like(f"{int(anio)}%"))
+        filtros.append(f"Año: {anio}")
+    if estado:
+        qm = qm.where(Medicion.estado == estado)
+        filtros.append(f"Estado: {estado}")
+    inds, meds = db.scalars(qi).all(), db.scalars(qm).all()
+    por_aprobar = len(db.scalars(select(Medicion.id).join(Indicador).where(
+        Medicion.estado == "enviado", *([Indicador.area_id == area_id] if area_id else []))).all())
+    datos = reportes.reporte_general(meds, inds, u.nombre, " · ".join(filtros), por_aprobar)
+    audit.registrar(db, u, "REPORTE_EXPORTADO", "reporte", None, {"filtros": filtros, "filas": len(meds)})
+    db.commit()
+    return _descarga(datos, f"SIGT_reporte_{date.today():%Y%m%d}.xlsx")
+
+
+@app.get("/api/reportes/bitacora.xlsx")
+def bitacora_xlsx(db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin"))):
+    regs = db.scalars(select(Bitacora).order_by(Bitacora.id.desc()).limit(50000)).all()
+    codigos = dict(db.execute(select(Indicador.id, Indicador.codigo)).all())
+    datos = reportes.reporte_bitacora(regs, codigos, u.nombre, audit.verificar(db))
+    return _descarga(datos, f"SIGT_bitacora_{date.today():%Y%m%d}.xlsx")
 
 
 # ------------------------------------------------------------- dashboard
@@ -714,21 +818,23 @@ def dashboard(area_id: int | None = None, db: Session = Depends(get_db),
 
 # -------------------------------------------------------------- bitácora
 @app.get("/api/bitacora")
-def bitacora(accion: str | None = None, indicador_id: int | None = None, limite: int = 200,
-             db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    q = select(Bitacora).order_by(Bitacora.id.desc()).limit(min(limite, 1000))
-    if u.rol == "jefe":
-        q = q.where(Bitacora.area_id == u.area_id, Bitacora.entidad != "usuario")
+def bitacora(accion: str | None = None, indicador_id: int | None = None, usuario: str | None = None,
+             desde: int = 0, limite: int = 100,
+             db: Session = Depends(get_db), _=Depends(requiere("admin"))):
+    """Los registros del sistema son visibles únicamente para el Administrador SGC."""
+    q = select(Bitacora).order_by(Bitacora.id.desc()).offset(max(desde, 0)).limit(min(limite, 500))
     if accion:
         q = q.where(Bitacora.accion == accion)
     if indicador_id:
         q = q.where(Bitacora.indicador_id == indicador_id)
+    if usuario:
+        q = q.where(Bitacora.usuario_nombre.ilike(f"%{usuario}%"))
     codigos = dict(db.execute(select(Indicador.id, Indicador.codigo)).all())
     return [{**bit_out(b), "codigo": codigos.get(b.indicador_id)} for b in db.scalars(q)]
 
 
 @app.get("/api/bitacora/verificar")
-def verificar_bitacora(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+def verificar_bitacora(db: Session = Depends(get_db), _=Depends(requiere("admin"))):
     return audit.verificar(db)
 
 

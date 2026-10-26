@@ -85,7 +85,8 @@
 
     <!-- ============ CARGA RÁPIDA ============ -->
     <section x-show="view==='carga'" class="mx-auto max-w-3xl space-y-4">
-      <div><h1 class="text-2xl font-bold">Carga rápida</h1><p class="text-sm text-slate-600">Ingrese solo los datos base. El sistema calcula el resultado y el semáforo.</p></div>
+      <div><div class="flex items-center gap-2"><h1 class="text-2xl font-bold">Carga rápida</h1><button type="button" class="info" @click="toggleAyuda('carga')" aria-label="¿Cómo cargar?">i</button></div><p class="text-sm text-slate-600">Ingrese solo los datos base. El sistema calcula el resultado y el semáforo.</p>
+        <div class="ayuda" x-show="ay==='carga'" x-html="ayudaHtml('carga')" x-transition></div></div>
 
       <div class="card p-8 text-center" x-show="!indicadoresCarga.length">
         <p class="font-semibold" x-text="user.rol==='admin' ? 'No hay indicadores activos.' : 'Su área aún no tiene indicadores asignados.'"></p>
@@ -128,8 +129,14 @@
           <div class="space-y-4 fade-in">
             <div class="card">
               <div class="card-b space-y-1 text-sm">
-                <div class="font-semibold" x-text="ind.nombre"></div>
+                <div class="flex items-start justify-between gap-2"><div class="font-semibold" x-text="ind.nombre"></div><button type="button" class="info" @click="fichaAbierta=!fichaAbierta" aria-label="Ver ficha técnica del indicador">i</button></div>
                 <div class="text-slate-600" x-text="ind.objetivo"></div>
+                <div class="ayuda !mt-2 space-y-1" x-show="fichaAbierta" x-transition>
+                  <div><b>Área:</b> <span x-text="ind.area"></span> · <b>Frecuencia:</b> <span x-text="cap(ind.frecuencia)"></span> · <b>Unidad:</b> <span x-text="ind.unidad"></span></div>
+                  <div x-show="ind.fuente"><b>Fuente de datos:</b> <span x-text="ind.fuente"></span></div>
+                  <div x-show="ind.notas"><b>Método:</b> <span x-text="ind.notas"></span></div>
+                  <div x-show="ind.constantes && ind.constantes.length"><b>Constantes:</b> <span x-text="(ind.constantes||[]).map(c => c.etiqueta + ' = ' + c.valor).join(' · ')"></span></div>
+                  <div><b>Semáforo:</b> verde = cumple la meta, amarillo = alerta, rojo = crítico (requiere análisis y plan de mejora).</div></div>
                 <div class="text-xs text-slate-500 pt-1">Meta <b class="text-slate-800" x-text="umbralTxt(ind)"></b></div>
                 <div class="text-xs text-slate-500">Fórmula <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-700" x-text="formulaLegible(ind)"></span></div>
               </div>
@@ -149,8 +156,10 @@
               <div class="card-b grid gap-4 sm:grid-cols-2">
                 <template x-for="v in ind.variables" :key="v.clave">
                   <div>
-                    <label class="lbl" x-text="v.etiqueta"></label>
-                    <input class="inp !text-xl !font-semibold" type="number" inputmode="decimal" step="any" min="0" :disabled="bloqueado" x-model="f.valores[v.clave]" @input.debounce.200ms="calcular()" placeholder="0">
+                    <label class="lbl"><span x-text="v.etiqueta"></span><span class="normal-case text-slate-400" x-show="v.opcional"> (opcional)</span></label>
+                    <div class="relative"><input class="inp !text-xl !font-semibold" :class="v.unidad && '!pr-14'" type="number" inputmode="decimal" step="any" :min="v.negativo ? null : 0" :disabled="bloqueado" x-model="f.valores[v.clave]" @input.debounce.200ms="calcular()" :placeholder="v.opcional ? String(v.defecto ?? 0) : '0'">
+                      <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400" x-show="v.unidad" x-text="v.unidad"></span></div>
+                    <p class="mt-1 text-xs text-slate-500" x-show="v.ayuda" x-text="v.ayuda"></p>
                   </div>
                 </template>
               </div>
@@ -159,9 +168,10 @@
             <div class="card border-2 transition-colors" :class="calc && calc.ok ? semBorde(calc.semaforo) : ''" aria-live="polite">
               <div class="card-b flex items-center justify-between gap-4">
                 <div>
-                  <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado</div>
-                  <div class="text-4xl font-bold" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad) : '—'"></div>
+                  <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado <button type="button" class="info" @click="toggleAyuda('semaforo')" aria-label="¿Qué significa el semáforo?">i</button></div>
+                  <div class="text-4xl font-bold" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad, ind.decimales) : '—'"></div>
                   <div class="text-sm text-red-600" x-show="calc && !calc.ok && f.tocado" x-text="calc && calc.error"></div>
+                  <div class="ayuda max-w-md" x-show="ay==='semaforo'" x-html="ayudaHtml('semaforo')" x-transition></div>
                 </div>
                 <div x-show="calc && calc.ok" class="text-right">
                   <span class="chip !px-4 !py-2 !text-sm !text-white !border-transparent" :class="semBg(calc && calc.semaforo)" x-text="semTxt(calc && calc.semaforo)"></span>
@@ -190,11 +200,14 @@
     <section x-show="view==='historial'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div><h1 class="text-2xl font-bold" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones.</p></div>
-        <a class="btn btn-s" x-show="user.rol!=='jefe'" href="/api/export/mediciones.csv">Exportar CSV</a>
+        <button class="btn btn-s" x-show="user.rol!=='jefe'" :disabled="busy" @click="descargarReporte()">Descargar Excel</button>
       </div>
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <select class="inp" x-model="filtro.indicador_id" @change="cargarHistorial()" aria-label="Filtrar por indicador"><option value="">Todos los indicadores</option><template x-for="i in indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template></select>
         <select class="inp" x-model="filtro.estado" @change="cargarHistorial()" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="enviado">En revisión</option><option value="aprobado">Aprobado</option><option value="observado">Devuelto</option></select>
+        <select class="inp" x-model="filtro2.semaforo" @change="cargarHistorial()" aria-label="Filtrar por semáforo"><option value="">Todos los semáforos</option><option value="verde">Cumple</option><option value="amarillo">Alerta</option><option value="rojo">Crítico</option></select>
+        <input class="inp" x-model="filtro2.periodo" @input.debounce.400ms="cargarHistorial()" placeholder="Período exacto (ej. 2026-09, 2026-Q3)" aria-label="Período">
+        <select class="inp" x-show="user.rol!=='jefe'" x-model="filtro2.area_id" @change="cargarHistorial()" aria-label="Filtrar por área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
       </div>
       <div class="space-y-3">
         <template x-for="m in historial" :key="m.id">
@@ -205,10 +218,13 @@
                 <span class="block text-xs text-slate-500" x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span>
                 <span class="block truncate font-semibold" x-text="m.indicador"></span>
               </span>
-              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad)"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
+              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
             </button>
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>
+              <div class="space-y-2 rounded-lg bg-amber-50 p-3" x-show="['gerente','admin'].includes(user.rol) && m.estado==='aprobado'">
+                <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala al jefe de área para corregirla (queda registrado).</p>
+                <div class="flex flex-col gap-2 sm:flex-row"><input class="inp" x-model="reabrirNota[m.id]" placeholder="Motivo de la reapertura"><button class="btn btn-d whitespace-nowrap" :disabled="busy" @click="reabrir(m)">Reabrir carga</button></div></div>
               <div class="flex flex-col gap-2 sm:flex-row" x-show="['gerente','admin'].includes(user.rol)">
                 <input class="inp" x-model="notasHist[m.id]" placeholder="Agregar nota de auditoría" @keydown.enter.prevent="agregarNota(m)">
                 <button class="btn btn-s whitespace-nowrap" :disabled="busy" @click="agregarNota(m)">Agregar nota</button>
@@ -216,7 +232,8 @@
             </div>
           </div>
         </template>
-        <div class="card p-8 text-center text-sm text-slate-500" x-show="!historial.length">Aún no hay cargas registradas.</div>
+        <div class="card p-8 text-center text-sm text-slate-500" x-show="!historial.length">No hay cargas que coincidan.</div>
+        <button class="btn btn-s w-full" x-show="histMas" @click="cargarHistorial(false)">Cargar más</button>
       </div>
     </section>
 
@@ -227,7 +244,7 @@
         <div class="card fade-in">
           <div class="card-h">
             <div class="min-w-0"><div class="text-xs text-slate-500" x-text="m.area + ' · ' + m.periodo_etiqueta + (m.version>1 ? ' · reenvío v'+m.version : '')"></div><div class="truncate font-semibold" x-text="m.codigo + ' · ' + m.indicador"></div></div>
-            <div class="flex shrink-0 items-center gap-2"><span class="text-xl font-bold" x-text="fmt(m.resultado, m.unidad)"></span><span class="chip !border-transparent !text-white" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span></div>
+            <div class="flex shrink-0 items-center gap-2"><span class="text-xl font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip !border-transparent !text-white" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span></div>
           </div>
           <div class="card-b space-y-4">
             <div x-html="detalleHtml(m)"></div>
@@ -279,7 +296,7 @@
                 <tr class="cursor-pointer hover:bg-slate-50" @click="verTendencia(i)">
                   <td class="td font-semibold" x-text="i.codigo"></td><td class="td" x-text="i.nombre"></td><td class="td" x-text="i.area"></td>
                   <td class="td"><span x-text="i.ultimo ? i.ultimo.etiqueta : '—'"></span><span x-show="i.pendiente" class="ml-1 text-xs text-amber-700">(pendiente)</span></td>
-                  <td class="td font-semibold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad) : '—'"></td><td class="td" x-text="umbralTxt(i)"></td>
+                  <td class="td font-semibold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></td><td class="td" x-text="umbralTxt(i)"></td>
                   <td class="td"><span x-show="i.ultimo" class="chip border-transparent text-white" :class="semBg(i.ultimo && i.ultimo.semaforo)" x-text="semTxt(i.ultimo && i.ultimo.semaforo)"></span></td>
                 </tr></template></tbody></table>
           </div>
@@ -288,7 +305,7 @@
               <button class="flex w-full items-center gap-3 p-4 text-left" @click="verTendencia(i)">
                 <span class="h-10 w-1.5 shrink-0 rounded-full" :class="i.ultimo ? semBg(i.ultimo.semaforo) : 'bg-slate-300'"></span>
                 <span class="min-w-0 flex-1"><span class="block text-xs text-slate-500" x-text="i.codigo + ' · ' + i.area"></span><span class="block truncate text-sm font-semibold" x-text="i.nombre"></span><span class="block text-xs text-slate-500" x-text="(i.ultimo ? i.ultimo.etiqueta : 'Sin datos') + (i.pendiente ? ' · carga pendiente' : '')"></span></span>
-                <span class="text-right"><span class="block font-bold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad) : '—'"></span><span class="block text-[11px] text-slate-500" x-text="umbralTxt(i)"></span></span>
+                <span class="text-right"><span class="block font-bold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></span><span class="block text-[11px] text-slate-500" x-text="umbralTxt(i)"></span></span>
               </button>
             </template>
           </div>
@@ -368,13 +385,32 @@
       </div>
     </section>
 
-    <!-- ============ BITÁCORA ============ -->
-    <section x-show="view==='bitacora'" class="space-y-4">
+    <!-- ============ REPORTES ============ -->
+    <section x-show="view==='reportes'" class="mx-auto max-w-3xl space-y-4">
+      <div><h1 class="text-2xl font-bold">Reportes</h1><p class="text-sm text-slate-600" x-text="user.rol==='jefe' ? 'Descargue en Excel las cargas y fichas de su área.' : 'Descargue en Excel el informe de gestión con formato listo para presentar o imprimir.'"></p></div>
+      <div class="card"><div class="card-h"><h2 class="font-semibold">Informe de indicadores de gestión</h2><span class="chip border-green-300 bg-green-50 text-green-800">Excel .xlsx</span></div>
+        <div class="card-b space-y-4">
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div><label class="lbl">Año</label><select class="inp" x-model="rep.anio"><option value="">Todos los años</option><template x-for="y in anios" :key="y"><option :value="y" x-text="y"></option></template></select></div>
+            <div x-show="user.rol!=='jefe'"><label class="lbl">Área</label><select class="inp" x-model="rep.area_id"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select></div>
+            <div><label class="lbl">Estado de la carga</label><select class="inp" x-model="rep.estado"><option value="">Todos</option><option value="aprobado">Aprobadas</option><option value="enviado">En revisión</option><option value="observado">Devueltas</option></select></div>
+          </div>
+          <button class="btn btn-p w-full sm:w-auto" :disabled="busy" @click="descargarReporte()"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="icono('reportes')"/></svg><span x-text="busy ? 'Generando…' : 'Descargar reporte Excel'"></span></button>
+          <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"><div class="mb-1 font-semibold">El archivo incluye 5 hojas:</div>
+            <ul class="space-y-1"><li><b>Resumen</b> — indicadores clave, cumplimiento por departamento y gráfico.</li><li><b>Mediciones</b> — todas las cargas con semáforo, estado, responsables, análisis y plan.</li><li><b>Tendencias</b> — matriz indicador × período con colores de semáforo.</li><li><b>Plan de mejora</b> — desviaciones y acciones correctivas (ISO 9001, 9.1.3 y 10.2).</li><li><b>Fichas técnicas</b> — fórmula, variables, metas y fuente de cada indicador.</li></ul></div>
+        </div></div>
+    </section>
+
+    <!-- ============ BITÁCORA (solo administrador) ============ -->
+    <section x-show="view==='bitacora' && user.rol==='admin'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 class="text-2xl font-bold">Bitácora de trazabilidad</h1><p class="text-sm text-slate-600">Registro de solo inserción con cadena de hashes SHA-256.</p></div>
-        <button class="btn btn-s" x-show="user.rol!=='jefe'" @click="verificarBitacora()">Verificar integridad</button>
+        <div><h1 class="text-2xl font-bold">Bitácora del sistema</h1><p class="text-sm text-slate-600">Visible únicamente para el Administrador SGC. Registro de solo inserción con cadena de hashes SHA-256.</p></div>
+        <div class="flex gap-2"><button class="btn btn-s" @click="verificarBitacora()">Verificar integridad</button><button class="btn btn-s" :disabled="busy" @click="descargar('/api/reportes/bitacora.xlsx','bitacora_sigt.xlsx')">Descargar Excel</button></div>
       </div>
-      <select class="inp sm:!w-72" x-model="bitAccion" @change="cargarBitacora()" aria-label="Filtrar por acción"><option value="">Todas las acciones</option><template x-for="a in ACCIONES" :key="a"><option :value="a" x-text="a.replaceAll('_',' ').toLowerCase()"></option></template></select>
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <select class="inp" x-model="bitAccion" @change="cargarBitacora()" aria-label="Filtrar por acción"><option value="">Todas las acciones</option><template x-for="a in ACCIONES" :key="a"><option :value="a" x-text="a.replaceAll('_',' ').toLowerCase()"></option></template></select>
+        <input class="inp" type="search" x-model="bitUsuario" @input.debounce.400ms="cargarBitacora()" placeholder="Buscar por usuario" aria-label="Usuario">
+      </div>
       <div class="card hidden overflow-x-auto md:block"><table class="w-full"><thead><tr><th class="th">#</th><th class="th">Fecha</th><th class="th">Usuario</th><th class="th">Acción</th><th class="th">Detalle</th><th class="th">Hash</th></tr></thead>
         <tbody><template x-for="b in bitacora" :key="b.id"><tr>
           <td class="td text-slate-400" x-text="b.id"></td><td class="td whitespace-nowrap" x-text="fecha(b.fecha)"></td>
@@ -388,6 +424,7 @@
           <div class="font-mono text-[10px] text-slate-400" x-text="'#' + b.id + ' · ' + b.hash.slice(0,16)"></div></div></div></template>
       </div>
       <div class="card p-10 text-center text-sm text-slate-500" x-show="!bitacora.length">Sin registros.</div>
+      <button class="btn btn-s w-full" x-show="bitMas" @click="cargarBitacora(false)">Cargar más</button>
     </section>
   </main>
 
@@ -412,52 +449,108 @@
 
   <!-- ===== Modal: ficha ===== -->
   <div class="fixed inset-0 z-40 flex items-end justify-center bg-navy/60 sm:items-center sm:p-4" x-show="modal" x-transition.opacity>
-    <form class="card flex max-h-[92vh] w-full max-w-2xl flex-col !rounded-b-none sm:!rounded-b-xl" @submit.prevent="guardarFicha()" @keydown.escape.window="modal=false">
-      <div class="card-h"><h2 class="text-lg font-bold" x-text="ficha.id ? 'Editar indicador' : 'Nuevo indicador'"></h2><button type="button" class="btn btn-s btn-sm" @click="modal=false" aria-label="Cerrar">✕</button></div>
+    <form class="card flex max-h-[96vh] w-full max-w-3xl flex-col !rounded-b-none sm:!rounded-b-xl" @submit.prevent="guardarFicha()" @keydown.escape.window="modal=false">
+      <div class="card-h"><div><h2 class="text-lg font-bold" x-text="ficha.id ? 'Editar indicador' : 'Nuevo indicador'"></h2><p class="text-xs text-slate-500">Toque <span class="info !h-4 !w-4 !text-[10px]">i</span> junto a cada campo para ver su explicación.</p></div>
+        <div class="flex gap-2"><button type="button" class="btn btn-s btn-sm" @click="guia=true">Guía de fórmulas</button><button type="button" class="btn btn-s btn-sm" @click="modal=false" aria-label="Cerrar">✕</button></div></div>
       <div class="card-b space-y-4 overflow-y-auto">
-        <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="fichaBloqueada">Este indicador tiene <b x-text="ficha.n_mediciones"></b> carga(s). Por trazabilidad no se puede cambiar la frecuencia ni las claves de las variables; sí la meta, la fórmula y los textos (los cambios quedan en la bitácora y no alteran el histórico).</p>
-        <div class="grid gap-3 sm:grid-cols-3"><div><label class="lbl">Código</label><input class="inp" x-model="ficha.codigo" required></div><div class="sm:col-span-2"><label class="lbl">Nombre</label><input class="inp" x-model="ficha.nombre" required></div></div>
-        <div><label class="lbl">Objetivo</label><textarea class="inp" rows="2" x-model="ficha.objetivo"></textarea></div>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <div><label class="lbl">Área</label><select class="inp" x-model.number="ficha.area_id" required><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select></div>
-          <div><label class="lbl">Unidad</label><select class="inp" x-model="ficha.unidad"><template x-for="u in ['%','días','TM','USD','cantidad']"><option x-text="u"></option></template></select></div>
-          <div><label class="lbl">Frecuencia</label><select class="inp" x-model="ficha.frecuencia" :disabled="fichaBloqueada"><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option></select></div>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <div><label class="lbl">Sentido</label><select class="inp" x-model="ficha.sentido"><option value="mayor">Mayor es mejor</option><option value="menor">Menor es mejor (inversa)</option></select></div>
-          <div><label class="lbl" x-text="'Meta (verde '+(ficha.sentido==='mayor'?'≥':'≤')+')'"></label><input class="inp" type="number" step="any" inputmode="decimal" x-model.number="ficha.meta" required></div>
-          <div><label class="lbl" x-text="'Límite crítico (rojo '+(ficha.sentido==='mayor'?'<':'>')+')'"></label><input class="inp" type="number" step="any" inputmode="decimal" x-model.number="ficha.limite" required></div>
-        </div>
-        <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" x-text="semaforoAyuda()"></p>
-        <div>
-          <label class="lbl">Variables que carga el jefe de área</label>
-          <div class="space-y-2"><template x-for="(v,idx) in ficha.variables" :key="idx"><div class="rounded-lg border border-slate-200 p-2">
-            <div class="grid grid-cols-[1fr_auto] gap-2">
-              <input class="inp" x-model="v.etiqueta" @input="autoClave(v)" placeholder="Etiqueta visible (ej. Solicitudes gestionadas)" aria-label="Etiqueta">
-              <div class="flex gap-1"><button type="button" class="btn btn-s !px-2" @click="mover(idx,-1)" :disabled="idx===0" aria-label="Subir">↑</button><button type="button" class="btn btn-s !px-2" @click="mover(idx,1)" :disabled="idx===ficha.variables.length-1" aria-label="Bajar">↓</button>
-                <button type="button" class="btn btn-s !px-2" @click="ficha.variables.splice(idx,1); validarFormula()" :disabled="fichaBloqueada || ficha.variables.length<2" aria-label="Quitar">✕</button></div>
+        <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="fichaBloqueada">Este indicador tiene <b x-text="ficha.n_mediciones"></b> carga(s). Por trazabilidad no se puede cambiar la frecuencia ni las claves de variables y constantes; sí la meta, la fórmula y los textos (quedan en la bitácora y no alteran el histórico).</p>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">1</span><div><h3 class="font-semibold">Identificación</h3><p class="text-xs text-slate-500">Cómo se llama y quién lo gestiona.</p></div></header>
+          <div class="space-y-3 p-4">
+            <div class="grid gap-3 sm:grid-cols-3"><div><label class="lbl flex items-center gap-1.5">Código <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('codigo')" :aria-expanded="ay==='codigo'" aria-label="Ayuda: Código">i</button></label><input class="inp" x-model="ficha.codigo" required maxlength="20" placeholder="SIS-01"><div class="ayuda" x-show="ay==='codigo'" x-html="ayudaHtml('codigo')" x-transition></div></div>
+              <div class="sm:col-span-2"><label class="lbl flex items-center gap-1.5">Nombre <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('nombre')" :aria-expanded="ay==='nombre'" aria-label="Ayuda: Nombre">i</button></label><input class="inp" x-model="ficha.nombre" required maxlength="150"><div class="ayuda" x-show="ay==='nombre'" x-html="ayudaHtml('nombre')" x-transition></div></div></div>
+            <div><label class="lbl flex items-center gap-1.5">Objetivo<button type="button" class="info" @click="toggleAyuda('objetivo')" :aria-expanded="ay==='objetivo'" aria-label="Ayuda: Objetivo">i</button></label><textarea class="inp" rows="2" x-model="ficha.objetivo" maxlength="1000" placeholder="¿Qué se busca lograr con este indicador?"></textarea><div class="ayuda" x-show="ay==='objetivo'" x-html="ayudaHtml('objetivo')" x-transition></div></div>
+            <div><label class="lbl flex items-center gap-1.5">Área responsable <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('area')" :aria-expanded="ay==='area'" aria-label="Ayuda: Área responsable">i</button></label><select class="inp" x-model.number="ficha.area_id" required><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select><div class="ayuda" x-show="ay==='area'" x-html="ayudaHtml('area')" x-transition></div></div>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">2</span><div><h3 class="font-semibold">Medición</h3><p class="text-xs text-slate-500">Unidad, frecuencia y sentido de la meta.</p></div></header>
+          <div class="space-y-3 p-4">
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div><label class="lbl flex items-center gap-1.5">Unidad <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('unidad')" :aria-expanded="ay==='unidad'" aria-label="Ayuda: Unidad">i</button></label><input class="inp" list="unidades" x-model="ficha.unidad" required maxlength="12"><datalist id="unidades"><option>%</option><option>días</option><option>horas</option><option>TM</option><option>kg</option><option>USD</option><option>cantidad</option></datalist></div>
+              <div><label class="lbl flex items-center gap-1.5">Frecuencia <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('frecuencia')" :aria-expanded="ay==='frecuencia'" aria-label="Ayuda: Frecuencia">i</button></label><select class="inp" x-model="ficha.frecuencia" :disabled="fichaBloqueada"><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
+              <div><label class="lbl flex items-center gap-1.5">Decimales<button type="button" class="info" @click="toggleAyuda('decimales')" :aria-expanded="ay==='decimales'" aria-label="Ayuda: Decimales">i</button></label><input class="inp" type="number" min="0" max="6" step="1" x-model.number="ficha.decimales"></div></div>
+            <div class="ayuda" x-show="ay==='unidad'" x-html="ayudaHtml('unidad')" x-transition></div><div class="ayuda" x-show="ay==='frecuencia'" x-html="ayudaHtml('frecuencia')" x-transition></div><div class="ayuda" x-show="ay==='decimales'" x-html="ayudaHtml('decimales')" x-transition></div>
+            <div><label class="lbl flex items-center gap-1.5">Sentido de la meta <span class="text-red-600">*</span><button type="button" class="info" @click="toggleAyuda('sentido')" :aria-expanded="ay==='sentido'" aria-label="Ayuda: Sentido de la meta">i</button></label><select class="inp" x-model="ficha.sentido"><option value="mayor">Mayor es mejor (ej. cumplimiento)</option><option value="menor">Menor es mejor (ej. obsolescencia, tiempo)</option></select><div class="ayuda" x-show="ay==='sentido'" x-html="ayudaHtml('sentido')" x-transition></div></div>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">3</span><div><h3 class="font-semibold">Metas y semáforo</h3><p class="text-xs text-slate-500">Define cuándo es verde, amarillo o rojo.</p></div></header>
+          <div class="space-y-3 p-4"><div class="grid gap-3 sm:grid-cols-2">
+            <div><label class="lbl flex items-center gap-1.5"><span x-text="'Meta (verde '+(ficha.sentido==='mayor'?'≥':'≤')+')'"></span><button type="button" class="info" @click="toggleAyuda('meta')" aria-label="Ayuda: Meta">i</button></label><input class="inp" type="number" step="any" inputmode="decimal" x-model.number="ficha.meta" required></div>
+            <div><label class="lbl flex items-center gap-1.5"><span x-text="'Límite crítico (rojo '+(ficha.sentido==='mayor'?'<':'>')+')'"></span><button type="button" class="info" @click="toggleAyuda('limite')" aria-label="Ayuda: Límite">i</button></label><input class="inp" type="number" step="any" inputmode="decimal" x-model.number="ficha.limite" required></div></div>
+            <div class="ayuda" x-show="ay==='meta'" x-html="ayudaHtml('meta')" x-transition></div><div class="ayuda" x-show="ay==='limite'" x-html="ayudaHtml('limite')" x-transition></div>
+            <div class="flex flex-wrap gap-2 text-xs font-semibold"><span class="chip border-transparent bg-green-600 text-white" x-text="'Cumple '+(ficha.sentido==='mayor'?'≥ ':'≤ ')+ficha.meta"></span><span class="chip border-transparent bg-amber-500 text-white">Alerta intermedia</span><span class="chip border-transparent bg-red-600 text-white" x-text="'Crítico '+(ficha.sentido==='mayor'?'< ':'> ')+ficha.limite"></span></div>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">4</span><div><h3 class="font-semibold">Variables (datos que digita el jefe)</h3><p class="text-xs text-slate-500">Mantenga pocas: menos campos, menos errores.</p></div><button type="button" class="info ml-auto" @click="toggleAyuda('variables')" aria-label="Ayuda: Variables">i</button></header>
+          <div class="space-y-2 p-4"><div class="ayuda" x-show="ay==='variables'" x-html="ayudaHtml('variables')" x-transition></div>
+            <template x-for="(v,idx) in ficha.variables" :key="idx"><div class="rounded-lg border border-slate-200 p-2">
+              <div class="grid grid-cols-[1fr_auto] gap-2">
+                <input class="inp" x-model="v.etiqueta" @input="autoClave(v)" placeholder="Etiqueta visible (ej. Solicitudes gestionadas)" aria-label="Etiqueta" required>
+                <div class="flex gap-1"><button type="button" class="btn btn-s !px-2" @click="mover(idx,-1)" :disabled="idx===0" aria-label="Subir">↑</button><button type="button" class="btn btn-s !px-2" @click="mover(idx,1)" :disabled="idx===ficha.variables.length-1" aria-label="Bajar">↓</button>
+                  <button type="button" class="btn btn-s !px-2" @click="ficha.variables.splice(idx,1); validarFormula()" :disabled="fichaBloqueada || ficha.variables.length<2" aria-label="Quitar">✕</button></div></div>
+              <div class="mt-2 flex items-center gap-2"><span class="text-xs text-slate-500">clave</span><input class="inp !min-h-[36px] font-mono !text-sm" x-model="v.clave" @input="v._manual=true; validarFormula()" :disabled="fichaBloqueada" pattern="[a-z][a-z0-9_]*" aria-label="Clave" required>
+                <button type="button" class="btn btn-s btn-sm whitespace-nowrap" @click="v._op=!v._op" x-text="v._op ? 'Ocultar' : 'Opciones'"></button></div>
+              <div class="mt-2 space-y-2 rounded-lg bg-slate-50 p-2" x-show="v._op" x-transition>
+                <input class="inp" x-model="v.ayuda" maxlength="300" placeholder="Texto de ayuda para quien carga (ej. «Sin incluir devoluciones»)">
+                <input class="inp" x-model="v.unidad" maxlength="12" placeholder="Unidad que se muestra junto al campo (ej. TM, h, USD)">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="h-5 w-5" x-model="v.opcional"> Opcional (si queda vacío se usa un valor por defecto)</label>
+                <input class="inp" type="number" step="any" x-model.number="v.defecto" x-show="v.opcional" placeholder="Valor por defecto">
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="h-5 w-5" x-model="v.negativo"> Permite valores negativos</label></div>
+            </div></template>
+            <button type="button" class="btn btn-s btn-sm" @click="ficha.variables.push({clave:'',etiqueta:''})" :disabled="fichaBloqueada || ficha.variables.length>=12">+ Variable</button>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">5</span><div><h3 class="font-semibold">Constantes <span class="text-xs font-normal text-slate-500">(opcional)</span></h3><p class="text-xs text-slate-500">Valores fijos usados en la fórmula; el jefe no los ve.</p></div><button type="button" class="info ml-auto" @click="toggleAyuda('constantes')" aria-label="Ayuda: Constantes">i</button></header>
+          <div class="space-y-2 p-4"><div class="ayuda" x-show="ay==='constantes'" x-html="ayudaHtml('constantes')" x-transition></div>
+            <template x-for="(c,idx) in ficha.constantes" :key="'c'+idx"><div class="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_9rem_7rem_auto]">
+              <input class="inp col-span-2 sm:col-span-1" x-model="c.etiqueta" @input="autoClave(c)" placeholder="Nombre (ej. Horas por turno)" required>
+              <input class="inp font-mono !text-sm" x-model="c.clave" @input="c._manual=true; validarFormula()" :disabled="fichaBloqueada" placeholder="clave" pattern="[a-z][a-z0-9_]*" required>
+              <input class="inp" type="number" step="any" x-model.number="c.valor" @input="probar()" placeholder="Valor" required>
+              <button type="button" class="btn btn-s !px-2" @click="ficha.constantes.splice(idx,1); validarFormula()" :disabled="fichaBloqueada" aria-label="Quitar">✕</button></div></template>
+            <button type="button" class="btn btn-s btn-sm" @click="ficha.constantes.push({clave:'',etiqueta:'',valor:0})" :disabled="fichaBloqueada || ficha.constantes.length>=12">+ Constante</button>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">6</span><div><h3 class="font-semibold">Fórmula</h3><p class="text-xs text-slate-500">Cómo se calcula el resultado. Se valida y se prueba en vivo.</p></div><button type="button" class="info ml-auto" @click="toggleAyuda('formula')" aria-label="Ayuda: Fórmula">i</button></header>
+          <div class="space-y-3 p-4"><div class="ayuda" x-show="ay==='formula'" x-html="ayudaHtml('formula')" x-transition></div>
+            <textarea class="inp font-mono" rows="3" x-ref="formula" x-model="ficha.formula" @input.debounce.300ms="validarFormula()" required spellcheck="false" placeholder="si(recibidas > 0, gestionadas / recibidas * 100, 100)"></textarea>
+            <div class="space-y-1.5">
+              <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Variables</span><template x-for="v in ficha.variables.filter(v=>v.clave)"><button type="button" class="rounded border border-slate-300 px-2 py-1 font-mono text-xs hover:bg-slate-100" @click="insertar(v.clave)" x-text="v.clave"></button></template>
+                <template x-for="c in (ficha.constantes||[]).filter(c=>c.clave)"><button type="button" class="rounded border border-violet-300 bg-violet-50 px-2 py-1 font-mono text-xs hover:bg-violet-100" @click="insertar(c.clave)" x-text="c.clave"></button></template></div>
+              <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Operadores</span><template x-for="o in ['+','−','×','÷','^','(',')','>','<','>=','<=','==','!=','and','or']"><button type="button" class="min-w-[2rem] rounded border border-slate-300 px-2 py-1 font-mono text-xs hover:bg-slate-100" @click="insertar(o==='−'?'-':o==='×'?'*':o==='÷'?'/':o)" x-text="o"></button></template></div>
+              <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Funciones</span><template x-for="f in ['si','div','pct','min','max','sum','avg','abs','round','sqrt','clamp']"><button type="button" class="rounded border border-sky-300 bg-sky-50 px-2 py-1 font-mono text-xs hover:bg-sky-100" @click="insertar(f+'()',1)" x-text="f+'( )'"></button></template></div>
             </div>
-            <div class="mt-2 flex items-center gap-2"><span class="text-xs text-slate-500">clave</span><input class="inp !min-h-[36px] font-mono !text-sm" x-model="v.clave" @input="v._manual=true; validarFormula()" :disabled="fichaBloqueada" pattern="[a-z][a-z0-9_]*" aria-label="Clave"></div>
-          </div></template></div>
-          <button type="button" class="btn btn-s btn-sm mt-2" @click="ficha.variables.push({clave:'',etiqueta:''})" :disabled="fichaBloqueada || ficha.variables.length>=8">+ Variable</button>
-        </div>
-        <div>
-          <label class="lbl">Fórmula</label><input class="inp font-mono" x-model="ficha.formula" @input.debounce.300ms="validarFormula()" required>
-          <div class="mt-1.5 flex flex-wrap gap-1"><template x-for="v in ficha.variables.filter(v=>v.clave)"><button type="button" class="rounded border border-slate-300 px-2 py-1 font-mono text-xs hover:bg-slate-100" @click="ficha.formula += (ficha.formula&&!ficha.formula.endsWith(' ')?' ':'')+v.clave; validarFormula()" x-text="v.clave"></button></template></div>
-          <p class="mt-1 text-xs" :class="!formulaMsg.ok ? 'text-red-600' : formulaMsg.aviso ? 'text-amber-700' : 'text-green-700'" x-text="formulaMsg.txt"></p>
-        </div>
-        <div class="rounded-lg border border-dashed border-slate-300 p-3" x-show="ficha.formula && formulaMsg.ok">
-          <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Probar con valores de ejemplo</div>
-          <div class="grid gap-2 sm:grid-cols-2"><template x-for="v in ficha.variables.filter(v=>v.clave)" :key="v.clave"><div><label class="text-xs text-slate-600" x-text="v.etiqueta || v.clave"></label><input class="inp" type="number" step="any" inputmode="decimal" x-model="prueba.valores[v.clave]" @input.debounce.250ms="probar()"></div></template></div>
-          <div class="mt-3 flex items-center gap-3" x-show="prueba.res">
-            <template x-if="prueba.res && prueba.res.ok"><div class="flex items-center gap-3"><span class="text-2xl font-bold" x-text="fmt(prueba.res.resultado, ficha.unidad)"></span><span class="chip border-transparent text-white" :class="semBg(prueba.res.semaforo)" x-text="semTxt(prueba.res.semaforo)"></span></div></template>
-            <p class="text-sm text-red-600" x-show="prueba.res && !prueba.res.ok" x-text="prueba.res && prueba.res.error"></p>
-          </div>
-        </div>
-        <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="h-5 w-5" x-model="ficha.activo"> Indicador activo</label>
+            <p class="text-xs" :class="!formulaMsg.ok ? 'text-red-600' : formulaMsg.aviso ? 'text-amber-700' : 'text-green-700'" x-text="formulaMsg.txt"></p>
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" x-show="ficha.formula && formulaMsg.ok"><b>Se lee:</b> <span x-text="formulaLegible({formula: ficha.formula, variables: ficha.variables.filter(v=>v.clave), constantes: (ficha.constantes||[]).filter(c=>c.clave)})"></span></p>
+            <div class="rounded-lg border border-dashed border-slate-300 p-3" x-show="ficha.formula && formulaMsg.ok">
+              <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Probar con valores de ejemplo</div>
+              <div class="grid gap-2 sm:grid-cols-2"><template x-for="v in ficha.variables.filter(v=>v.clave)" :key="v.clave"><div><label class="text-xs text-slate-600" x-text="(v.etiqueta || v.clave) + (v.opcional ? ' (opcional)' : '')"></label><input class="inp" type="number" step="any" inputmode="decimal" x-model="prueba.valores[v.clave]" @input.debounce.250ms="probar()"></div></template></div>
+              <div class="mt-3" x-show="prueba.res">
+                <template x-if="prueba.res && prueba.res.ok"><div class="flex items-center gap-3"><span class="text-2xl font-bold" x-text="fmt(prueba.res.resultado, ficha.unidad, ficha.decimales)"></span><span class="chip border-transparent text-white" :class="semBg(prueba.res.semaforo)" x-text="semTxt(prueba.res.semaforo)"></span></div></template>
+                <p class="text-sm text-red-600" x-show="prueba.res && !prueba.res.ok" x-text="prueba.res && prueba.res.error"></p></div>
+            </div>
+          </div></section>
+
+        <section class="sec"><header class="sec-h"><span class="sec-n">7</span><div><h3 class="font-semibold">Documentación</h3><p class="text-xs text-slate-500">Respaldo para auditorías.</p></div></header>
+          <div class="space-y-3 p-4">
+            <div><label class="lbl flex items-center gap-1.5">Fuente de los datos<button type="button" class="info" @click="toggleAyuda('fuente')" :aria-expanded="ay==='fuente'" aria-label="Ayuda: Fuente de los datos">i</button></label><input class="inp" x-model="ficha.fuente" maxlength="500" placeholder="ERP, informe de producción, laboratorio…"><div class="ayuda" x-show="ay==='fuente'" x-html="ayudaHtml('fuente')" x-transition></div></div>
+            <div><label class="lbl flex items-center gap-1.5">Método y observaciones<button type="button" class="info" @click="toggleAyuda('notas')" :aria-expanded="ay==='notas'" aria-label="Ayuda: Método y observaciones">i</button></label><textarea class="inp" rows="2" x-model="ficha.notas" maxlength="2000"></textarea><div class="ayuda" x-show="ay==='notas'" x-html="ayudaHtml('notas')" x-transition></div></div>
+            <div><label class="flex items-center gap-2 text-sm"><input type="checkbox" class="h-5 w-5" x-model="ficha.activo"> Indicador activo <button type="button" class="info" @click="toggleAyuda('activo')" aria-label="Ayuda: Activo">i</button></label><div class="ayuda" x-show="ay==='activo'" x-html="ayudaHtml('activo')" x-transition></div></div>
+          </div></section>
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="modal=false">Cancelar</button><button class="btn btn-p" :disabled="busy">Guardar</button></div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="modal=false">Cancelar</button><button class="btn btn-p" :disabled="busy || !formulaMsg.ok">Guardar indicador</button></div>
     </form>
+  </div>
+
+  <!-- ===== Guía de fórmulas ===== -->
+  <div class="fixed inset-0 z-50 flex items-end justify-center bg-navy/70 sm:items-center sm:p-4" x-show="guia" x-transition.opacity @keydown.escape.window="guia=false">
+    <div class="card flex max-h-[92vh] w-full max-w-3xl flex-col !rounded-b-none sm:!rounded-b-xl">
+      <div class="card-h"><h2 class="text-lg font-bold">Guía de fórmulas</h2><button type="button" class="btn btn-s btn-sm" @click="guia=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-5 overflow-y-auto text-sm">
+        <div><h3 class="mb-1 font-semibold">Reglas básicas</h3><ul class="list-disc space-y-1 pl-5 text-slate-700"><li>Use las <b>claves</b> de las variables y constantes tal como aparecen en los botones.</li><li>Operadores: <code>+ − × ÷</code>, <code>^</code> potencia, <code>%</code> resto, <code>//</code> división entera, paréntesis.</li><li>Comparaciones: <code>&gt; &lt; &gt;= &lt;= == !=</code>; lógica: <code>and or not</code>.</li><li>Para evitar «división entre cero» use <code>si(b &gt; 0, a / b, 0)</code> o <code>div(a, b, 0)</code>.</li><li>Decimales con punto: <code>0.5</code>. Máximo 1000 caracteres.</li></ul></div>
+        <div><h3 class="mb-2 font-semibold">Funciones</h3><div class="divide-y divide-slate-100 rounded-lg border border-slate-200"><template x-for="f in funcDoc" :key="f[0]"><div class="p-3"><code class="font-semibold text-brand" x-text="f[0]"></code><p class="text-slate-600" x-text="f[1]"></p><code class="text-xs text-slate-500" x-text="'Ej.: ' + f[2]"></code></div></template></div></div>
+        <div><h3 class="mb-2 font-semibold">Ejemplos listos para usar</h3><div class="space-y-2"><template x-for="e in ejemplos" :key="e.t"><div class="rounded-lg border border-slate-200 p-3"><div class="font-semibold" x-text="e.t"></div><p class="text-slate-600" x-text="e.d"></p><code class="mt-1 block break-words rounded bg-slate-50 px-2 py-1 text-xs" x-text="e.f"></code><button type="button" class="btn btn-s btn-sm mt-2" @click="usarEjemplo(e)">Usar este ejemplo</button></div></template></div></div>
+      </div>
+    </div>
   </div>
 
   <!-- ===== Modal: usuario ===== -->

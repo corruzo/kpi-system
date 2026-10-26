@@ -51,3 +51,15 @@ Acceso a todo el sistema: fichas, áreas y usuarios; carga de datos en cualquier
 
 ## Gestión de indicadores
 Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, eliminar (con cargas se archiva), claves de variables generadas automáticamente, reordenar variables, validación de fórmula con aviso de variables sin usar y probador con resultado y semáforo en vivo. Con cargas registradas no se puede cambiar la frecuencia ni las claves de las variables; los cambios de meta o fórmula quedan en la bitácora y no alteran el histórico.
+
+## Reportes en Excel
+`GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (indicadores clave, cumplimiento por departamento y gráfico), *Mediciones*, *Tendencias* (matriz con semáforos), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) y *Fichas técnicas*. Filtros por año, área y estado; el jefe de área solo obtiene su área. Cada descarga queda en la bitácora. El administrador también puede descargar la bitácora (`/api/reportes/bitacora.xlsx`).
+
+## Bitácora: solo administrador
+Únicamente el Administrador SGC puede ver, verificar y exportar los registros del sistema (los demás roles reciben 403 y no ven la sección).
+
+## Fórmulas
+Operadores `+ − × ÷ ^ % //`, comparaciones, `and/or/not`, `si(cond, a, b)` y `a if cond else b` (evalúan solo la rama elegida: protegen divisiones), `div`, `pct`, `min`, `max`, `sum`, `avg`, `abs`, `round`, `sqrt`, `floor`, `ceil`, `clamp`. Constantes por indicador, variables opcionales con valor por defecto, valores negativos permitidos por variable, decimales configurables y frecuencias mensual/trimestral/semestral/anual. Cada carga guarda una foto de la fórmula, constantes y decimales vigentes. La ficha lleva botones **i** de ayuda, una guía de fórmulas con ejemplos y un probador en vivo.
+
+## Actualizaciones de esquema
+Al arrancar, `app/bootstrap.py` agrega automáticamente las columnas nuevas a las tablas existentes (migración aditiva, sin pérdida de datos), por lo que una base de Supabase ya en uso se actualiza sola al desplegar.

@@ -48,6 +48,11 @@ class Indicador(Base):
     limite: Mapped[float] = mapped_column(Float)           # límite de zona amarilla (más allá = rojo)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    # --- ficha técnica ampliada (columnas añadidas por migración automática) ---
+    constantes: Mapped[list | None] = mapped_column(JSON, default=list)       # [{"clave","etiqueta","valor"}]
+    decimales: Mapped[int | None] = mapped_column(Integer, default=2)
+    fuente: Mapped[str | None] = mapped_column(Text, default="")              # origen de los datos
+    notas: Mapped[str | None] = mapped_column(Text, default="")               # método de cálculo / observaciones
     area: Mapped[Area] = relationship()
 
 
@@ -73,6 +78,10 @@ class Medicion(Base):
     revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     revisado_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_revision: Mapped[str] = mapped_column(Text, default="")
+    # Foto del método de cálculo vigente al cargar (reproducibilidad del histórico)
+    formula: Mapped[str | None] = mapped_column(Text)
+    constantes: Mapped[list | None] = mapped_column(JSON)
+    decimales: Mapped[int | None] = mapped_column(Integer)
     indicador: Mapped[Indicador] = relationship()
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id])
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id])

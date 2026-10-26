@@ -89,6 +89,8 @@ def test_flujo_completo(client, datos):
     entrar(c, "gerente")
     assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "aprobar"}).json()["estado"] == "aprobado"
     assert c.post(f"/api/mediciones/{mid}/notas", json={"texto": "Verificar eficacia"}).status_code == 201
+    assert c.get("/api/bitacora/verificar").status_code == 403
+    entrar(c, "admin", "clave-admin-123")
     assert c.get("/api/bitacora/verificar").json()["ok"] is True
 
 
@@ -105,6 +107,8 @@ def test_clave_invalida_sesiones_y_limite_de_intentos(client, datos):
     for _ in range(5):
         c.post("/api/login", json={"username": "jefe.pro", "password": "mala"})
     assert c.post("/api/login", json={"username": "jefe.pro", "password": CLAVE}).status_code == 429
+    from app.main import limite_login
+    limite_login._fallos.clear()
 
 
 def test_admin_integridad(client, datos):
@@ -156,3 +160,85 @@ def test_admin_es_superusuario_con_segregacion_de_funciones(client):
     assert c.put(f"/api/indicadores/{ind}", json={**base, "frecuencia": "mensual", "variables": malas,
                                                   "formula": "ok / tot * 100"}).status_code == 422
     assert c.put(f"/api/indicadores/{ind}", json={**base, "frecuencia": "mensual", "meta": 97}).status_code == 200
+
+
+def test_formulas_complejas_constantes_y_opcionales(client):
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    area = c.get("/api/areas").json()[0]["id"]
+    ficha = {"codigo": "ssa-01", "nombre": "Índice de frecuencia", "area_id": area, "unidad": "índice",
+             "frecuencia": "anual", "sentido": "menor", "decimales": 3, "meta": 5, "limite": 10,
+             "formula": "si(horas > 0, accidentes × factor ÷ horas, 0) + extra",
+             "variables": [{"clave": "accidentes", "etiqueta": "Accidentes"}, {"clave": "horas", "etiqueta": "Horas-hombre"},
+                           {"clave": "extra", "etiqueta": "Ajuste", "opcional": True, "defecto": 1, "negativo": True}],
+             "constantes": [{"clave": "factor", "etiqueta": "Factor por millón", "valor": 1000000}]}
+    assert c.post("/api/indicadores", json={**ficha, "formula": "accidentes / 0 + noexiste"}).status_code == 422
+    assert c.post("/api/indicadores", json={**ficha, "variables": [{"clave": "si", "etiqueta": "Reservada"}],
+                                            "formula": "si"}).status_code == 422
+    r = c.post("/api/indicadores", json=ficha)
+    assert r.status_code == 201, r.text
+    ind = r.json()
+    assert ind["frecuencia"] == "anual" and ind["decimales"] == 3
+    entrar(c, "admin", "clave-admin-123")
+    per = c.get(f"/api/indicadores/{ind['id']}/periodos").json()["periodos"][1]["periodo"]
+    assert len(per) == 4  # período anual
+    # horas = 0 no rompe (rama protegida) y la variable opcional toma su valor por defecto
+    calc_ = c.post("/api/calcular", json={"indicador_id": ind["id"], "valores": {"accidentes": 2, "horas": 0, "extra": None}}).json()
+    assert calc_["ok"] and calc_["resultado"] == 1.0
+    calc_ = c.post("/api/calcular", json={"indicador_id": ind["id"], "valores": {"accidentes": 2, "horas": 400000, "extra": -0.5}}).json()
+    assert calc_["resultado"] == 4.5 and calc_["semaforo"] == "verde"
+    r = c.post("/api/mediciones", json={"indicador_id": ind["id"], "periodo": per,
+                                       "valores": {"accidentes": 2, "horas": 400000, "extra": -0.5}})
+    assert r.status_code == 201 and r.json()["formula"].startswith("si(") and r.json()["constantes"][0]["valor"] == 1000000
+
+
+def test_reportes_excel_y_bitacora_solo_admin(client):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    r = c.get("/api/reportes/general.xlsx")
+    assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
+    wb = load_workbook(BytesIO(r.content))
+    assert wb.sheetnames == ["Resumen", "Mediciones", "Tendencias", "Plan de mejora", "Fichas técnicas"]
+    assert wb["Mediciones"].max_row > 4 and wb["Fichas técnicas"].max_row > 4
+    assert c.get("/api/reportes/bitacora.xlsx").status_code == 200
+    assert c.get("/api/bitacora").status_code == 200
+    for u in ("gerente", "jefe.pro"):
+        entrar(c, u, "clave-segura-123")
+        assert c.get("/api/bitacora").status_code == 403
+        assert c.get("/api/bitacora/verificar").status_code == 403
+        assert c.get("/api/reportes/bitacora.xlsx").status_code == 403
+    assert c.get("/api/reportes/general.xlsx").status_code == 200  # el jefe descarga solo su área
+
+
+def test_reabrir_carga_aprobada(client):
+    c = client
+    entrar(c, "gerente", "clave-segura-123")
+    aprobada = next(m for m in c.get("/api/mediciones?estado=aprobado").json())
+    assert c.post(f"/api/mediciones/{aprobada['id']}/reabrir", json={"accion": "observar"}).status_code == 422
+    r = c.post(f"/api/mediciones/{aprobada['id']}/reabrir", json={"accion": "observar", "nota": "Dato digitado mal"})
+    assert r.status_code == 200 and r.json()["estado"] == "observado"
+    entrar(c, "jefe.sis", "otra-clave-123")
+    assert c.post(f"/api/mediciones/{aprobada['id']}/reabrir", json={"accion": "observar", "nota": "no puedo"}).status_code == 403
+
+
+def test_migracion_agrega_columnas_sin_perder_datos(tmp_path):
+    import sqlite3, subprocess, sys, os
+    db = tmp_path / "viejo.db"
+    cx = sqlite3.connect(db)
+    cx.executescript("""CREATE TABLE areas (id INTEGER PRIMARY KEY, nombre VARCHAR(80) UNIQUE);
+        INSERT INTO areas (nombre) VALUES ('Existente');
+        CREATE TABLE indicadores (id INTEGER PRIMARY KEY, codigo VARCHAR(20), nombre VARCHAR(150), objetivo TEXT,
+          area_id INTEGER, unidad VARCHAR(20), frecuencia VARCHAR(20), sentido VARCHAR(10), formula VARCHAR(300),
+          variables JSON, meta FLOAT, limite FLOAT, activo BOOLEAN, creado_en DATETIME);
+        INSERT INTO indicadores VALUES (1,'OLD-01','Viejo','',1,'%','mensual','mayor','a / b * 100',
+          '[{"clave":"a","etiqueta":"A"},{"clave":"b","etiqueta":"B"}]',90,80,1,'2026-01-01 00:00:00');""")
+    cx.commit(); cx.close()
+    code = ("from app.bootstrap import preparar_base; from app.database import SessionLocal; "
+            "from app.models import Indicador; preparar_base(); "
+            "db = SessionLocal(); i = db.get(Indicador, 1); print(i.codigo, i.decimales, i.constantes)")
+    env = {**os.environ, "SIGT_DATABASE_URL": f"sqlite:///{db}", "SIGT_DATA_DIR": str(tmp_path)}
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, cwd=os.getcwd())
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == "OLD-01 None None"

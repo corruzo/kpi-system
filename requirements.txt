@@ -3,4 +3,5 @@ uvicorn>=0.27
 sqlalchemy>=2.0
 psycopg[binary]>=3.1
 python-dotenv>=1.0
+openpyxl>=3.1
 # pruebas: pip install pytest httpx

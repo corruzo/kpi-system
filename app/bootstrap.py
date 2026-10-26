@@ -2,7 +2,7 @@
 import logging
 import os
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, inspect, select, text
 
 from . import audit
 from .database import ES_POSTGRES, Base, SessionLocal, engine
@@ -20,8 +20,24 @@ FOR EACH ROW EXECUTE FUNCTION bitacora_inmutable();
 """
 
 
+def migrar() -> None:
+    """Migración aditiva: agrega a tablas existentes las columnas nuevas del modelo (sin perder datos)."""
+    insp = inspect(engine)
+    for tabla in Base.metadata.sorted_tables:
+        if not insp.has_table(tabla.name):
+            continue
+        existentes = {c["name"] for c in insp.get_columns(tabla.name)}
+        for col in tabla.columns:
+            if col.name not in existentes:
+                tipo = col.type.compile(dialect=engine.dialect)
+                with engine.begin() as cx:
+                    cx.execute(text(f'ALTER TABLE "{tabla.name}" ADD COLUMN "{col.name}" {tipo}'))
+                log.warning("Migración: columna %s.%s agregada.", tabla.name, col.name)
+
+
 def preparar_base() -> None:
     Base.metadata.create_all(engine)
+    migrar()
     if not ES_POSTGRES:
         return
     try:
