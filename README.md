@@ -47,7 +47,7 @@ app/
 tests/          dominio/ (unitarias puras), api/ (por funcionalidad), test_migracion.py; conftest.py con fábricas de datos
 ```
 
-Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/conftest.py`). Estilo: `ruff check app api run.py tests`.
+Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/conftest.py`). Estilo: `ruff check app api run.py tests` (configuración en `ruff.toml`; no usar `pyproject.toml`: Vercel lo detecta y deja de instalar `requirements.txt`).
 
 ## Roles
 | Rol | Capacidades |

@@ -17,6 +17,7 @@ SIGT.modulos.guia = () => ({
       if (r === 'jefe') return [ini,
         { sel: '[data-tour="carga-selectores"]', t: 'Elija indicador y período', d: 'Seleccione el indicador de su área y el período a reportar. Los pendientes aparecen resaltados arriba.' },
         { sel: '[data-tour="carga-resultado"]', t: 'Resultado y semáforo automáticos', d: 'Digite solo los datos base: el sistema calcula el resultado y el semáforo. Si queda en alerta o crítico, deberá escribir el análisis y el plan de mejora.' },
+        nav('inicio', 'Inicio', 'Su punto de partida: muestra lo que tiene pendiente y da acceso directo a cada sección.'),
         nav('carga', 'Carga rápida', 'Aquí registra mes a mes los datos de sus indicadores. Tarda menos de 2 minutos por indicador.'),
         nav('historial', 'Mis cargas', 'Consulte lo que ha enviado, su estado (en revisión, aprobado, devuelto) y las observaciones del auditor.'),
         nav('reportes', 'Reportes', 'Descargue en Excel las cargas y las fichas técnicas de su área.'), ej, info, menu, fin];
@@ -24,6 +25,7 @@ SIGT.modulos.guia = () => ({
         { sel: '[data-tour="panel-resumen"]', t: 'Estado del ejercicio', d: 'Resume el ejercicio elegido: avance del tiempo, cumplimiento y si ya está cerrado.' },
         { sel: '[data-tour="panel-atencion"]', t: 'Requiere atención', d: 'Indicadores críticos, en alerta y empeorando, o con cargas pendientes. Toque uno para abrir su ficha.' },
         { sel: '[data-tour="panel-mapa"]', t: 'Mapa de calor', d: 'Cada fila es un indicador y cada columna un mes del ejercicio: de un vistazo ve dónde están los problemas.' },
+        nav('inicio', 'Inicio', 'Su punto de partida: muestra lo que tiene pendiente y da acceso directo a cada sección.'),
         nav('panel', 'Panel de análisis', 'Resultados, tendencias, comparativo con el año anterior y cumplimiento por departamento.'),
         nav('bandeja', 'Bandeja de aprobación', 'Las cargas enviadas por los jefes esperan aquí su aprobación o devolución con observaciones.'),
         nav('historial', 'Todas las cargas', 'Historial completo con filtros. Desde aquí puede agregar notas de auditoría o reabrir una carga aprobada con un error.'),
@@ -31,6 +33,7 @@ SIGT.modulos.guia = () => ({
         nav('ejercicios', 'Ejercicios fiscales', 'Consulte el estado de cada ejercicio y sus resultados finales.'), ej, info, menu, fin];
       return [ini,
         { sel: '[data-tour="fichas-nuevo"]', t: 'Crear indicadores', d: 'Aquí define cada indicador: proceso, responsables, fórmula, metas y semáforo. Los botones «i» y la guía de fórmulas le ayudan.' },
+        nav('inicio', 'Inicio', 'Su punto de partida: muestra lo que tiene pendiente y da acceso directo a cada sección.'),
         nav('fichas', 'Indicadores', 'Fichas técnicas: cree, edite, duplique, archive y vea cada indicador.'),
         nav('panel', 'Panel de análisis', 'Resumen del ejercicio, mapa de calor, atención requerida y comparativo con el año anterior.'),
         nav('bandeja', 'Bandeja de aprobación', 'Cargas pendientes de revisión.'),
@@ -46,7 +49,7 @@ SIGT.modulos.guia = () => ({
     async iniciarTour() {
       if (this.tour.on) return;
       this.menu = false; this.mas = false;
-      const inicial = { jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol];
+      const inicial = { jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol];   // vista donde están los elementos explicados
       if (this.view !== inicial) await this.go(inicial);
       this.tour = { on: true, i: -1, pasos: this.pasosBase(), hole: null, pop: { top: 0, left: 0, w: 340 } };
       await this.pasoTour(1);

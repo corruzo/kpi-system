@@ -12,6 +12,7 @@ const ORDEN_DE_MODULOS = [
   'parametros',    // empresa, ejercicio fiscal, logo
   'ejercicios',    // ejercicio fiscal activo (condiciona casi todo lo demás)
   'indicadores',   // fichas técnicas
+  'inicio',        // pantalla de bienvenida y tareas pendientes
   'carga',         // carga de datos
   'revision',      // historial y bandeja de aprobación
   'panel',         // dashboard

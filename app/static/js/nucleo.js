@@ -13,7 +13,7 @@ SIGT.modulos.nucleo = () => ({
     // Tras ingresar: cada módulo carga sus datos (ganchos «ingreso»), se abre la vista inicial del rol y se avisa a «listo».
     async abrirSesion() {
       for (const cargar of this.ganchos.ingreso) await cargar.call(this);
-      await this.go(VISTA_INICIAL[this.user.rol]);
+      await this.go(VISTA_INICIAL);
       for (const f of this.ganchos.listo) await f.call(this);
     },
 
@@ -53,6 +53,7 @@ SIGT.modulos.nucleo = () => ({
     nav() {
       const r = this.user.rol, ver = (id, label, corto, badge) => ({ id, label, corto, ...(badge ? { badge } : {}) });
       const secciones = {
+        inicio: ver('inicio', 'Inicio', 'Inicio'),
         carga: ver('carga', r === 'admin' ? 'Cargar datos' : 'Carga rápida', 'Cargar', this.pendientesTotal()),
         historial: ver('historial', r === 'jefe' ? 'Mis cargas' : 'Todas las cargas', r === 'jefe' ? 'Historial' : 'Cargas'),
         reportes: ver('reportes', 'Reportes', 'Reportes'),
@@ -73,6 +74,7 @@ SIGT.modulos.nucleo = () => ({
     async go(vista) {
       this.view = vista; this.menu = false; this.mas = false;
       window.scrollTo({ top: 0 });
+      this.$nextTick(() => document.querySelector('.pill-on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }));   // el menú largo se desplaza hasta la sección activa
       for (const cargar of this.ganchos.entrar[vista] || []) await cargar.call(this);
     },
 });

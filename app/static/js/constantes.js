@@ -5,6 +5,7 @@ const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos:
 const NAVY = '#0f172a', BRAND = '#0284c7';
 const ACCIONES = ['PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION'];
 const ICONOS = {
+  inicio: 'M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10',
   carga: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z',
   historial: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   bandeja: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-4l-1 2H9l-1-2H4',
@@ -19,11 +20,11 @@ const ICONOS = {
 };
 
 const ROLES = { jefe: 'Jefe de Área', gerente: 'Gerente / Auditor SGC', admin: 'Administrador SGC' };
-const VISTA_INICIAL = { jefe: 'carga', gerente: 'panel', admin: 'fichas' };       // primera vista tras ingresar
+const VISTA_INICIAL = 'inicio';       // primera vista tras ingresar
 const MENU_POR_ROL = {                                                           // secciones y su orden, por rol
-  jefe: ['carga', 'historial', 'reportes'],
-  gerente: ['panel', 'bandeja', 'historial', 'reportes', 'ejercicios'],
-  admin: ['fichas', 'panel', 'bandeja', 'carga', 'historial', 'reportes', 'ejercicios', 'org', 'importar', 'bitacora'],
+  jefe: ['inicio', 'carga', 'historial', 'reportes'],
+  gerente: ['inicio', 'panel', 'bandeja', 'historial', 'reportes', 'ejercicios'],
+  admin: ['inicio', 'fichas', 'panel', 'bandeja', 'carga', 'historial', 'reportes', 'ejercicios', 'org', 'importar', 'bitacora'],
 };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d) => Number(v).toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: d });
