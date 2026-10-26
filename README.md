@@ -1,30 +1,44 @@
 # SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A.
 
-Sistema web local (FastAPI + SQLAlchemy + Alpine.js/Tailwind/Chart.js) para cargar, aprobar y analizar indicadores bajo ISO 9001:2015.
+Aplicación web (FastAPI + SQLAlchemy + Alpine.js + Tailwind + Chart.js) para cargar, aprobar y analizar indicadores bajo ISO 9001:2015. Diseño por tarjetas, responsive, con navegación inferior en móvil.
+No incluye datos de ejemplo: se parte de una base vacía y el administrador crea áreas, usuarios e indicadores desde la propia interfaz.
 
-## Arranque
+## Producción con Supabase
+1. En Supabase: *Project Settings → Database → Connection string (URI)*. Use el **Session pooler** (puerto 5432) para un servidor persistente, o el **Transaction pooler** (6543) en plataformas serverless.
+2. Defina las variables (ver `.env.example`):
+   | Variable | Descripción |
+   |---|---|
+   | `SIGT_ENV=production` | Cookies `Secure`, HSTS, sin `/docs`; exige `SIGT_SECRET` y base de datos. |
+   | `SIGT_DATABASE_URL` | URI de Supabase (`postgresql://…?sslmode=require`). |
+   | `SIGT_SECRET` | 32+ caracteres aleatorios (firma de sesiones). |
+   | `SIGT_ADMIN_USER` / `SIGT_ADMIN_PASSWORD` | Solo para crear el primer administrador con la base vacía (≥ 10 caracteres). Elimine la contraseña después. |
+   | `SIGT_TRUST_PROXY=1` | Detrás de un proxy/balanceador (IP real para el límite de intentos). |
+3. Despliegue: `docker build -t sigt . && docker run -p 8000:8000 --env-file .env sigt` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
+4. Primer arranque: crea las tablas, un *trigger* que impide UPDATE/DELETE en `bitacora` y activa RLS en todas las tablas (la API REST pública de Supabase queda sin acceso; la aplicación usa el rol `postgres`). Si el usuario de la base no tiene permisos para ello, ejecute `scripts/supabase_hardening.sql` en el SQL Editor.
+5. Ingrese como administrador y siga la guía de configuración inicial: **Organización** (áreas y usuarios) → **Indicadores** (fichas).
+
+Alternativa sin variable de entorno: `python -m app.crear_admin`.
+
+## Desarrollo local
 ```bash
-pip install -r requirements.txt
-python run.py            # http://127.0.0.1:8000
-pytest                   # pruebas
+pip install -r requirements.txt pytest httpx
+SIGT_ADMIN_USER=admin SIGT_ADMIN_PASSWORD=una-clave-larga python run.py   # SQLite en data/sigt.db
+pytest                                  # SQLite; con SIGT_DATABASE_URL corre contra Postgres
+npm install && npm run build:css        # solo si modifica las clases Tailwind (el CSS compilado va en el repositorio)
 ```
-La primera vez se crea `data/sigt.db` (SQLite) con datos de demostración. Contraseña de todos los usuarios demo: `tripoliven2026`
-(`j.sistemas`, `j.produccion`, `j.mantenimiento`, …, `gerente`, `admin`). El login tiene botones de acceso rápido por rol.
-
-Variables de entorno: `SIGT_DATABASE_URL` (p. ej. SQL Server `mssql+pyodbc://…`), `SIGT_DEMO=0` (sin datos ni botones demo), `SIGT_SECRET`, `SIGT_HOST`, `SIGT_PORT`, `SIGT_DATA_DIR`.
-Tailwind, Alpine y Chart.js se cargan por CDN (el navegador necesita internet; para uso offline descargue los archivos a `app/static/` y cambie los `<script>`).
+Tailwind, Alpine y Chart.js se sirven desde `app/static/` (sin CDN ni dependencias externas en tiempo de ejecución).
 
 ## Roles
 | Rol | Capacidades |
 |---|---|
-| Jefe de Área | Carga rápida de su área: solo variables base, resultado y semáforo en vivo; análisis y plan de mejora obligatorios (validado también en servidor) si hay Alerta/Crítico; reenvío de cargas devueltas. |
-| Gerente / Auditor SGC | Bandeja de aprobación (aprobar / devolver), notas de auditoría, panel Chart.js (tendencia vs meta, semáforos, cumplimiento por área), exportación CSV. |
-| Administrador SGC | CRUD de fichas: fórmula validada, variables, unidad, frecuencia, meta y límite crítico, sentido directo o inverso. |
+| Jefe de Área | Carga rápida de su área; resultado y semáforo en vivo; análisis y plan de mejora obligatorios si hay Alerta/Crítico (validado en servidor); reenvío de cargas devueltas. |
+| Gerente / Auditor SGC | Bandeja de aprobación, notas de auditoría, panel de análisis, exportación CSV. |
+| Administrador SGC | Fichas de indicadores, áreas, usuarios (alta, roles, restablecer clave, desactivar), bitácora. |
 
-## Reglas clave
+## Reglas y seguridad
 - Semáforo «mayor es mejor»: verde ≥ meta, amarillo ≥ límite, rojo < límite; el inverso es simétrico.
-- Cada carga guarda la meta/límite vigentes: editar la ficha no altera el histórico.
-- Una carga enviada o aprobada no se modifica; solo se reenvía si fue devuelta (versión +1).
-- Eliminar un indicador con cargas lo archiva para conservar la trazabilidad.
+- Cada carga guarda meta/límite vigentes; editar la ficha no altera el histórico. Cargas enviadas/aprobadas no se modifican; si se devuelven, se reenvían (versión +1).
+- Eliminar un indicador o usuario con historial lo archiva/desactiva; un área con indicadores o usuarios no se elimina.
 - Fórmulas con evaluador AST restringido (sin `eval`).
-- Bitácora de solo inserción con cadena SHA-256 (`/api/bitacora/verificar`); el ORM bloquea UPDATE/DELETE. Para blindarla en el motor, en SQL Server niegue UPDATE/DELETE sobre `bitacora` al usuario de la aplicación.
+- Bitácora de solo inserción con cadena SHA-256 (verificable desde la interfaz), protegida además por trigger en Postgres y bloqueo en el ORM; escrituras serializadas con *advisory lock* entre procesos.
+- Contraseñas PBKDF2-SHA256 (210 000 iteraciones), mínimo 10 caracteres; cambiar o restablecer una clave invalida las sesiones previas; bloqueo tras 5 intentos fallidos en 15 min; cabeceras CSP/HSTS/X-Frame-Options.

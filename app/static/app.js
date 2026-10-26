@@ -1,13 +1,23 @@
 /* SIGT · lógica de interfaz (Alpine.js) */
 const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos: '#94a3b8' };
 const NAVY = '#0f172a', BRAND = '#0284c7';
+const ACCIONES = ['CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'INICIO_SESION'];
+const ICONOS = {
+  carga: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z',
+  historial: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  bandeja: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-4l-1 2H9l-1-2H4',
+  panel: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  fichas: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+  org: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  bitacora: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+};
 const ROLES = { jefe: 'Jefe de Área', gerente: 'Gerente / Auditor SGC', admin: 'Administrador SGC' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d) => Number(v).toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: d });
 
 function sigt() {
   return {
-    ready: false, user: null, demo: [], view: '', busy: false,
+    ready: false, user: null, view: '', busy: false, menu: false, ACCIONES,
     loginForm: { username: '', password: '' }, loginError: '',
     toast: { msg: '', error: false }, _toastT: null,
     indicadores: [], areas: [],
@@ -20,11 +30,13 @@ function sigt() {
     dash: null, panelArea: '', tendInd: null,
     ficha: { variables: [] }, modal: false, formulaMsg: { ok: true, txt: '' },
     bitacora: [], bitAccion: '',
+    usuarios: [], usuario: {}, modalUsuario: false, areaForm: { id: null, nombre: '' },
+    modalClave: false, clave: { actual: '', nueva: '', repetir: '' },
 
     // ------------------------------------------------------------ base
     async init() {
       try { this.user = await this.api('/api/me', {}, true); await this.alIngresar(); }
-      catch { this.user = null; try { this.demo = await this.api('/api/demo-usuarios', {}, true); } catch { } }
+      catch { this.user = null; }
       this.ready = true;
     },
     async api(url, opt = {}, silencioso = false) {
@@ -51,24 +63,28 @@ function sigt() {
       catch (e) { this.loginError = e.message; }
       this.busy = false;
     },
-    loginDemo(d) { this.loginForm = { username: d.username, password: d.password }; this.login(); },
-    async logout() { await this.api('/api/logout', { method: 'POST' }); this.user = null; this.view = ''; this.demo = await this.api('/api/demo-usuarios', {}, true); },
+    iniciales(u = this.user) { return u.nombre.split(' (')[0].split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); },
+    icono: id => ICONOS[id],
+    cap: t => t.charAt(0).toUpperCase() + t.slice(1),
+    async logout() { await this.api('/api/logout', { method: 'POST' }); this.user = null; this.view = ''; this.menu = false; this.indicadores = []; this.f = { indicador_id: '', periodo: '', valores: {}, analisis: '', plan_mejora: '', tocado: false }; this.periodosInd = []; },
     rolNombre: u => ROLES[u.rol],
     async alIngresar() {
       await this.cargarIndicadores();
       if (this.user.rol !== 'jefe') this.areas = await this.api('/api/areas');
+      if (this.user.rol === 'admin') this.usuarios = await this.api('/api/usuarios');
       if (this.user.rol === 'gerente') this.bandeja = await this.api('/api/mediciones?estado=enviado');
       await this.go({ jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol]);
     },
     async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores'); },
     nav() {
       const r = this.user.rol;
-      if (r === 'jefe') return [{ id: 'carga', label: 'Carga rápida', badge: this.pendientesTotal() || '' }, { id: 'historial', label: 'Mis cargas' }, { id: 'bitacora', label: 'Bitácora' }];
-      if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis' }, { id: 'bandeja', label: 'Bandeja de aprobación', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas' }, { id: 'bitacora', label: 'Bitácora' }];
-      return [{ id: 'fichas', label: 'Fichas de indicadores' }, { id: 'panel', label: 'Panel de análisis' }, { id: 'bitacora', label: 'Bitácora' }];
+      if (r === 'jefe') return [{ id: 'carga', label: 'Carga rápida', corto: 'Cargar', badge: this.pendientesTotal() || '' }, { id: 'historial', label: 'Mis cargas', corto: 'Historial' }, { id: 'bitacora', label: 'Bitácora' }];
+      if (r === 'gerente') return [{ id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bandeja', label: 'Bandeja de aprobación', corto: 'Bandeja', badge: this.bandeja.length || '' }, { id: 'historial', label: 'Todas las cargas', corto: 'Cargas' }, { id: 'bitacora', label: 'Bitácora' }];
+      return [{ id: 'fichas', label: 'Indicadores', corto: 'Fichas' }, { id: 'org', label: 'Organización', corto: 'Equipo' }, { id: 'panel', label: 'Panel de análisis', corto: 'Panel' }, { id: 'bitacora', label: 'Bitácora' }];
     },
     async go(v) {
-      this.view = v;
+      this.view = v; this.menu = false;
+      window.scrollTo({ top: 0 });
       if (v === 'carga' && !this.f.indicador_id && this.indicadores.length) {
         const p = this.listaPendientes()[0];
         if (p) await this.elegirPendiente(p); else { this.f.indicador_id = this.indicadores[0].id; await this.cambiarIndicador(); }
@@ -76,7 +92,8 @@ function sigt() {
       if (v === 'historial') await this.cargarHistorial();
       if (v === 'bandeja') await this.cargarBandeja();
       if (v === 'panel') await this.cargarPanel();
-      if (v === 'fichas') { await this.cargarIndicadores(); }
+      if (v === 'fichas') await this.cargarIndicadores();
+      if (v === 'org') { this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); }
       if (v === 'bitacora') await this.cargarBitacora();
     },
 
@@ -264,6 +281,49 @@ function sigt() {
       try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.cargarIndicadores(); } catch { }
     },
 
+    verTendencia(i) { this.tendInd = i.id; this.dibujar(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
+    // ----------------------------------------------------- administración
+    setup() {
+      const pasos = [
+        { n: 1, t: 'Crear las áreas de la empresa', ok: this.areas.length > 0, v: 'org' },
+        { n: 2, t: 'Registrar usuarios (jefes de área y gerente / auditor)', ok: this.usuarios.some(u => u.rol === 'jefe') && this.usuarios.some(u => u.rol === 'gerente'), v: 'org' },
+        { n: 3, t: 'Crear las fichas de indicadores', ok: this.indicadores.length > 0, v: 'fichas' }];
+      return { pasos, completo: pasos.every(p => p.ok) };
+    },
+    async guardarArea() {
+      this.busy = true;
+      try {
+        const id = this.areaForm.id;
+        await this.api(id ? `/api/areas/${id}` : '/api/areas', { method: id ? 'PUT' : 'POST', body: { nombre: this.areaForm.nombre } });
+        this.areaForm = { id: null, nombre: '' }; this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); this.avisar('Área guardada.');
+      } catch { }
+      this.busy = false;
+    },
+    async eliminarArea(a) {
+      if (!confirm(`¿Eliminar el área «${a.nombre}»?`)) return;
+      try { await this.api(`/api/areas/${a.id}`, { method: 'DELETE' }); this.areas = await this.api('/api/areas'); this.avisar('Área eliminada.'); } catch { }
+    },
+    nuevoUsuario() { this.usuario = { username: '', nombre: '', rol: 'jefe', area_id: '', password: '', activo: true }; this.modalUsuario = true; },
+    editarUsuario(x) { this.usuario = { ...x, area_id: x.area_id || '', password: '' }; this.modalUsuario = true; },
+    async guardarUsuario() {
+      this.busy = true;
+      try {
+        const u = this.usuario, id = u.id;
+        const body = { nombre: u.nombre, rol: u.rol, area_id: u.rol === 'jefe' ? (u.area_id || null) : null };
+        if (id) { body.activo = u.activo; if (u.password) body.password = u.password; } else { body.username = u.username; body.password = u.password; }
+        await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body });
+        this.modalUsuario = false; this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario guardado.');
+      } catch { }
+      this.busy = false;
+    },
+    abrirClave() { this.menu = false; this.clave = { actual: '', nueva: '', repetir: '' }; this.modalClave = true; },
+    async cambiarClave() {
+      this.busy = true;
+      try { await this.api('/api/cambiar-clave', { method: 'POST', body: { actual: this.clave.actual, nueva: this.clave.nueva } }); this.modalClave = false; this.avisar('Contraseña actualizada.'); } catch { }
+      this.busy = false;
+    },
+
     // --------------------------------------------------------- bitácora
     async cargarBitacora() { this.bitacora = await this.api('/api/bitacora' + (this.bitAccion ? '?accion=' + this.bitAccion : '')); },
     async verificarBitacora() {
@@ -278,6 +338,10 @@ function sigt() {
         case 'NOTA_AUDITORIA': return `${c}${d.periodo}: ${d.texto}`;
         case 'INDICADOR_EDITADO': return `${d.codigo}: cambios en ` + Object.keys(d.cambios || {}).join(', ');
         case 'INICIO_SESION': return 'Inicio de sesión';
+        case 'CLAVE_CAMBIADA': return 'Cambio de contraseña';
+        case 'USUARIO_CREADO': case 'USUARIO_EDITADO': return `${d.username || ''} ${d.rol || ''} ` + Object.keys(d.cambios || {}).join(', ');
+        case 'AREA_CREADA': case 'AREA_ELIMINADA': return d.nombre;
+        case 'AREA_EDITADA': return `${d.antes} → ${d.despues}`;
         default: return `${d.codigo || ''} ${d.nombre || ''}`;
       }
     },

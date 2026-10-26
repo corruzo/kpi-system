@@ -1,0 +1,9 @@
+{
+  "name": "sigt-tripoliven",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i src/input.css -o app/static/tailwind.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i src/input.css -o app/static/tailwind.css --watch"
+  },
+  "devDependencies": { "tailwindcss": "3.4.17", "alpinejs": "3.14.8", "chart.js": "4.4.7" }
+}

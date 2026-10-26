@@ -1,5 +1,5 @@
 """Modelo de datos del SIGT."""
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Integer,
                         String, Text, UniqueConstraint, event)
@@ -9,7 +9,7 @@ from .database import Base
 
 
 def ahora() -> datetime:
-    return datetime.utcnow().replace(microsecond=0)
+    return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
 
 
 class Area(Base):
@@ -27,6 +27,7 @@ class Usuario(Base):
     area_id: Mapped[int | None] = mapped_column(ForeignKey("areas.id"))
     password_hash: Mapped[str] = mapped_column(String(200))
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    sesion_v: Mapped[int] = mapped_column(Integer, default=0)  # sube al cambiar la clave: invalida sesiones
     area: Mapped[Area | None] = relationship()
 
 

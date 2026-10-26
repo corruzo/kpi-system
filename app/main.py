@@ -1,7 +1,6 @@
 """SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A."""
 import csv
 import io
-import os
 import threading
 from contextlib import asynccontextmanager
 from datetime import date
@@ -12,36 +11,60 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import audit, calc, security
-from .database import Base, SessionLocal, engine, get_db
+from .bootstrap import bootstrap_admin, preparar_base
+from .config import PRODUCCION, TRUST_PROXY
+from .database import get_db
 from .models import Area, Bitacora, Indicador, Medicion, NotaAuditoria, Usuario, ahora
-from .seed import CLAVE_DEMO, sembrar
 
 STATIC = Path(__file__).parent / "static"
-DEMO = os.getenv("SIGT_DEMO", "1") == "1"
 _lock = threading.Lock()  # serializa escrituras para mantener íntegra la cadena de la bitácora
 
 
 @asynccontextmanager
 async def lifespan(_):
-    Base.metadata.create_all(engine)
-    if DEMO:
-        with SessionLocal() as db:
-            sembrar(db)
+    preparar_base()
+    bootstrap_admin()
     yield
 
 
-app = FastAPI(title="SIGT Tripoliven", lifespan=lifespan)
+app = FastAPI(title="SIGT Tripoliven", lifespan=lifespan,
+              docs_url=None if PRODUCCION else "/docs", redoc_url=None,
+              openapi_url=None if PRODUCCION else "/openapi.json")
+limite_login = security.LimiteIntentos()
+
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
+       "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+       "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+
+
+@app.middleware("http")
+async def cabeceras(request: Request, call_next):
+    r = await call_next(request)
+    r.headers.update({"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
+                      "Referrer-Policy": "same-origin", "Content-Security-Policy": CSP,
+                      "Permissions-Policy": "camera=(), microphone=(), geolocation=()"})
+    if PRODUCCION:
+        r.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if request.url.path.startswith("/api/"):
+        r.headers["Cache-Control"] = "no-store"
+    return r
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz(db: Session = Depends(get_db)):
+    db.execute(select(1))
+    return {"ok": True}
 
 
 # ------------------------------------------------------------- seguridad
 def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:
-    uid = security.leer_token(request.cookies.get(security.COOKIE))
-    u = db.get(Usuario, uid) if uid else None
-    if not u or not u.activo:
+    tok = security.leer_token(request.cookies.get(security.COOKIE))
+    u = db.get(Usuario, tok[0]) if tok else None
+    if not u or not u.activo or u.sesion_v != tok[1]:
         raise HTTPException(401, "Sesión no válida o expirada.")
     return u
 
@@ -66,7 +89,7 @@ def iso(d):
 # ---------------------------------------------------------- serializadores
 def u_out(u: Usuario):
     return {"id": u.id, "username": u.username, "nombre": u.nombre, "rol": u.rol,
-            "area_id": u.area_id, "area": u.area.nombre if u.area else None}
+            "area_id": u.area_id, "area": u.area.nombre if u.area else None, "activo": u.activo}
 
 
 def ind_out(i: Indicador):
@@ -103,6 +126,31 @@ def bit_out(b: Bitacora):
 class LoginIn(BaseModel):
     username: str
     password: str
+
+
+class ClaveIn(BaseModel):
+    actual: str
+    nueva: str = Field(min_length=10, max_length=128)
+
+
+class AreaIn(BaseModel):
+    nombre: str = Field(min_length=2, max_length=80)
+
+
+class UsuarioIn(BaseModel):
+    username: str = Field(pattern=r"^[a-z0-9._-]{3,40}$")
+    nombre: str = Field(min_length=3, max_length=120)
+    rol: Literal["jefe", "gerente", "admin"]
+    area_id: int | None = None
+    password: str = Field(min_length=10, max_length=128)
+
+
+class UsuarioEdit(BaseModel):
+    nombre: str = Field(min_length=3, max_length=120)
+    rol: Literal["jefe", "gerente", "admin"]
+    area_id: int | None = None
+    activo: bool = True
+    password: str | None = Field(default=None, min_length=10, max_length=128)
 
 
 class CalcIn(BaseModel):
@@ -186,16 +234,27 @@ def _estados(db: Session, ind_id: int) -> dict[str, str]:
 
 
 # ------------------------------------------------------------------ auth
+def _ip(request: Request) -> str:
+    if TRUST_PROXY and request.headers.get("x-forwarded-for"):
+        return request.headers["x-forwarded-for"].split(",")[0].strip()
+    return request.client.host if request.client else "?"
+
+
 @app.post("/api/login")
-def login(datos: LoginIn, response: Response, db: Session = Depends(get_db),
+def login(datos: LoginIn, request: Request, response: Response, db: Session = Depends(get_db),
           _=Depends(escritura)):
+    clave = f"{_ip(request)}|{datos.username.strip().lower()}"
+    if limite_login.bloqueado(clave):
+        raise HTTPException(429, "Demasiados intentos fallidos. Intente de nuevo en 15 minutos.")
     u = db.scalar(select(Usuario).where(Usuario.username == datos.username.strip().lower()))
     if not u or not u.activo or not security.verificar_password(datos.password, u.password_hash):
+        limite_login.fallo(clave)
         raise HTTPException(401, "Usuario o contraseña incorrectos.")
+    limite_login.limpiar(clave)
     audit.registrar(db, u, "INICIO_SESION", "usuario", u.id)
     db.commit()
-    response.set_cookie(security.COOKIE, security.crear_token(u.id), httponly=True,
-                        samesite="lax", max_age=security.DURACION)
+    response.set_cookie(security.COOKIE, security.crear_token(u.id, u.sesion_v), httponly=True,
+                        secure=PRODUCCION, samesite="lax", max_age=security.DURACION)
     return u_out(u)
 
 
@@ -210,14 +269,119 @@ def me(u: Usuario = Depends(usuario_actual)):
     return u_out(u)
 
 
-@app.get("/api/demo-usuarios")
-def demo_usuarios(db: Session = Depends(get_db)):
-    if not DEMO:
-        return []
-    sel = ["j.sistemas", "j.produccion", "j.mantenimiento", "gerente", "admin"]
-    us = db.scalars(select(Usuario).where(Usuario.username.in_(sel))).all()
-    us.sort(key=lambda x: sel.index(x.username))
-    return [{**u_out(u), "password": CLAVE_DEMO} for u in us]
+@app.post("/api/cambiar-clave")
+def cambiar_clave(d: ClaveIn, response: Response, db: Session = Depends(get_db),
+                  u: Usuario = Depends(usuario_actual), _=Depends(escritura)):
+    if not security.verificar_password(d.actual, u.password_hash):
+        raise HTTPException(422, "La contraseña actual no es correcta.")
+    u.password_hash = security.hash_password(d.nueva)
+    u.sesion_v += 1
+    audit.registrar(db, u, "CLAVE_CAMBIADA", "usuario", u.id)
+    db.commit()
+    response.set_cookie(security.COOKIE, security.crear_token(u.id, u.sesion_v), httponly=True,
+                        secure=PRODUCCION, samesite="lax", max_age=security.DURACION)
+    return {"ok": True}
+
+
+# ---------------------------------------------------- administración
+@app.post("/api/areas", status_code=201)
+def crear_area(d: AreaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+               _=Depends(escritura)):
+    nombre = d.nombre.strip()
+    if db.scalar(select(Area).where(func.lower(Area.nombre) == nombre.lower())):
+        raise HTTPException(422, "Ya existe un área con ese nombre.")
+    a = Area(nombre=nombre)
+    db.add(a)
+    db.flush()
+    audit.registrar(db, u, "AREA_CREADA", "area", a.id, {"nombre": nombre})
+    db.commit()
+    return {"id": a.id, "nombre": a.nombre}
+
+
+@app.put("/api/areas/{area_id}")
+def editar_area(area_id: int, d: AreaIn, db: Session = Depends(get_db),
+                u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    a = db.get(Area, area_id)
+    if not a:
+        raise HTTPException(404, "Área no encontrada.")
+    dup = db.scalar(select(Area).where(func.lower(Area.nombre) == d.nombre.strip().lower()))
+    if dup and dup.id != a.id:
+        raise HTTPException(422, "Ya existe un área con ese nombre.")
+    antes, a.nombre = a.nombre, d.nombre.strip()
+    audit.registrar(db, u, "AREA_EDITADA", "area", a.id, {"antes": antes, "despues": a.nombre})
+    db.commit()
+    return {"id": a.id, "nombre": a.nombre}
+
+
+@app.delete("/api/areas/{area_id}")
+def eliminar_area(area_id: int, db: Session = Depends(get_db),
+                  u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    a = db.get(Area, area_id)
+    if not a:
+        raise HTTPException(404, "Área no encontrada.")
+    if db.scalar(select(Indicador.id).where(Indicador.area_id == a.id).limit(1)) or \
+            db.scalar(select(Usuario.id).where(Usuario.area_id == a.id).limit(1)):
+        raise HTTPException(409, "El área tiene indicadores o usuarios asignados; no puede eliminarse.")
+    audit.registrar(db, u, "AREA_ELIMINADA", "area", a.id, {"nombre": a.nombre})
+    db.delete(a)
+    db.commit()
+    return {"ok": True}
+
+
+def _validar_rol_area(db: Session, rol: str, area_id: int | None):
+    if rol == "jefe" and not area_id:
+        raise HTTPException(422, "Un Jefe de Área debe tener un área asignada.")
+    if area_id and not db.get(Area, area_id):
+        raise HTTPException(422, "Área inexistente.")
+
+
+@app.get("/api/usuarios")
+def listar_usuarios(db: Session = Depends(get_db), _=Depends(requiere("admin"))):
+    return [u_out(x) for x in db.scalars(select(Usuario).order_by(Usuario.nombre))]
+
+
+@app.post("/api/usuarios", status_code=201)
+def crear_usuario(d: UsuarioIn, db: Session = Depends(get_db),
+                  u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    if db.scalar(select(Usuario).where(Usuario.username == d.username)):
+        raise HTTPException(422, "Ese nombre de usuario ya existe.")
+    _validar_rol_area(db, d.rol, d.area_id)
+    n = Usuario(username=d.username, nombre=d.nombre.strip(), rol=d.rol,
+                area_id=d.area_id if d.rol == "jefe" else None,
+                password_hash=security.hash_password(d.password))
+    db.add(n)
+    db.flush()
+    audit.registrar(db, u, "USUARIO_CREADO", "usuario", n.id,
+                    {"username": n.username, "rol": n.rol, "area_id": n.area_id})
+    db.commit()
+    return u_out(n)
+
+
+@app.put("/api/usuarios/{uid}")
+def editar_usuario(uid: int, d: UsuarioEdit, db: Session = Depends(get_db),
+                   u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
+    n = db.get(Usuario, uid)
+    if not n:
+        raise HTTPException(404, "Usuario no encontrado.")
+    if n.id == u.id and (not d.activo or d.rol != "admin"):
+        raise HTTPException(422, "No puede desactivarse ni quitarse el rol de administrador a sí mismo.")
+    _validar_rol_area(db, d.rol, d.area_id)
+    cambios = {}
+    for k, v in {"nombre": d.nombre.strip(), "rol": d.rol, "activo": d.activo,
+                 "area_id": d.area_id if d.rol == "jefe" else None}.items():
+        if getattr(n, k) != v:
+            cambios[k] = [getattr(n, k), v]
+            setattr(n, k, v)
+    if d.password:
+        n.password_hash = security.hash_password(d.password)
+        n.sesion_v += 1
+        cambios["password"] = "restablecida"
+    if not d.activo:
+        n.sesion_v += 1
+    if cambios:
+        audit.registrar(db, u, "USUARIO_EDITADO", "usuario", n.id, {"username": n.username, "cambios": cambios})
+    db.commit()
+    return u_out(n)
 
 
 @app.get("/api/areas")

@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .models import Bitacora, ahora
@@ -24,6 +24,8 @@ def _payload(b: Bitacora) -> dict:
 
 def registrar(db: Session, usuario, accion: str, entidad: str, entidad_id=None,
               detalle: dict | None = None, indicador=None, fecha=None) -> Bitacora:
+    if db.get_bind().dialect.name == "postgresql":  # serializa la cadena entre procesos
+        db.execute(text("SELECT pg_advisory_xact_lock(727001)"))
     prev = db.scalar(select(Bitacora.hash).order_by(Bitacora.id.desc()).limit(1)) or GENESIS
     b = Bitacora(
         fecha=fecha or ahora(),

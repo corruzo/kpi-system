@@ -1,7 +1,9 @@
 import os
 import tempfile
 
-os.environ["SIGT_DATA_DIR"] = tempfile.mkdtemp()
+os.environ["SIGT_DATA_DIR"] = tempfile.mkdtemp()  # SQLite si no hay SIGT_DATABASE_URL
+os.environ["SIGT_ADMIN_USER"] = "admin"
+os.environ["SIGT_ADMIN_PASSWORD"] = "clave-admin-123"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +11,7 @@ from fastapi.testclient import TestClient
 from app import calc
 from app.main import app
 
-CLAVE = "tripoliven2026"
+CLAVE = "clave-segura-123"
 
 
 def test_semaforo_directo_e_inverso():
@@ -35,29 +37,54 @@ def client():
         yield c
 
 
-def entrar(c, user):
-    assert c.post("/api/login", json={"username": user, "password": CLAVE}).status_code == 200
+def entrar(c, user, clave=CLAVE):
+    c.cookies.clear()
+    r = c.post("/api/login", json={"username": user, "password": clave})
+    assert r.status_code == 200, r.text
 
 
-def test_flujo_completo(client):
+@pytest.fixture(scope="module")
+def datos(client):
+    """Base vacía → el administrador crea área, usuarios e indicador."""
     c = client
-    entrar(c, "j.sistemas")
-    ind = next(i for i in c.get("/api/indicadores").json() if i["codigo"] == "SIS-03")
-    per = c.get(f"/api/indicadores/{ind['id']}/periodos").json()["periodos"][0]["periodo"]
-    body = {"indicador_id": ind["id"], "periodo": per, "valores": {"dias_totales": 300, "tickets": 50}}
+    entrar(c, "admin", "clave-admin-123")
+    assert c.get("/api/indicadores").json() == []
+    area = c.post("/api/areas", json={"nombre": "Sistemas"}).json()["id"]
+    otra = c.post("/api/areas", json={"nombre": "Producción"}).json()["id"]
+    for u, rol, a in [("jefe.sis", "jefe", area), ("jefe.pro", "jefe", otra), ("gerente", "gerente", None)]:
+        assert c.post("/api/usuarios", json={"username": u, "nombre": f"Usuario {u}", "rol": rol,
+                                             "area_id": a, "password": CLAVE}).status_code == 201
+    ind = c.post("/api/indicadores", json={
+        "codigo": "sis-03", "nombre": "Tiempo de resolución", "area_id": area, "unidad": "días",
+        "frecuencia": "mensual", "sentido": "menor", "formula": "dias / tickets", "meta": 2, "limite": 4,
+        "variables": [{"clave": "dias", "etiqueta": "Días acumulados"}, {"clave": "tickets", "etiqueta": "Tickets"}]})
+    assert ind.status_code == 201
+    return {"area": area, "ind": ind.json()["id"]}
+
+
+def test_sin_datos_demo_ni_endpoint_demo(client):
+    assert client.get("/api/demo-usuarios").status_code in (404, 405)
+
+
+def test_flujo_completo(client, datos):
+    c, ind = client, datos["ind"]
+    entrar(c, "jefe.sis")
+    per = c.get(f"/api/indicadores/{ind}/periodos").json()["periodos"][0]["periodo"]
+    body = {"indicador_id": ind, "periodo": per, "valores": {"dias": 300, "tickets": 50}}
     assert c.post("/api/mediciones", json=body).status_code == 422  # fuera de meta sin análisis
     body.update(analisis="Caída del enlace principal", plan_mejora="Enlace de respaldo y turno extra")
     r = c.post("/api/mediciones", json=body)
     assert r.status_code == 201 and r.json()["semaforo"] == "rojo"
     assert c.post("/api/mediciones", json=body).status_code == 409
-    entrar(c, "j.produccion")
-    assert c.post("/api/calcular", json={"indicador_id": ind["id"], "valores": {}}).status_code == 403
+    entrar(c, "jefe.pro")
+    assert c.post("/api/calcular", json={"indicador_id": ind, "valores": {}}).status_code == 403
     assert c.get("/api/dashboard").status_code == 403
+    assert c.get("/api/usuarios").status_code == 403
     entrar(c, "gerente")
     mid = r.json()["id"]
     assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "observar"}).status_code == 422
     assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "observar", "nota": "Falta fecha"}).status_code == 200
-    entrar(c, "j.sistemas")
+    entrar(c, "jefe.sis")
     assert c.post("/api/mediciones", json=body).json()["version"] == 2
     entrar(c, "gerente")
     assert c.post(f"/api/mediciones/{mid}/revision", json={"accion": "aprobar"}).json()["estado"] == "aprobado"
@@ -65,18 +92,30 @@ def test_flujo_completo(client):
     assert c.get("/api/bitacora/verificar").json()["ok"] is True
 
 
-def test_admin_crud_y_bitacora_inalterable(client):
+def test_clave_invalida_sesiones_y_limite_de_intentos(client, datos):
     c = client
-    entrar(c, "admin")
-    area = c.get("/api/areas").json()[0]["id"]
-    ficha = {"codigo": "tst-01", "nombre": "Prueba", "area_id": area, "unidad": "días", "frecuencia": "trimestral",
-             "sentido": "menor", "formula": "a / b", "variables": [{"clave": "a", "etiqueta": "Dato A"}, {"clave": "b", "etiqueta": "Dato B"}],
-             "meta": 3, "limite": 2}
-    assert c.post("/api/indicadores", json=ficha).status_code == 422
-    ficha["limite"] = 5
-    r = c.post("/api/indicadores", json=ficha)
-    assert r.status_code == 201 and r.json()["codigo"] == "TST-01"
-    assert c.delete(f"/api/indicadores/{r.json()['id']}").json()["archivado"] is False
+    entrar(c, "jefe.sis")
+    assert c.post("/api/cambiar-clave", json={"actual": "incorrecta", "nueva": "otra-clave-123"}).status_code == 422
+    antes = c.cookies.get("sigt_sesion")
+    assert c.post("/api/cambiar-clave", json={"actual": CLAVE, "nueva": "otra-clave-123"}).status_code == 200
+    assert c.get("/api/me").status_code == 200  # la sesión actual se renueva
+    c.cookies.clear()
+    c.cookies.set("sigt_sesion", antes)
+    assert c.get("/api/me").status_code == 401  # la sesión anterior queda invalidada
+    for _ in range(5):
+        c.post("/api/login", json={"username": "jefe.pro", "password": "mala"})
+    assert c.post("/api/login", json={"username": "jefe.pro", "password": CLAVE}).status_code == 429
+
+
+def test_admin_integridad(client, datos):
+    c = client
+    entrar(c, "admin", "clave-admin-123")
+    assert c.delete(f"/api/areas/{datos['area']}").status_code == 409  # tiene indicadores
+    assert c.delete(f"/api/indicadores/{datos['ind']}").json()["archivado"] is True
+    assert c.post("/api/usuarios", json={"username": "x.jefe", "nombre": "Sin Area", "rol": "jefe",
+                                         "password": CLAVE}).status_code == 422
+    me = c.get("/api/me").json()
+    assert c.put(f"/api/usuarios/{me['id']}", json={"nombre": "Admin SGC", "rol": "admin", "activo": False}).status_code == 422
     from app.database import SessionLocal
     from app.models import Bitacora
     with SessionLocal() as db:
