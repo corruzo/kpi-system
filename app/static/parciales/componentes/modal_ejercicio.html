@@ -1,0 +1,27 @@
+  <!-- ===== Cierre de ejercicio ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="cierre.abierto" x-transition.opacity @keydown.escape.window="cierre.abierto=false">
+    <div class="sheet max-h-[92vh] w-full max-w-2xl">
+      <div class="card-h"><h2 class="text-lg" x-text="'Cerrar ejercicio ' + (cierre.e ? cierre.e.etiqueta : '')"></h2><button class="btn btn-s btn-sm" @click="cierre.abierto=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-4 overflow-y-auto" x-show="cierre.v">
+        <p class="text-sm text-slate-600">Al cerrar, el ejercicio queda <b>archivado en solo lectura</b> (nadie podrá cargar, aprobar ni editar sus períodos) y se guarda una foto de sus resultados. Podrá reabrirlo con un motivo si fuese necesario.</p>
+        <ul class="space-y-2 text-sm" x-show="cierre.v">
+          <li class="flex items-start gap-2.5 rounded-xl p-3" :class="cierre.v && cierre.v.terminado ? 'bg-green-50' : 'bg-red-50'"><span x-text="cierre.v && cierre.v.terminado ? '✔' : '✖'"></span><span>El ejercicio ya terminó (<span x-text="cierre.v && fechaCorta(cierre.v.hasta)"></span>).</span></li>
+          <li class="flex items-start gap-2.5 rounded-xl p-3" :class="cierre.v && !cierre.v.pendientes.length ? 'bg-green-50' : 'bg-red-50'"><span x-text="cierre.v && !cierre.v.pendientes.length ? '✔' : '✖'"></span><div><span x-text="cierre.v && cierre.v.pendientes.length ? cierre.v.pendientes.length + ' carga(s) en revisión o devueltas: resuélvalas antes de cerrar.' : 'No hay cargas en revisión ni devueltas.'"></span>
+            <ul class="mt-1 list-disc pl-5 text-xs text-slate-600"><template x-for="p in (cierre.v ? cierre.v.pendientes.slice(0,8) : [])" :key="p.codigo + p.periodo"><li x-text="p.codigo + ' · ' + p.periodo + ' (' + p.estado + ') — ' + p.area"></li></template></ul></div></li>
+          <li class="flex items-start gap-2.5 rounded-xl p-3" :class="cierre.v && !cierre.v.total_faltantes ? 'bg-green-50' : 'bg-amber-50'"><span x-text="cierre.v && !cierre.v.total_faltantes ? '✔' : '⚠'"></span><div><span x-text="cierre.v && cierre.v.total_faltantes ? cierre.v.total_faltantes + ' período(s) nunca se cargaron (puede cerrar igualmente).' : 'Todos los períodos esperados tienen carga.'"></span>
+            <ul class="mt-1 list-disc pl-5 text-xs text-slate-600"><template x-for="f in (cierre.v ? cierre.v.faltantes.slice(0,8) : [])" :key="f.codigo"><li x-text="f.codigo + ' · ' + f.indicador + ': ' + f.periodos.join(', ')"></li></template></ul></div></li>
+          <li class="flex items-start gap-2.5 rounded-xl bg-slate-100 p-3"><span>📊</span><span>Cumplimiento del ejercicio: <b x-text="cierre.v && cierre.v.resumen.cumplimiento + '%'"></b> (<span x-text="cierre.v && cierre.v.resumen.verde"></span> en verde de <span x-text="cierre.v && cierre.v.resumen.total"></span> indicadores).</span></li>
+        </ul>
+        <div><label class="lbl">Nota de cierre (opcional)</label><textarea class="inp" rows="2" x-model="cierre.nota" maxlength="2000" placeholder="Observaciones del cierre"></textarea></div>
+        <label class="flex items-start gap-2 text-sm" x-show="cierre.v && cierre.v.total_faltantes"><input type="checkbox" class="mt-0.5 h-5 w-5" x-model="cierre.aceptar"> Entiendo que hay períodos sin cargar y deseo cerrar de todos modos.</label>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button class="btn btn-s" @click="cierre.abierto=false">Cancelar</button><button class="btn btn-p" :disabled="busy || !cierre.v || !cierre.v.puede_cerrar || (cierre.v.total_faltantes && !cierre.aceptar)" @click="confirmarCierre()">Cerrar y archivar ejercicio</button></div>
+    </div>
+  </div>
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="reap.abierto" x-transition.opacity @keydown.escape.window="reap.abierto=false">
+    <form class="sheet w-full max-w-md" @submit.prevent="confirmarReapertura()">
+      <div class="card-h"><h2 class="text-lg" x-text="'Reabrir ejercicio ' + (reap.e ? reap.e.etiqueta : '')"></h2><button type="button" class="btn btn-s btn-sm" @click="reap.abierto=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-3"><p class="text-sm text-slate-600">El ejercicio volverá a admitir cargas y revisiones. Quedará registrado quién lo reabrió y por qué.</p><div><label class="lbl">Motivo de la reapertura</label><textarea class="inp" rows="3" x-model="reap.nota" required minlength="5" maxlength="2000"></textarea></div></div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="reap.abierto=false">Cancelar</button><button class="btn btn-p" :disabled="busy || reap.nota.trim().length < 5">Reabrir ejercicio</button></div>
+    </form>
+  </div>

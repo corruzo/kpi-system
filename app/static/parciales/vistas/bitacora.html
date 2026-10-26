@@ -1,0 +1,25 @@
+    <!-- ============ BITÁCORA (solo administrador) ============ -->
+    <section x-show="view==='bitacora' && user.rol==='admin'" class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 class="page-title">Bitácora del sistema</h1><p class="text-sm text-slate-600">Visible únicamente para el Administrador SGC. Registro de solo inserción con cadena de hashes SHA-256.</p></div>
+        <div class="flex gap-2"><button class="btn btn-s" @click="verificarBitacora()">Verificar integridad</button><button class="btn btn-s" :disabled="busy" @click="descargar('/api/reportes/bitacora.xlsx','bitacora_sigt.xlsx')">Descargar Excel</button></div>
+      </div>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <select class="inp" x-model="bitAccion" @change="cargarBitacora()" aria-label="Filtrar por acción"><option value="">Todas las acciones</option><template x-for="a in ACCIONES" :key="a"><option :value="a" x-text="a.replaceAll('_',' ').toLowerCase()"></option></template></select>
+        <input class="inp" type="search" x-model="bitUsuario" @input.debounce.400ms="cargarBitacora()" placeholder="Buscar por usuario" aria-label="Usuario">
+      </div>
+      <div class="card hidden overflow-x-auto md:block"><table class="w-full"><thead><tr><th class="th">#</th><th class="th">Fecha</th><th class="th">Usuario</th><th class="th">Acción</th><th class="th">Detalle</th><th class="th">Hash</th></tr></thead>
+        <tbody><template x-for="b in bitacora" :key="b.id"><tr>
+          <td class="td text-slate-400" x-text="b.id"></td><td class="td whitespace-nowrap" x-text="fecha(b.fecha)"></td>
+          <td class="td"><div x-text="b.usuario"></div><div class="text-xs text-slate-500" x-text="b.rol"></div></td>
+          <td class="td"><span class="chip border-slate-200 bg-slate-100 text-slate-700" x-text="b.accion"></span></td>
+          <td class="td max-w-md text-xs text-slate-700" x-text="resumenBit(b)"></td><td class="td font-mono text-xs text-slate-400" x-text="b.hash.slice(0,10)"></td></tr></template></tbody></table></div>
+      <div class="space-y-3 md:hidden">
+        <template x-for="b in bitacora" :key="'m'+b.id"><div class="card"><div class="card-b space-y-1.5">
+          <div class="flex items-center justify-between gap-2"><span class="chip border-slate-200 bg-slate-100 text-slate-700" x-text="b.accion"></span><span class="text-xs text-slate-500" x-text="fecha(b.fecha)"></span></div>
+          <div class="text-sm font-medium" x-text="b.usuario"></div><div class="break-words text-xs text-slate-600" x-text="resumenBit(b)"></div>
+          <div class="font-mono text-[10px] text-slate-400" x-text="'#' + b.id + ' · ' + b.hash.slice(0,16)"></div></div></div></template>
+      </div>
+      <div class="card p-10 text-center text-sm text-slate-500" x-show="!bitacora.length">Sin registros.</div>
+      <button class="btn btn-s w-full" x-show="bitMas" @click="cargarBitacora(false)">Cargar más</button>
+    </section>

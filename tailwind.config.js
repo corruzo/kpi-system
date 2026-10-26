@@ -1,6 +1,6 @@
 // Paleta cálida (grises con matiz crema) + acentos corporativos navy #0f172a y azul #0284c7.
 module.exports = {
-  content: ['./app/static/*.{html,js}'],
+  content: ['./app/static/*.html', './app/static/*.js', './app/static/js/*.js', './app/static/parciales/**/*.html'],
   theme: {
     extend: {
       colors: {

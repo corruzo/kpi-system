@@ -1,0 +1,61 @@
+    <!-- ============ FICHA TÉCNICA ============ -->
+    <section x-show="view==='ficha'" class="space-y-4">
+      <template x-if="fv.data">
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <button class="btn btn-s btn-sm" @click="go(fv.volver || (user.rol==='admin' ? 'fichas' : 'historial'))">← Volver</button>
+            <div class="flex flex-wrap gap-2">
+              <select class="inp !min-h-[36px] !w-auto !py-1 text-sm" x-model.number="fv.ejercicio" @change="cargarFicha()" aria-label="Ejercicio fiscal"><template x-for="e in fv.data.ejercicios" :key="e.valor"><option :value="e.valor" :selected="e.valor===fv.ejercicio" x-text="'Ejercicio ' + e.etiqueta"></option></template></select>
+              <button class="btn btn-p btn-sm" :disabled="busy" @click="fichaDescargar()">Descargar Excel (formato SGC)</button>
+              <button class="btn btn-s btn-sm" onclick="window.print()">Imprimir</button></div></div>
+
+          <div class="card overflow-hidden">
+            <div class="bg-navy px-4 py-3 text-white"><div class="flex flex-wrap items-center justify-between gap-2"><div class="flex items-center gap-3"><img x-show="fv.data.parametros.logo_url" :src="fv.data.parametros.logo_url" alt="Logo" class="h-11 max-w-[120px] rounded-lg bg-white object-contain p-1"><div><div class="text-lg font-bold" x-text="fv.data.parametros.empresa"></div><div class="text-xs text-slate-300" x-text="fv.data.parametros.gerencia_emisora"></div></div></div>
+              <div class="text-center text-sm font-bold sm:text-base">FICHA TÉCNICA DE INDICADOR DE GESTIÓN</div>
+              <div class="text-right text-xs"><div class="text-slate-300">Seguimiento de:</div><div class="font-semibold" x-text="({proceso:'Desempeño de proceso',objetivo:'Objetivo organizacional',proveedor:'Desempeño de proveedor externo'})[fv.data.indicador.seguimiento]"></div></div></div></div>
+            <div class="grid grid-cols-1 gap-px bg-slate-200 sm:grid-cols-2">
+              <div class="bg-white p-3"><div class="lbl" x-text="fv.data.indicador.seguimiento==='objetivo' ? 'Objetivo organizacional' : 'Proceso'"></div><div class="text-sm font-semibold" x-text="fv.data.indicador.ref_nombre || '—'"></div></div>
+              <div class="bg-white p-3"><div class="lbl" x-text="fv.data.indicador.seguimiento==='objetivo' ? 'Objetivo específico' : fv.data.indicador.seguimiento==='proveedor' ? 'Bien o servicio' : 'Objetivo del proceso'"></div><div class="text-sm" x-text="fv.data.indicador.ref_detalle || fv.data.indicador.objetivo || '—'"></div></div>
+            </div>
+          </div>
+
+          <div class="card"><div class="card-h"><h2 class="font-semibold">Definición del indicador e información para la medición</h2></div>
+            <div class="card-b grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div class="space-y-3 text-sm lg:col-span-2">
+                <div><div class="lbl">Nombre del indicador</div><div class="font-semibold" x-text="fv.data.indicador.nombre + (fv.data.indicador.sigla && !fv.data.indicador.nombre.includes('(' + fv.data.indicador.sigla + ')') ? ' (' + fv.data.indicador.sigla + ')' : '')"></div></div>
+                <div class="grid grid-cols-3 gap-3"><div><div class="lbl">Unidad</div><div x-text="fv.data.indicador.unidad"></div></div><div><div class="lbl">Meta</div><div class="font-semibold" x-text="fv.data.indicador.meta_texto"></div></div><div><div class="lbl">Frecuencia</div><div x-text="cap(fv.data.indicador.frecuencia)"></div></div></div>
+                <div><div class="lbl">Fórmula de cálculo</div><pre class="whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 font-mono text-xs" x-text="formulaDoc(fv.data.indicador)"></pre></div>
+                <div><div class="lbl">Fuente de la información</div><div x-text="fv.data.indicador.fuente || '—'"></div></div>
+              </div>
+              <div><div class="lbl">Semáforo (Mín. / Máx.)</div>
+                <table class="w-full text-sm"><template x-for="f in semaforoFranjas(fv.data.indicador)" :key="f.c"><tr><td class="w-1/3 py-1"><span class="chip w-full justify-center border-transparent text-white" :class="semBg(f.c)" x-text="f.n"></span></td><td class="px-2 py-1 text-center" x-text="f.min || '—'"></td><td class="px-2 py-1 text-center" x-text="f.max || '—'"></td></tr></template></table>
+                <div class="mt-3 text-sm"><span class="lbl">Ejercicio fiscal</span> <b x-text="fv.data.ejercicio_etiqueta"></b></div></div>
+            </div></div>
+
+          <div class="card"><div class="card-h"><h2 class="font-semibold">Responsabilidades</h2></div>
+            <div class="card-b grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <div><div class="lbl">Gerencia</div><div x-text="fv.data.indicador.gerencia || '—'"></div></div><div><div class="lbl">Departamento</div><div x-text="fv.data.indicador.area"></div></div><div><div class="lbl">Líder de proceso</div><div x-text="fv.data.indicador.lider || '—'"></div></div>
+              <div><div class="lbl">Responsable de medición</div><div x-text="fv.data.indicador.resp_medicion || '—'"></div></div><div><div class="lbl">Responsable de registro</div><div x-text="fv.data.indicador.resp_registro || '—'"></div></div><div><div class="lbl">Responsable de análisis</div><div x-text="fv.data.indicador.resp_analisis || '—'"></div></div>
+            </div></div>
+
+          <div class="card overflow-hidden"><div class="card-h"><h2 class="font-semibold">Resultados de las determinaciones</h2></div>
+            <div class="overflow-x-auto"><table class="w-full min-w-[640px] text-sm">
+              <thead><tr><th class="th sticky left-0 bg-slate-50">Período</th><template x-for="p in fv.data.periodos" :key="p.periodo"><th class="th text-center" x-text="p.corta"></th></template></tr></thead>
+              <tbody>
+                <template x-for="v in fv.data.indicador.variables" :key="v.clave"><tr><td class="td sticky left-0 bg-white font-medium" x-text="v.etiqueta"></td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center" x-text="valorFicha(p, v.clave)"></td></template></tr></template>
+                <tr><td class="td sticky left-0 bg-slate-50 font-bold">INDICADOR</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center font-bold" :class="p.medicion && p.medicion.estado!=='observado' ? ({verde:'bg-green-100 text-green-800',amarillo:'bg-amber-100 text-amber-800',rojo:'bg-red-100 text-red-800'})[p.medicion.semaforo] : ''" x-text="p.medicion && p.medicion.estado!=='observado' ? fmt(p.medicion.resultado, fv.data.indicador.unidad, fv.data.indicador.decimales) : ''"></td></template></tr>
+                <tr><td class="td sticky left-0 bg-white text-xs text-slate-500">Estado</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center text-[11px] text-slate-500" x-text="p.medicion ? estadoTxt(p.medicion.estado) : ''"></td></template></tr>
+              </tbody></table></div></div>
+
+          <div class="card"><div class="card-h"><h2 class="font-semibold">Valores del indicador</h2></div><div class="card-b"><div class="h-64"><canvas id="ch-ficha"></canvas></div></div></div>
+
+          <div class="card"><div class="card-h"><h2 class="font-semibold">Análisis y evaluación de resultados</h2></div>
+            <div class="divide-y divide-slate-100">
+              <template x-for="p in fv.data.periodos.filter(p => p.medicion && (p.medicion.analisis || p.medicion.plan_mejora))" :key="p.periodo"><div class="grid grid-cols-1 gap-3 p-4 text-sm lg:grid-cols-[8rem_1fr_1fr]"><div class="font-semibold" x-text="p.etiqueta"></div><div><div class="lbl">Resultados del análisis</div><div class="whitespace-pre-line" x-text="p.medicion.analisis || '—'"></div></div><div><div class="lbl">Correcciones, oportunidades o necesidades de mejora</div><div class="whitespace-pre-line" x-text="p.medicion.plan_mejora || '—'"></div></div></div></template>
+              <p class="p-6 text-center text-sm text-slate-500" x-show="!fv.data.periodos.some(p => p.medicion && (p.medicion.analisis || p.medicion.plan_mejora))">Sin análisis registrados en este ejercicio.</p>
+            </div></div>
+          <div class="card" x-show="fv.data.indicador.notas"><div class="card-h"><h2 class="font-semibold">Notas</h2></div><div class="card-b whitespace-pre-line text-sm" x-text="fv.data.indicador.notas"></div></div>
+          <p class="text-right text-xs text-slate-400" x-text="fv.data.parametros.codigo_formato"></p>
+        </div>
+      </template>
+    </section>

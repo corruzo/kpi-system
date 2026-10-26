@@ -1,0 +1,114 @@
+    <!-- ============ CARGA RÁPIDA ============ -->
+    <section x-show="view==='carga'" class="mx-auto max-w-3xl space-y-4">
+      <div><div class="flex items-center gap-2"><h1 class="page-title">Carga rápida</h1><button type="button" class="info" @click="toggleAyuda('carga')" aria-label="¿Cómo cargar?">i</button></div><p class="text-sm text-slate-600">Ingrese solo los datos base. El sistema calcula el resultado y el semáforo.</p>
+        <div class="ayuda" x-show="ay==='carga'" x-html="ayudaHtml('carga')" x-transition></div></div>
+
+      <div class="card p-8 text-center" x-show="!indicadoresCarga.length">
+        <p class="font-semibold" x-text="user.rol==='admin' ? 'No hay indicadores activos.' : 'Su área aún no tiene indicadores asignados.'"></p>
+        <p class="mt-1 text-sm text-slate-600" x-text="user.rol==='admin' ? 'Cree fichas en la sección Indicadores.' : 'Solicite al Administrador SGC que cree las fichas técnicas de su área.'"></p>
+      </div>
+
+      <template x-if="indicadoresCarga.length">
+      <div class="space-y-4">
+        <div class="card border-amber-300 bg-amber-50" x-show="pendientesTotal()" x-transition>
+          <div class="card-b">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-900">Pendientes de carga</div>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="p in listaPendientes()" :key="p.ind.id + p.periodo">
+                <button class="min-h-[40px] rounded-full border border-amber-400 bg-white px-3 text-sm text-amber-900 hover:bg-amber-100" @click="elegirPendiente(p)"><b x-text="p.ind.codigo"></b> · <span x-text="p.etiqueta"></span></button>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="card border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800" x-show="!pendientesTotal()">✔ Está al día con todas sus cargas.</div>
+
+        <div class="card" data-tour="carga-selectores">
+          <div class="card-b grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="lbl" for="sel-ind">Indicador</label>
+              <select id="sel-ind" class="inp" x-model.number="f.indicador_id" @change="cambiarIndicador()">
+                <option value="">Seleccione…</option>
+                <template x-for="i in indicadoresCarga" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre + (user.rol==='admin' ? ' (' + i.area + ')' : '')"></option></template>
+              </select>
+            </div>
+            <div>
+              <label class="lbl" for="sel-per">Período</label>
+              <select id="sel-per" class="inp" x-model="f.periodo" @change="cambiarPeriodo()" :disabled="!periodosInd.length">
+                <template x-for="g in gruposPeriodos" :key="g.etiqueta"><optgroup :label="'Ejercicio ' + g.etiqueta"><template x-for="p in g.periodos" :key="p.periodo"><option :value="p.periodo" :selected="p.periodo===f.periodo" x-text="p.etiqueta + (p.actual ? ' (en curso)' : '') + (p.cerrado ? ' — ejercicio cerrado' : estadoSufijo(p))"></option></template></optgroup></template>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <template x-if="ind">
+          <div class="space-y-4 fade-in">
+            <div class="card">
+              <div class="card-b space-y-1 text-sm">
+                <div class="flex items-start justify-between gap-2"><div class="font-semibold" x-text="ind.nombre"></div><button type="button" class="info" @click="fichaAbierta=!fichaAbierta" aria-label="Ver ficha técnica del indicador">i</button></div>
+                <div class="text-slate-600" x-text="ind.objetivo"></div>
+                <div class="ayuda !mt-2 space-y-1" x-show="fichaAbierta" x-transition>
+                  <button type="button" class="btn btn-s btn-sm" @click="verFicha(ind.id)">Abrir ficha técnica completa</button>
+                  <div><b>Área:</b> <span x-text="ind.area"></span> · <b>Frecuencia:</b> <span x-text="cap(ind.frecuencia)"></span> · <b>Unidad:</b> <span x-text="ind.unidad"></span></div>
+                  <div x-show="ind.fuente"><b>Fuente de datos:</b> <span x-text="ind.fuente"></span></div>
+                  <div x-show="ind.notas"><b>Método:</b> <span x-text="ind.notas"></span></div>
+                  <div x-show="ind.constantes && ind.constantes.length"><b>Constantes:</b> <span x-text="(ind.constantes||[]).map(c => c.etiqueta + ' = ' + c.valor).join(' · ')"></span></div>
+                  <div><b>Semáforo:</b> verde = cumple la meta, amarillo = alerta, rojo = crítico (requiere análisis y plan de mejora).</div></div>
+                <div class="text-xs text-slate-500 pt-1">Meta <b class="text-slate-800" x-text="umbralTxt(ind)"></b></div>
+                <div class="text-xs text-slate-500">Fórmula <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-700" x-text="formulaLegible(ind)"></span></div>
+              </div>
+            </div>
+
+            <div x-show="periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">🔒 Este período pertenece a un <b>ejercicio fiscal cerrado</b>: solo lectura. El administrador puede reabrirlo si hay que corregir algo.</div>
+            <div x-show="medActual && medActual.estado!=='observado'" class="card px-4 py-3 text-sm" :class="medActual && medActual.estado==='aprobado' ? 'border-green-300 bg-green-50 text-green-900' : 'border-sky-300 bg-sky-50 text-sky-900'">
+              <b x-text="medActual && medActual.estado==='aprobado' ? 'Carga aprobada.' : 'Carga enviada, en revisión.'"></b>
+              <span x-text="medActual ? ' Cargada por ' + medActual.cargado_por + ' el ' + fecha(medActual.cargado_en) + '.' : ''"></span>
+              <span x-show="medActual && medActual.nota_revision" x-text="' Nota: ' + (medActual && medActual.nota_revision)"></span>
+            </div>
+            <div x-show="medActual && medActual.estado==='observado'" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <b>Carga devuelta por el Gerente / Auditor.</b> Corrija y reenvíe.<br><span x-text="'Observación: ' + (medActual ? medActual.nota_revision : '')"></span>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h2 class="font-semibold">Datos del período</h2></div>
+              <div class="card-b grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <template x-for="v in ind.variables" :key="v.clave">
+                  <div>
+                    <label class="lbl"><span x-text="v.etiqueta"></span><span class="normal-case text-slate-400" x-show="v.opcional"> (opcional)</span></label>
+                    <div class="relative"><input class="inp !text-xl !font-semibold" :class="v.unidad && '!pr-14'" type="number" inputmode="decimal" step="any" :min="v.negativo ? null : 0" :disabled="bloqueado" x-model="f.valores[v.clave]" @input.debounce.200ms="calcular()" :placeholder="v.opcional ? String(v.defecto ?? 0) : '0'">
+                      <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400" x-show="v.unidad" x-text="v.unidad"></span></div>
+                    <p class="mt-1 text-xs text-slate-500" x-show="v.ayuda" x-text="v.ayuda"></p>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div class="card border-2 transition-colors" data-tour="carga-resultado" :class="calc && calc.ok ? semBorde(calc.semaforo) : ''" aria-live="polite">
+              <div class="card-b flex items-center justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado <button type="button" class="info" @click="toggleAyuda('semaforo')" aria-label="¿Qué significa el semáforo?">i</button></div>
+                  <div class="font-serif text-5xl font-medium tracking-tight" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad, ind.decimales) : '—'"></div>
+                  <div class="text-sm text-red-600" x-show="calc && !calc.ok && f.tocado" x-text="calc && calc.error"></div>
+                  <div class="ayuda max-w-md" x-show="ay==='semaforo'" x-html="ayudaHtml('semaforo')" x-transition></div>
+                </div>
+                <div x-show="calc && calc.ok" class="text-right">
+                  <span class="chip !px-4 !py-2 !text-sm !text-white !border-transparent" :class="semBg(calc && calc.semaforo)" x-text="semTxt(calc && calc.semaforo)"></span>
+                  <div class="mt-1 text-xs text-slate-500" x-text="'Meta ' + umbralTxt(ind)"></div>
+                </div>
+              </div>
+            </div>
+
+            <div x-show="calc && calc.ok && calc.requiere_analisis" x-transition class="card border-amber-300 bg-amber-50">
+              <div class="card-b space-y-4">
+                <div class="text-sm font-semibold text-amber-900">Indicador fuera de meta: el análisis y el plan de mejora son obligatorios (ISO 9001:2015).</div>
+                <div><label class="lbl">Resultados del análisis <span class="text-red-600">*</span></label><textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.analisis" placeholder="¿Qué causó la desviación?"></textarea></div>
+                <div><label class="lbl">Correcciones / plan de mejora <span class="text-red-600">*</span></label><textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.plan_mejora" placeholder="Acciones, responsable y fecha compromiso"></textarea></div>
+                <div class="text-xs text-amber-800" x-show="!bloqueado && !analisisOk()">Mínimo 10 caracteres en cada campo.</div>
+              </div>
+            </div>
+
+            <button class="btn btn-p w-full sm:w-auto sm:float-right" x-show="!bloqueado" :disabled="!puedeEnviar() || busy" @click="enviar()" x-text="medActual && medActual.estado==='observado' ? 'Reenviar para revisión' : 'Enviar carga'"></button>
+          </div>
+        </template>
+      </div>
+      </template>
+    </section>

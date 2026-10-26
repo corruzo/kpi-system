@@ -1,0 +1,33 @@
+    <!-- ============ IMPORTAR (administrador) ============ -->
+    <section x-show="view==='importar' && user.rol==='admin'" class="mx-auto max-w-4xl space-y-4">
+      <div><h1 class="page-title">Importar fichas históricas</h1><p class="text-sm text-slate-600">Traiga al sistema los años anteriores desde el Excel de fichas técnicas (una hoja por indicador).</p></div>
+      <div class="card"><div class="card-b space-y-3">
+        <p class="text-sm text-slate-700">El sistema lee cada hoja (definición, meta, semáforo, responsables, valores por período y análisis), traduce la fórmula y le muestra una <b>vista previa</b> antes de guardar. Las mediciones se importan como <b>aprobadas</b> y quedan registradas en la bitácora.</p>
+        <label class="btn btn-p w-full cursor-pointer sm:w-auto"><input type="file" accept=".xlsx" class="sr-only" @change="analizarExcel($event)"><span x-text="imp.cargando ? 'Analizando…' : 'Seleccionar archivo Excel (.xlsx)'"></span></label>
+      </div></div>
+
+      <div class="card border-green-300 bg-green-50" x-show="imp.res"><div class="card-b text-sm text-green-900"><b>Importación completada:</b> <span x-text="imp.res && `${imp.res.indicadores} indicadores, ${imp.res.mediciones} mediciones, ${imp.res.areas} áreas y ${imp.res.catalogos} elementos de lista creados.`"></span>
+        <div class="mt-2"><button class="btn btn-s btn-sm" @click="go('fichas')">Ir a Indicadores</button></div></div></div>
+
+      <template x-if="imp.prev">
+        <div class="space-y-4">
+          <div class="card border-amber-300 bg-amber-50" x-show="impInicioDistinto"><div class="card-b text-sm text-amber-900"><b>Ejercicio fiscal distinto.</b> Las fichas inician el ejercicio en el mes <b x-text="imp.prev.inicio_ejercicio"></b> y el sistema está en el mes <b x-text="imp.prev.inicio_actual"></b>. Ajústelo en <b>Organización → Parámetros</b> antes de importar (los períodos trimestrales, semestrales, etc. dependen de él).</div></div>
+          <div class="card" x-show="imp.prev.avisos.length"><div class="card-b space-y-1 text-sm text-amber-800"><template x-for="a in imp.prev.avisos"><p x-text="'• ' + a"></p></template></div></div>
+          <template x-for="(i,k) in imp.prev.indicadores" :key="k">
+            <div class="card" :class="!imp.sel[k] && 'opacity-60'"><div class="card-h"><label class="flex items-center gap-2 font-semibold"><input type="checkbox" class="h-5 w-5" x-model="imp.sel[k]" :disabled="!i.formula"> <span x-text="'Hoja «' + i.hoja + '»'"></span></label><span class="chip" :class="i.area_existe ? 'border-slate-300 text-slate-600' : 'border-amber-300 bg-amber-50 text-amber-800'" x-text="i.area_existe ? 'Área existente' : 'Área nueva'"></span></div>
+              <div class="card-b space-y-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3"><div><label class="lbl">Código</label><input class="inp" x-model="i.codigo"></div><div class="sm:col-span-2"><label class="lbl">Nombre</label><input class="inp" x-model="i.nombre"></div></div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3"><div><label class="lbl">Área</label><input class="inp" x-model="i.area"></div><div><label class="lbl">Frecuencia</label><select class="inp" x-model="i.frecuencia"><template x-for="f in ['mensual','bimestral','trimestral','cuatrimestral','semestral','anual','eventual']"><option :value="f" x-text="cap(f)"></option></template></select></div><div><label class="lbl">Unidad / meta</label><div class="inp !flex items-center bg-slate-50" x-text="i.unidad + ' · ' + (i.sentido==='mayor' ? '≥ ' : '≤ ') + i.meta + ' (crítico ' + i.limite + ')'"></div></div></div>
+                <div><label class="lbl">Fórmula (traducida)</label><input class="inp font-mono" x-model="i.formula" placeholder="Escriba la fórmula con las claves: " :class="!i.formula && 'border-red-400'"><p class="mt-1 text-xs text-slate-500" x-text="'Variables: ' + i.variables.map(v => v.clave + ' = ' + v.etiqueta).join(' · ')"></p></div>
+                <p class="text-xs text-amber-800" x-show="i.avisos.length" x-text="i.avisos.join(' ')"></p>
+                <div><div class="lbl" x-text="'Mediciones a importar (' + i.mediciones.length + ') · ejercicio ' + i.ejercicio"></div>
+                  <div class="flex flex-wrap gap-1.5"><template x-for="m in i.mediciones" :key="m.periodo"><span class="chip border-slate-200 bg-white text-slate-700"><span class="h-2 w-2 rounded-full" :class="semBg(m.semaforo)"></span><span x-text="m.etiqueta + ': ' + fmt(m.resultado, i.unidad, i.decimales)"></span></span></template></div></div>
+              </div></div>
+          </template>
+          <div class="card"><div class="card-h"><h2 class="font-semibold">Listas de apoyo encontradas en el archivo</h2></div><div class="card-b space-y-2 text-sm">
+            <template x-for="t in [['gerencia','Gerencias'],['proceso','Procesos'],['objetivo','Objetivos organizacionales'],['cargo','Cargos'],['area','Departamentos (se crean como áreas)']]" :key="t[0]"><label class="flex items-center gap-2" x-show="(imp.prev.catalogos[t[0]]||[]).length"><input type="checkbox" class="h-5 w-5" x-model="imp.cat[t[0]]"> <span x-text="t[1] + ' (' + imp.prev.catalogos[t[0]].length + ')'"></span></label></template>
+          </div></div>
+          <div class="flex flex-col gap-2 sm:flex-row sm:justify-end"><button class="btn btn-s" @click="imp.prev=null">Cancelar</button><button class="btn btn-p" :disabled="busy || !impSeleccion.length || impInicioDistinto || impSeleccion.some(i => !i.formula || !i.codigo)" @click="confirmarImportacion()" x-text="busy ? 'Importando…' : 'Importar ' + impSeleccion.length + ' indicador(es)'"></button></div>
+        </div>
+      </template>
+    </section>

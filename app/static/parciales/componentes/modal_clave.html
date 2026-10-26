@@ -1,0 +1,14 @@
+  <!-- ===== Modal: contraseña ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="modalClave" x-transition.opacity>
+    <form class="sheet w-full max-w-sm" @submit.prevent="cambiarClave()" @keydown.escape.window="modalClave=false">
+      <div class="card-h"><h2 class="text-lg font-bold">Cambiar contraseña</h2><button type="button" class="btn btn-s btn-sm" @click="modalClave=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-4">
+        <div><label class="lbl">Contraseña actual</label><input class="inp" type="password" x-model="clave.actual" autocomplete="current-password" required></div>
+        <div><label class="lbl">Nueva contraseña</label><input class="inp" type="password" x-model="clave.nueva" minlength="10" autocomplete="new-password" required></div>
+        <div><label class="lbl">Repita la nueva contraseña</label><input class="inp" type="password" x-model="clave.repetir" minlength="10" autocomplete="new-password" required></div>
+        <p class="text-sm text-red-600" x-show="clave.repetir && clave.nueva!==clave.repetir">Las contraseñas no coinciden.</p>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="modalClave=false">Cancelar</button><button class="btn btn-p" :disabled="busy || clave.nueva!==clave.repetir">Guardar</button></div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+    <!-- ============ EJERCICIOS FISCALES ============ -->
+    <section x-show="view==='ejercicios'" class="space-y-4">
+      <div><h1 class="page-title">Ejercicios fiscales</h1><p class="text-sm text-slate-600">Cada ejercicio mantiene sus registros separados. Al terminar se verifica, se cierra y queda archivado en solo lectura.</p></div>
+      <div class="card border-amber-300 bg-amber-50" x-show="user.rol==='admin' && ejPorCerrar.length"><div class="card-b flex flex-wrap items-center justify-between gap-3 text-sm text-amber-900">
+        <span>El ejercicio <b x-text="ejPorCerrar[0] && ejPorCerrar[0].etiqueta"></b> ya terminó y sigue abierto. Verifíquelo y ciérrelo para archivarlo.</span>
+        <button class="btn btn-p btn-sm" @click="abrirCierre(ejPorCerrar[0])">Revisar y cerrar</button></div></div>
+      <div class="card"><div class="card-h"><h2>Ciclo de vida de un ejercicio</h2></div>
+        <ol class="grid grid-cols-1 gap-3 p-5 pt-3 text-sm sm:grid-cols-4 sm:p-6 sm:pt-3">
+          <li class="rounded-2xl bg-green-50 p-4"><div class="font-medium text-green-900">1 · Vigente</div><p class="mt-1 text-xs text-green-800">Los jefes cargan mes a mes y el gerente aprueba.</p></li>
+          <li class="rounded-2xl bg-amber-50 p-4"><div class="font-medium text-amber-900">2 · Terminado</div><p class="mt-1 text-xs text-amber-800">Pasó su último día: se completan cargas pendientes y se resuelven devoluciones.</p></li>
+          <li class="rounded-2xl bg-sky-50 p-4"><div class="font-medium text-sky-900">3 · Verificación</div><p class="mt-1 text-xs text-sky-800">El sistema comprueba que no queden cargas en revisión y avisa de períodos sin cargar.</p></li>
+          <li class="rounded-2xl bg-slate-100 p-4"><div class="font-medium text-slate-800">4 · Cerrado</div><p class="mt-1 text-xs text-slate-600">Queda archivado en solo lectura con una foto de sus resultados. El siguiente ya está en curso.</p></li>
+        </ol></div>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <template x-for="e in ejVista" :key="e.anio">
+          <div class="card" :class="e.estado==='cerrado' && 'bg-slate-50'"><div class="card-b space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-2"><div><h2 class="font-serif text-xl font-medium" x-text="'Ejercicio ' + e.etiqueta"></h2><p class="text-xs text-slate-500" x-text="fechaCorta(e.desde) + ' – ' + fechaCorta(e.hasta)"></p></div><span class="chip" :class="claseEj(e.estado)" x-text="estadoEj(e.estado)"></span></div>
+            <div class="grid grid-cols-4 gap-2 text-center"><div class="rounded-xl bg-slate-100 p-2"><div class="font-serif text-xl" x-text="(e.resumen ? e.resumen.cumplimiento : 0) + '%'"></div><div class="text-[11px] text-slate-500">Cumplimiento</div></div><div class="rounded-xl bg-slate-100 p-2"><div class="font-serif text-xl" x-text="e.resumen ? e.resumen.total : 0"></div><div class="text-[11px] text-slate-500">Indicadores</div></div><div class="rounded-xl bg-slate-100 p-2"><div class="font-serif text-xl" x-text="e.resumen ? e.resumen.cargas : 0"></div><div class="text-[11px] text-slate-500">Cargas</div></div><div class="rounded-xl p-2" :class="e.resumen && e.resumen.faltantes ? 'bg-amber-100' : 'bg-slate-100'"><div class="font-serif text-xl" x-text="e.resumen ? e.resumen.faltantes : 0"></div><div class="text-[11px] text-slate-500">Sin cargar</div></div></div>
+            <div class="flex h-2.5 overflow-hidden rounded-full bg-slate-100" x-show="e.resumen && e.resumen.total"><div class="bg-green-500" :style="'width:'+(100*e.resumen.verde/e.resumen.total)+'%'"></div><div class="bg-amber-400" :style="'width:'+(100*e.resumen.amarillo/e.resumen.total)+'%'"></div><div class="bg-red-500" :style="'width:'+(100*e.resumen.rojo/e.resumen.total)+'%'"></div></div>
+            <p class="rounded-xl bg-white px-3 py-2 text-xs text-slate-600" x-show="e.estado==='cerrado'">🔒 Cerrado el <span x-text="fecha(e.cerrado_en)"></span> por <b x-text="e.cerrado_por"></b><span x-show="e.nota"> — «<span x-text="e.nota"></span>»</span></p>
+            <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800" x-show="e.reabierto_en && e.estado!=='cerrado'">Reabierto el <span x-text="fecha(e.reabierto_en)"></span>: «<span x-text="e.nota_reapertura"></span>»</p>
+            <div class="flex flex-wrap gap-2">
+              <button class="btn btn-s btn-sm" @click="verEjercicio(e)">Ver panel</button>
+              <button class="btn btn-s btn-sm" :disabled="busy" @click="descargarEjercicio(e)">Reporte Excel</button>
+              <button class="btn btn-s btn-sm" :disabled="busy" @click="descargarFichasEjercicio(e)">Fichas Excel</button>
+              <button class="btn btn-p btn-sm" x-show="user.rol==='admin' && e.estado==='terminado'" @click="abrirCierre(e)">Verificar y cerrar</button>
+              <button class="btn btn-d btn-sm" x-show="user.rol==='admin' && e.estado==='cerrado'" @click="reap={abierto:true,e:e,nota:''}">Reabrir</button>
+            </div>
+          </div></div>
+        </template>
+      </div>
+    </section>

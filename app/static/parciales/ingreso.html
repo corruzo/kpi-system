@@ -1,0 +1,22 @@
+<!-- ===================== LOGIN ===================== -->
+<template x-if="!user && ready">
+  <main class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-32 -right-24 h-96 w-96 rounded-full bg-slate-300/40 blur-3xl"></div>
+    <div class="relative w-full max-w-md fade-in">
+      <div class="mb-8 text-center">
+        <img x-show="marca.logo_url" :src="marca.logo_url" alt="Logo" class="mx-auto h-16 max-w-[220px] object-contain">
+        <svg x-show="!marca.logo_url" class="mx-auto h-14 w-14" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#0f172a"/><path d="M8 22V12m5 10V15m5 7V9m5 13V13" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
+        <h1 class="page-title mt-5">Indicadores de gestión</h1>
+        <p class="mt-2 text-slate-600"><span x-text="marca.empresa || 'Tripoliven, C.A.'"></span> · Sistema de Gestión de la Calidad</p>
+      </div>
+      <form class="card space-y-4 !rounded-[1.75rem] p-6 sm:p-8" @submit.prevent="login()">
+        <div><label class="lbl" for="u">Usuario</label><input id="u" class="inp" x-model="loginForm.username" autocomplete="username" autocapitalize="none" autofocus required></div>
+        <div><label class="lbl" for="p">Contraseña</label><input id="p" class="inp" type="password" x-model="loginForm.password" autocomplete="current-password" required></div>
+        <p class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" x-show="loginError" x-text="loginError" role="alert"></p>
+        <button class="btn btn-p w-full" :disabled="busy" x-text="busy ? 'Ingresando…' : 'Continuar'"></button>
+      </form>
+      <p class="mt-6 text-center text-xs text-slate-500">Acceso exclusivo para personal autorizado. Cada acción queda registrada en la bitácora de trazabilidad.</p>
+    </div>
+  </main>
+</template>

@@ -1,0 +1,62 @@
+    <!-- ============ ORGANIZACIÓN ============ -->
+    <section x-show="view==='org'" class="space-y-4">
+      <div><h1 class="page-title">Organización</h1><p class="text-sm text-slate-600">Áreas de la empresa y usuarios con acceso al sistema.</p></div>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div class="card lg:col-span-2 self-start">
+          <div class="card-h"><h2 class="font-semibold">Áreas</h2><span class="text-xs text-slate-500" x-text="areas.length"></span></div>
+          <div class="card-b space-y-3">
+            <form class="flex gap-2" @submit.prevent="guardarArea()">
+              <input class="inp" x-model="areaForm.nombre" :placeholder="areaForm.id ? 'Renombrar área' : 'Nueva área (ej. Producción)'" required minlength="2">
+              <button class="btn btn-p" :disabled="busy" x-text="areaForm.id ? 'Guardar' : 'Agregar'"></button>
+              <button type="button" class="btn btn-s" x-show="areaForm.id" @click="areaForm={id:null,nombre:''}">✕</button>
+            </form>
+            <ul class="divide-y divide-slate-100">
+              <template x-for="a in areas" :key="a.id"><li class="flex items-center justify-between gap-2 py-2.5"><span class="text-sm font-medium" x-text="a.nombre"></span>
+                <span class="flex gap-1"><button class="btn btn-s btn-sm" @click="areaForm={id:a.id,nombre:a.nombre}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarArea(a)">Eliminar</button></span></li></template>
+            </ul>
+            <p class="py-4 text-center text-sm text-slate-500" x-show="!areas.length">Cree primero las áreas de la empresa.</p>
+          </div>
+        </div>
+        <div class="card lg:col-span-3 self-start">
+          <div class="card-h"><h2 class="font-semibold">Usuarios</h2><button class="btn btn-p btn-sm" @click="nuevoUsuario()">+ Nuevo usuario</button></div>
+          <ul class="divide-y divide-slate-100">
+            <template x-for="x in usuarios" :key="x.id"><li class="flex items-center gap-3 p-4" :class="!x.activo && 'opacity-50'">
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600" x-text="iniciales(x)"></span>
+              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inactivo')"></span></span>
+              <button class="btn btn-s btn-sm" @click="editarUsuario(x)">Editar</button>
+            </li></template>
+          </ul>
+        </div>
+      </div>
+    
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="card min-w-0 lg:col-span-2"><div class="card-h"><h2>Logo de la empresa</h2><button type="button" class="info" @click="toggleAyuda('logo')" aria-label="Ayuda: logo">i</button></div>
+          <div class="card-b flex flex-wrap items-center gap-5">
+            <div class="flex h-24 w-full max-w-[12rem] shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-2"><img x-show="logoUrl" :src="logoUrl" alt="Logo actual" class="max-h-20 max-w-full object-contain"><span x-show="!logoUrl" class="text-xs text-slate-400">Sin logo</span></div>
+            <div class="min-w-0 flex-1 basis-56 space-y-2">
+              <p class="text-sm text-slate-600">Aparece en la pantalla de ingreso, la cabecera, la ficha técnica y los reportes en Excel. Formatos PNG, JPG o WebP; se ajusta automáticamente (máx. 600 px).</p>
+              <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
+              <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
+            </div></div></div>
+        <div class="card self-start"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
+          <form class="card-b space-y-3" @submit.prevent="guardarParametros()">
+            <div><label class="lbl">Empresa</label><input class="inp" x-model="parForm.empresa" required maxlength="120"></div>
+            <div><label class="lbl">Gerencia emisora de las fichas</label><input class="inp" x-model="parForm.gerencia_emisora" maxlength="150"></div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Código del formato</label><input class="inp" x-model="parForm.codigo_formato" maxlength="30" placeholder="NC-16-7"></div>
+              <div><label class="lbl flex items-center gap-1.5">Inicio del ejercicio fiscal<button type="button" class="info" @click="toggleAyuda('ejercicio')" aria-label="Ayuda">i</button></label><select class="inp" x-model.number="parForm.ejercicio_inicio"><template x-for="(m,k) in ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']" :key="k"><option :value="k+1" x-text="m"></option></template></select></div></div>
+            <div class="ayuda" x-show="ay==='ejercicio'">Mes en que comienza el año de gestión. Con inicio en <b>Octubre</b>, el ejercicio 2025-2026 va de octubre 2025 a septiembre 2026 y los trimestres cierran en Dic., Mar., Jun. y Sep. No puede cambiarse cuando ya hay cargas no mensuales.</div>
+            <p class="text-xs text-slate-500">Ejercicio vigente: <b x-text="params.ejercicio_actual"></b></p>
+            <button class="btn btn-p" :disabled="busy">Guardar parámetros</button>
+          </form></div>
+        <div class="card self-start"><div class="card-h"><h2 class="font-semibold">Listas de apoyo de la ficha</h2></div>
+          <div class="card-b space-y-3">
+            <div class="flex flex-wrap gap-1"><template x-for="t in [['proceso','Procesos'],['objetivo','Objetivos'],['gerencia','Gerencias'],['cargo','Cargos']]" :key="t[0]"><button class="btn btn-sm" :class="catTab===t[0] ? 'btn-p' : 'btn-s'" @click="catTab=t[0]; catForm={id:null,valor:'',detalle:''}" x-text="t[1] + ' (' + lista(t[0]).length + ')'"></button></template></div>
+            <form class="space-y-2" @submit.prevent="guardarCat()"><input class="inp" x-model="catForm.valor" required minlength="2" :placeholder="catForm.id ? 'Editar elemento' : 'Nuevo elemento'">
+              <textarea class="inp" rows="2" x-model="catForm.detalle" x-show="catTab==='proceso'" placeholder="Objetivo del proceso (se copia a la ficha al elegirlo)"></textarea>
+              <div class="flex gap-2"><button class="btn btn-p btn-sm" :disabled="busy" x-text="catForm.id ? 'Guardar' : 'Agregar'"></button><button type="button" class="btn btn-s btn-sm" x-show="catForm.id" @click="catForm={id:null,valor:'',detalle:''}">Cancelar</button></div></form>
+            <ul class="max-h-72 divide-y divide-slate-100 overflow-y-auto"><template x-for="c in catActual" :key="c.id"><li class="flex items-center justify-between gap-2 py-2"><span class="min-w-0 text-sm"><span class="block truncate" x-text="c.valor"></span><span class="block truncate text-xs text-slate-500" x-show="c.detalle" x-text="c.detalle"></span></span>
+              <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
+            <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
+          </div></div>
+      </div>
+    </section>

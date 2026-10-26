@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 125
+target-version = "py311"
+extend-exclude = ["node_modules", "data"]
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "B", "UP", "SIM", "C4"]
+ignore = [
+  "E501",    # largo de línea: lo controla el formato, no el linter
+  "B008",    # Depends() en argumentos es el patrón de FastAPI
+  "SIM108", "SIM102", "SIM105",   # preferencias de estilo que empeoran la legibilidad aquí
+  "UP007", "UP035",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

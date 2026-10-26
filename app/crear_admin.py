@@ -1,7 +1,7 @@
 """python -m app.crear_admin  — crea un administrador desde la consola."""
 import getpass
 
-from .bootstrap import crear_admin, preparar_base
+from .servicios.arranque import crear_admin, preparar_base
 
 if __name__ == "__main__":
     preparar_base()

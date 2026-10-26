@@ -1,15 +1,14 @@
 """Modelo de datos del SIGT."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Integer,
-                        String, Text, UniqueConstraint, event)
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
 
 def ahora() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
+    return datetime.now(UTC).replace(tzinfo=None, microsecond=0)
 
 
 class Area(Base):
@@ -100,6 +99,11 @@ class Indicador(Base):
     limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
     area: Mapped[Area] = relationship()
 
+    @property
+    def precision(self) -> int:
+        """Decimales con que se muestra y redondea el resultado (por defecto 2)."""
+        return 2 if self.decimales is None else self.decimales
+
 
 class Medicion(Base):
     """Carga de un indicador para un período. Guarda una foto de la ficha vigente al cargar."""
@@ -135,6 +139,19 @@ class Medicion(Base):
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id])
     notas: Mapped[list["NotaAuditoria"]] = relationship(
         back_populates="medicion", order_by="NotaAuditoria.id")
+
+    @property
+    def precision(self) -> int:
+        return self.decimales if self.decimales is not None else self.indicador.precision
+
+    @property
+    def formula_aplicada(self) -> str:
+        """Fórmula vigente cuando se cargó (cargas antiguas sin foto usan la actual)."""
+        return self.formula or self.indicador.formula
+
+    @property
+    def constantes_aplicadas(self) -> list:
+        return self.constantes if self.constantes is not None else (self.indicador.constantes or [])
 
 
 class NotaAuditoria(Base):

@@ -1,0 +1,41 @@
+    <!-- ============ HISTORIAL ============ -->
+    <section x-show="view==='historial'" class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 class="text-2xl font-bold" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones.</p></div>
+        <button class="btn btn-s" x-show="user.rol!=='jefe'" :disabled="busy" @click="descargarReporte()">Descargar Excel</button>
+      </div>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <select class="inp" x-model="filtro.indicador_id" @change="cargarHistorial()" aria-label="Filtrar por indicador"><option value="">Todos los indicadores</option><template x-for="i in indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template></select>
+        <select class="inp" x-model="filtro.estado" @change="cargarHistorial()" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="enviado">En revisión</option><option value="aprobado">Aprobado</option><option value="observado">Devuelto</option></select>
+        <select class="inp" x-model="filtro2.semaforo" @change="cargarHistorial()" aria-label="Filtrar por semáforo"><option value="">Todos los semáforos</option><option value="verde">Cumple</option><option value="amarillo">Alerta</option><option value="rojo">Crítico</option></select>
+        <input class="inp" x-model="filtro2.periodo" @input.debounce.400ms="cargarHistorial()" placeholder="Período exacto (ej. 2026-09, 2026-Q3)" aria-label="Período">
+        <select class="inp" x-show="user.rol!=='jefe'" x-model="filtro2.area_id" @change="cargarHistorial()" aria-label="Filtrar por área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
+      </div>
+      <div class="space-y-3">
+        <template x-for="m in historial" :key="m.id">
+          <div class="card" x-data="{open:false}">
+            <button class="flex w-full items-center gap-3 p-4 text-left" @click="open=!open" :aria-expanded="open">
+              <span class="h-10 w-1.5 shrink-0 rounded-full" :class="semBg(m.semaforo)"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-xs text-slate-500" x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span>
+                <span class="block truncate font-semibold" x-text="m.indicador"></span>
+              </span>
+              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
+            </button>
+            <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
+              <div x-html="detalleHtml(m)"></div>
+              <div class="space-y-2 rounded-xl bg-amber-50 p-3" x-show="['gerente','admin'].includes(user.rol) && m.estado==='aprobado'">
+                <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala al jefe de área para corregirla (queda registrado).</p>
+                <div class="flex flex-col gap-2 sm:flex-row"><input class="inp" x-model="reabrirNota[m.id]" placeholder="Motivo de la reapertura"><button class="btn btn-d whitespace-nowrap" :disabled="busy" @click="reabrir(m)">Reabrir carga</button></div></div>
+              <button class="btn btn-s btn-sm" @click="verFicha(m.indicador_id)">Ver ficha del indicador</button>
+              <div class="flex flex-col gap-2 sm:flex-row" x-show="['gerente','admin'].includes(user.rol)">
+                <input class="inp" x-model="notasHist[m.id]" placeholder="Agregar nota de auditoría" @keydown.enter.prevent="agregarNota(m)">
+                <button class="btn btn-s whitespace-nowrap" :disabled="busy" @click="agregarNota(m)">Agregar nota</button>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div class="card p-8 text-center text-sm text-slate-500" x-show="!historial.length">No hay cargas que coincidan.</div>
+        <button class="btn btn-s w-full" x-show="histMas" @click="cargarHistorial(false)">Cargar más</button>
+      </div>
+    </section>

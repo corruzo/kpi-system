@@ -28,6 +28,27 @@ npm install && npm run build:css        # solo si modifica las clases Tailwind (
 ```
 Tailwind, Alpine y Chart.js se sirven desde `app/static/` (sin CDN ni dependencias externas en tiempo de ejecución).
 
+## Arquitectura
+
+El código sigue capas; cada una solo depende de las anteriores (lo que se necesita primero va primero):
+
+```
+app/
+  config.py, database.py, models.py, schemas.py, errores.py   base: configuración, ORM, entradas validadas, errores de negocio
+  dominio/      reglas puras, sin BD ni HTTP: formulas (evaluador AST seguro), semaforo, calendario (ejercicio fiscal), ficha_texto
+  servicios/    casos de uso (lanzan ErrorNegocio): arranque, sesion, parametros, marca (logo), organizacion, indicadores,
+                mediciones, ejercicios, panel, bitacora/auditoria, reportes, importacion + lector_excel
+  excel/        generación de libros .xlsx (comun, general, ficha, bitacora)
+  api/          routers delgados por funcionalidad (sesion, organizacion, indicadores, mediciones, ejercicios, reportes,
+                importacion, bitacora), deps (sesión y permisos) y serializadores
+  main.py       ensamblado: arranque diferido, cabeceras de seguridad, traducción de errores, routers, estáticos
+  plantilla.py  expande los parciales HTML (<!--#incluir ...-->)
+  static/       index.html + parciales/ (vistas y componentes) + js/ (un módulo Alpine por funcionalidad, compuestos en app.js)
+tests/          dominio/ (unitarias puras), api/ (por funcionalidad), test_migracion.py; conftest.py con fábricas de datos
+```
+
+Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/conftest.py`). Estilo: `ruff check app api run.py tests`.
+
 ## Roles
 | Rol | Capacidades |
 |---|---|
@@ -62,7 +83,7 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 Operadores `+ − × ÷ ^ % //`, comparaciones, `and/or/not`, `si(cond, a, b)` y `a if cond else b` (evalúan solo la rama elegida: protegen divisiones), `div`, `pct`, `min`, `max`, `sum`, `avg`, `abs`, `round`, `sqrt`, `floor`, `ceil`, `clamp`. Constantes por indicador, variables opcionales con valor por defecto, valores negativos permitidos por variable, decimales configurables y frecuencias mensual/trimestral/semestral/anual. Cada carga guarda una foto de la fórmula, constantes y decimales vigentes. La ficha lleva botones **i** de ayuda, una guía de fórmulas con ejemplos y un probador en vivo.
 
 ## Actualizaciones de esquema
-Al arrancar, `app/bootstrap.py` agrega automáticamente las columnas nuevas a las tablas existentes (migración aditiva, sin pérdida de datos), por lo que una base de Supabase ya en uso se actualiza sola al desplegar.
+Al arrancar, `app/servicios/arranque.py` agrega automáticamente las columnas nuevas a las tablas existentes (migración aditiva, sin pérdida de datos), por lo que una base de Supabase ya en uso se actualiza sola al desplegar.
 
 ## Reemplazo de las fichas en Excel
 El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicador de gestión» (formato NC-16-7):

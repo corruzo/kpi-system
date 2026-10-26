@@ -1,0 +1,38 @@
+    <!-- ============ FICHAS ============ -->
+    <section x-show="view==='fichas'" class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 class="page-title">Fichas técnicas</h1><p class="text-sm text-slate-600">Configuración de indicadores, fórmulas y semáforos.</p></div>
+        <button data-tour="fichas-nuevo" class="btn btn-p w-full sm:w-auto" @click="nuevaFicha()" :disabled="!areas.length">+ Nuevo indicador</button>
+      </div>
+      <template x-if="!setup().completo"><div class="card border-sky-300 bg-sky-50"><div class="card-b space-y-2">
+        <div class="font-semibold text-sky-900">Configuración inicial</div>
+        <template x-for="p in setup().pasos" :key="p.t"><button class="flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-left text-sm" @click="go(p.v)"><span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white" :class="p.ok ? 'bg-green-600' : 'bg-slate-400'" x-text="p.ok ? '✓' : p.n"></span><span class="flex-1" x-text="p.t"></span><span class="text-brand">Ir →</span></button></template>
+      </div></div></template>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4" x-show="indicadores.length">
+        <input class="inp lg:col-span-1" type="search" x-model="fq.q" placeholder="Buscar código, nombre o área" aria-label="Buscar">
+        <select class="inp" x-model="fq.area" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
+        <select class="inp" x-model="fq.frecuencia" aria-label="Frecuencia"><option value="">Toda frecuencia</option><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option></select>
+        <select class="inp" x-model="fq.estado" aria-label="Estado"><option value="activo">Activos</option><option value="archivado">Archivados</option><option value="">Todos</option></select>
+      </div>
+      <p class="text-xs text-slate-500" x-show="indicadores.length" x-text="fichasFiltradas.length + ' de ' + indicadores.length + ' indicadores'"></p>
+      <div class="card p-10 text-center text-sm text-slate-500" x-show="setup().completo && !fichasFiltradas.length">No hay indicadores que coincidan. Cree uno con «Nuevo indicador» o ajuste los filtros.</div>
+      <div class="hidden md:block" x-show="fichasFiltradas.length"><div class="card overflow-x-auto">
+        <table class="w-full"><thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Frecuencia</th><th class="th">Meta / Límite</th><th class="th">Cargas</th><th class="th"></th></tr></thead>
+          <tbody><template x-for="i in fichasFiltradas" :key="i.id"><tr :class="!i.activo && 'bg-slate-50 text-slate-500'">
+            <td class="td whitespace-nowrap font-semibold" x-text="i.codigo"></td>
+            <td class="td"><div class="font-medium" x-text="i.nombre"></div><div class="font-mono text-xs text-slate-500" x-text="i.formula"></div><span class="chip mt-1 border-slate-300 text-slate-600" x-show="!i.activo">Archivado</span></td>
+            <td class="td" x-text="i.area"></td><td class="td" x-text="cap(i.frecuencia) + ' · ' + i.unidad"></td>
+            <td class="td whitespace-nowrap" x-text="umbralTxt(i)"></td><td class="td" x-text="i.n_mediciones"></td>
+            <td class="td whitespace-nowrap text-right"><div class="flex justify-end gap-1">
+              <button class="btn btn-s btn-sm" @click="verFicha(i.id)">Ver ficha</button><button class="btn btn-s btn-sm" @click="editarFicha(i)">Editar</button><button class="btn btn-s btn-sm" @click="duplicarFicha(i)">Duplicar</button>
+              <button class="btn btn-s btn-sm" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" @click="eliminarFicha(i)">Eliminar</button></div></td></tr></template></tbody></table>
+      </div></div>
+      <div class="space-y-3 md:hidden">
+        <template x-for="i in fichasFiltradas" :key="'m'+i.id"><div class="card" :class="!i.activo && 'bg-slate-50'"><div class="card-b space-y-2">
+          <div class="flex items-start justify-between gap-2"><div><div class="text-xs text-slate-500" x-text="i.codigo + ' · ' + i.area"></div><div class="font-semibold" x-text="i.nombre"></div></div><span class="chip border-slate-300 text-slate-600" x-text="i.activo ? i.n_mediciones + ' cargas' : 'Archivado'"></span></div>
+          <div class="text-xs text-slate-500" x-text="cap(i.frecuencia) + ' · ' + i.unidad + ' · ' + umbralTxt(i)"></div>
+          <div class="grid grid-cols-2 gap-2 pt-1"><button class="btn btn-s btn-sm col-span-2" @click="verFicha(i.id)">Ver ficha técnica</button><button class="btn btn-s btn-sm" @click="editarFicha(i)">Editar</button><button class="btn btn-s btn-sm" @click="duplicarFicha(i)">Duplicar</button>
+            <button class="btn btn-s btn-sm" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" @click="eliminarFicha(i)">Eliminar</button></div>
+        </div></div></template>
+      </div>
+    </section>

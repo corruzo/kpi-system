@@ -1,0 +1,17 @@
+  <!-- ===== Modal: usuario ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="modalUsuario" x-transition.opacity>
+    <form class="sheet max-h-[92vh] w-full max-w-lg" @submit.prevent="guardarUsuario()" @keydown.escape.window="modalUsuario=false">
+      <div class="card-h"><h2 class="text-lg font-bold" x-text="usuario.id ? 'Editar usuario' : 'Nuevo usuario'"></h2><button type="button" class="btn btn-s btn-sm" @click="modalUsuario=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-4 overflow-y-auto">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Usuario</label><input class="inp" x-model="usuario.username" :disabled="!!usuario.id" pattern="[a-z0-9._-]{3,40}" autocapitalize="none" required><p class="mt-1 text-xs text-slate-500">Minúsculas, números, punto, guion.</p></div>
+          <div><label class="lbl">Nombre completo</label><input class="inp" x-model="usuario.nombre" required minlength="3"></div></div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div><label class="lbl">Rol</label><select class="inp" x-model="usuario.rol"><option value="jefe">Jefe de Área</option><option value="gerente">Gerente / Auditor SGC</option><option value="admin">Administrador SGC</option></select></div>
+          <div x-show="usuario.rol==='jefe'"><label class="lbl">Área</label><select class="inp" x-model.number="usuario.area_id" :required="usuario.rol==='jefe'"><option value="">Seleccione…</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select></div>
+        </div>
+        <div><label class="lbl" x-text="usuario.id ? 'Nueva contraseña (opcional)' : 'Contraseña inicial'"></label><input class="inp" type="password" x-model="usuario.password" minlength="10" autocomplete="new-password" :required="!usuario.id"><p class="mt-1 text-xs text-slate-500">Mínimo 10 caracteres. Al restablecerla se cierran sus sesiones activas.</p></div>
+        <label class="flex items-center gap-2 text-sm" x-show="usuario.id"><input type="checkbox" class="h-5 w-5" x-model="usuario.activo"> Usuario activo</label>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="modalUsuario=false">Cancelar</button><button class="btn btn-p" :disabled="busy">Guardar</button></div>
+    </form>
+  </div>

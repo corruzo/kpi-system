@@ -1,4 +1,4 @@
-"""Importación de las fichas históricas en Excel («Ficha técnica de indicador de gestión», una hoja por indicador).
+"""Lectura de las fichas históricas en Excel («Ficha técnica de indicador de gestión», una hoja por indicador).
 
 Lee la estructura de la plantilla del SGC (definición, semáforo, responsables, resultados por período y análisis),
 traduce la fórmula de la celda de cálculo a la sintaxis del sistema y propone indicadores y mediciones.
@@ -11,7 +11,7 @@ from datetime import date
 
 from openpyxl import load_workbook
 
-from . import calc
+from ..dominio import calendario, formulas, semaforo
 
 MAX_BYTES = 8 * 1024 * 1024
 SEGUIMIENTO = {"desempeño de proceso": "proceso", "objetivo organizacional": "objetivo",
@@ -115,7 +115,7 @@ def _traducir_formula(f: str, mapa: dict[int, str]) -> str:
                                                else (_ for _ in ()).throw(ValueError(f"función «{mm.group(1)}»"))) + "(", f)
     f = f.replace(";", ",").replace("<>", "!=")
     f = re.sub(r"(?<![<>!=])=(?!=)", "==", f)
-    return calc.normalizar(f)
+    return formulas.normalizar(f)
 
 
 def _simbolos(doc: str) -> dict[str, str]:
@@ -143,7 +143,7 @@ def _claves(etiquetas: list[str], doc: str, sigla: str) -> list[str]:
         if not re.match(r"^[a-z]", k):
             k = "v_" + k
         base, n = k, 2
-        while k in usadas or k in calc.RESERVADAS:
+        while k in usadas or k in formulas.RESERVADAS:
             k, n = f"{base}_{n}", n + 1
         usadas.add(k)
         out.append(k)
@@ -184,7 +184,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
         meta, sentido = _num(V(r_u, 11)) or 0.0, "mayor"
         av.append(f"No se pudo interpretar la meta «{meta_txt}»: verifique meta y sentido.")
     frec = _txt(V(r_u, 16)).lower()
-    if frec not in calc.FRECUENCIAS:
+    if frec not in calendario.FRECUENCIAS:
         av.append(f"Frecuencia «{frec}» no reconocida: se usó «mensual».")
         frec = "mensual"
     # semáforo (mín./máx. por franja)
@@ -199,7 +199,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
         limite = w14 if w14 is not None and w14 >= meta else meta
         limite_tope = v14 if v14 is not None and v14 <= limite else None
     try:
-        calc.validar_umbrales(meta, limite, sentido, meta_tope, limite_tope)
+        semaforo.validar_umbrales(meta, limite, sentido, meta_tope, limite_tope)
     except ValueError:
         meta_tope = limite_tope = None
     r_f = (f.get("formula de calculo") or [r_nom + 2])[0]
@@ -226,17 +226,17 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
     filas_var = [r for r in range(r_res + 2, r_val) if _txt(ws.cell(r, 2).value)]
     etiquetas = [_txt(ws.cell(r, 2).value) for r in filas_var]
     claves = _claves(etiquetas, doc_raw, sigla)
-    mapa = dict(zip(filas_var, claves))
+    mapa = dict(zip(filas_var, claves, strict=False))
     # fórmula
     formula, celda_f = "", ws.cell(r_val + 2, 3).value
     try:
         formula = _traducir_formula(str(celda_f), mapa)
-        calc.validar_formula(formula, claves)
-    except (ValueError, calc.FormulaError) as e:
+        formulas.validar(formula, claves)
+    except (ValueError, formulas.FormulaError) as e:
         av.append(f"No se pudo traducir la fórmula «{celda_f}» ({e}). Escríbala en el recuadro de fórmula.")
         formula = ""
     # calendario del ejercicio
-    k = calc.MESES_POR_PERIODO[frec]
+    k = calendario.MESES_POR_PERIODO[frec]
     inicio = None
     y0 = None
     if validos:
@@ -260,7 +260,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
     if formula and inicio and y0:
         for i, (c, etq) in enumerate(validos):
             vals, ok = {}, True
-            for r, clave in zip(filas_var, claves):
+            for r, clave in zip(filas_var, claves, strict=False):
                 x = _num(V(r, c))
                 if x is None:
                     ok = False
@@ -273,15 +273,15 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
                 per = f"{fin.year}-{fin.month:02d}"
             else:
                 y_fin = y0 + (0 if inicio == 1 else 1)
-                per = str(y_fin) if frec == "anual" else f"{y_fin}-{calc.PREFIJO[frec]}{i + 1}"
+                per = str(y_fin) if frec == "anual" else f"{y_fin}-{calendario.PREFIJO[frec]}{i + 1}"
             try:
-                res = calc.evaluar(formula, vals, {}, dec)
-            except calc.FormulaError as e:
+                res = formulas.evaluar(formula, vals, {}, dec)
+            except formulas.FormulaError as e:
                 av.append(f"{etq}: no se importó ({e})")
                 continue
             ra = r_ah + 1 + slots.index((c, etq))
             mediciones.append({"periodo": per, "etiqueta": etq, "valores": vals, "resultado": res,
-                               "semaforo": calc.semaforo(res, meta, limite, sentido, meta_tope, limite_tope),
+                               "semaforo": semaforo.clasificar(res, meta, limite, sentido, meta_tope, limite_tope),
                                "analisis": _txt(V(ra, 4)), "plan_mejora": _txt(V(ra, 13))})
     notas = ""
     r_nt = (f.get("notas") or [0])[0]
@@ -296,7 +296,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
         "unidad": unidad, "frecuencia": frec, "sentido": sentido, "meta": meta, "limite": limite,
         "meta_tope": meta_tope, "limite_tope": limite_tope, "decimales": dec, "fuente": fuente,
         "objetivo": ref_detalle, "notas": " · ".join(x for x in (notas, doc_nota) if x)[:2000],
-        "formula": formula, "variables": [{"clave": c, "etiqueta": e} for c, e in zip(claves, etiquetas)],
+        "formula": formula, "variables": [{"clave": c, "etiqueta": e} for c, e in zip(claves, etiquetas, strict=False)],
         "ejercicio": ejercicio_txt, "inicio_ejercicio": inicio, "mediciones": mediciones, "avisos": av,
     }
 
@@ -308,7 +308,7 @@ def leer_libro(contenido: bytes, archivo: str = "") -> dict:
         wb = load_workbook(io.BytesIO(contenido), data_only=False)
         wv = load_workbook(io.BytesIO(contenido), data_only=True)
     except Exception:
-        raise ValueError("No se pudo leer el archivo: debe ser un libro de Excel (.xlsx).")
+        raise ValueError("No se pudo leer el archivo: debe ser un libro de Excel (.xlsx).") from None
     inds, avisos = [], []
     for ws in wb.worksheets:
         try:
