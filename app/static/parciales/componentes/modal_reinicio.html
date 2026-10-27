@@ -1,0 +1,12 @@
+  <!-- ===== Modal: reinicio de fábrica ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="reinicio.abierto" x-transition.opacity>
+    <form class="sheet w-full max-w-md" @submit.prevent="confirmarReinicio()" @keydown.escape.window="reinicio.abierto=false">
+      <div class="card-h"><h2 class="text-lg font-bold text-red-800">Borrar todos los datos</h2><button type="button" class="btn btn-s btn-sm" @click="reinicio.abierto=false" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-4">
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Se eliminarán indicadores, cargas, áreas, usuarios (excepto el suyo), listas, parámetros, logo y la bitácora. El sistema quedará como recién instalado. <b>Esta acción no se puede deshacer.</b> Si necesita conservar algo, descargue antes los reportes en Excel.</div>
+        <div><label class="lbl">Escriba <b>BORRAR TODO</b> para confirmar</label><input class="inp" x-model="reinicio.frase" autocomplete="off" required></div>
+        <div><label class="lbl">Su contraseña de administrador</label><input class="inp" type="password" x-model="reinicio.password" autocomplete="current-password" required></div>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="reinicio.abierto=false">Cancelar</button><button class="btn btn-d" :disabled="busy || reinicio.frase.trim()!=='BORRAR TODO' || !reinicio.password">Borrar todo definitivamente</button></div>
+    </form>
+  </div>

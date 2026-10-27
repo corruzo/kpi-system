@@ -62,6 +62,11 @@ class ParametrosIn(BaseModel):
     clave_reportes: str = Field(default="", max_length=64)   # vacía = conservar la actual
 
 
+class ReinicioIn(BaseModel):
+    confirmacion: str = Field(max_length=40)
+    password: str = Field(max_length=200)
+
+
 class LogoIn(BaseModel):
     imagen: str = Field(max_length=1_200_000)  # data URL (png/jpeg/webp)
 

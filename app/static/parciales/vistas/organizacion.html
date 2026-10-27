@@ -63,5 +63,10 @@
               <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
             <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
           </div></div>
+        <div class="card self-start border-red-200 md:col-span-2" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
+          <div class="card-b flex flex-wrap items-center justify-between gap-3">
+            <p class="min-w-[16rem] flex-1 text-sm text-slate-700">Borra <b>todos</b> los datos del sistema: indicadores, cargas, áreas, usuarios, listas, parámetros, logo y la <b>bitácora</b>. Solo se conserva su cuenta de administrador para que pueda volver a entrar. <b>No se puede deshacer.</b></p>
+            <button class="btn btn-d" @click="abrirReinicio()">Borrar todos los datos…</button>
+          </div></div>
       </div>
     </section>

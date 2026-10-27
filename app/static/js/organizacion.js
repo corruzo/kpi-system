@@ -3,6 +3,7 @@ SIGT.modulos.organizacion = () => ({
     areas: [], usuarios: [], catalogos: [],
     usuario: {}, modalUsuario: false, areaForm: { id: null, nombre: '' },
     catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
+    reinicio: { abierto: false, frase: '', password: '' },
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
@@ -62,4 +63,16 @@ SIGT.modulos.organizacion = () => ({
       try { await this.api(`/api/catalogos/${c.id}`, { method: 'DELETE' }); this.catalogos = await this.api('/api/catalogos'); } catch { }
     },
     lista(tipo) { return this.catalogos.filter(c => c.tipo === tipo); },
+
+    // ------------------------------------------------------------ reinicio de fábrica
+    abrirReinicio() { this.reinicio = { abierto: true, frase: '', password: '' }; },
+    async confirmarReinicio() {
+      this.busy = true;
+      try {
+        await this.api('/api/sistema/reiniciar', { method: 'POST', body: { confirmacion: this.reinicio.frase, password: this.reinicio.password } });
+        this.reinicio.abierto = false; this.avisar('Sistema reiniciado: todos los datos fueron borrados.');
+        setTimeout(() => location.reload(), 1200);
+      } catch { }
+      this.busy = false;
+    },
 });

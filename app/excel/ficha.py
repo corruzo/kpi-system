@@ -18,11 +18,13 @@ from .comun import (
     GRIS,
     NAVY,
     SEM,
+    ajustar,
     celda_semaforo,
     formato_numero,
     hora_local,
     poner_logo,
     relleno,
+    ubicar_grafico,
 )
 from .sello import colorear_semaforo, formula_semaforo
 
@@ -55,10 +57,6 @@ def _par(ws, fila, c1, etiqueta, c2, c3, valor, alto=None, mono=False, wrap=True
     return v
 
 
-def _lineas(texto: str, ancho: int) -> int:
-    return sum(max(1, -(-len(t) // ancho)) for t in (texto or "").split("\n"))
-
-
 def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
     """fichas: [(Indicador, ejercicio, periodos[{periodo, etiqueta, corta, medicion}])]. Una hoja por indicador."""
     wb = Workbook()
@@ -89,8 +87,15 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         fmt = formato_numero(ind.unidad, dec)
 
         # --- encabezado
-        ws.merge_cells("A1:C2")
-        c = ws["A1"]
+        logo = params.get("logo_bytes")
+        # con logo: A1:A2 queda para la imagen (fondo blanco) y el nombre de la empresa va en B1:C2; sin logo, A1:C2
+        nombre_empresa = "B1" if logo else "A1"
+        ws.merge_cells("B1:C2" if logo else "A1:C2")
+        if logo:
+            ws.merge_cells("A1:A2")
+            ws["A1"].fill = relleno("FFFFFF")
+            ws["A1"].border = BORDE
+        c = ws[nombre_empresa]
         c.value = params.get("empresa", "")
         c.font = Font(name=FUENTE, bold=True, size=14, color="FFFFFF")
         c.fill = relleno(NAVY)
@@ -110,9 +115,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
             ws[ref].fill = relleno(BRAND)
             ws[ref].alignment = Alignment(horizontal="center", vertical="center")
         ws.row_dimensions[1].height = ws.row_dimensions[2].height = 20
-        if poner_logo(ws, params.get("logo_bytes"), "A1", 38):
-            c.alignment = Alignment(vertical="center", indent=1)
-            ws["A1"].alignment = Alignment(vertical="center", indent=7, wrap_text=True)
+        poner_logo(ws, logo, "A1", 36, max_ancho=190)
         ws.merge_cells("A3:M3")
         ws["A3"].value = params.get("gerencia_emisora", "")
         ws["A3"].font = Font(name=FUENTE, italic=True, size=10, color=GRIS)
@@ -129,7 +132,6 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         ws["A7"].value = ind.ref_detalle or ind.objetivo or ""
         ws["A7"].font = Font(name=FUENTE, size=10)
         ws["A7"].alignment = Alignment(wrap_text=True, vertical="top", indent=1)
-        ws.row_dimensions[7].height = max(18, 14 * _lineas(ws["A7"].value, 150))
 
         # --- definición + semáforo
         _banda(ws, 8, "DEFINICIÓN DEL INDICADOR E INFORMACIÓN PARA LA MEDICIÓN")
@@ -140,9 +142,10 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         _par(ws, 11, 1, "Frecuencia de medición", 2, 7, ind.frecuencia.capitalize())
         doc = formula_documentada(ind)
         _par(ws, 12, 1, "Fórmula de cálculo", 2, 7, doc, mono=True)
-        ws.merge_cells(start_row=12, start_column=2, end_row=14, end_column=7)
-        for r in (12, 13, 14):
-            ws.row_dimensions[r].height = max(20, 14 * _lineas(doc, 60) / 3 + 4)
+        ws.merge_cells(start_row=12, start_column=2, end_row=14, end_column=7)       # alto: lo reparte ajustar()
+        for r in (13, 14):
+            for cc in range(2, 8):
+                ws.cell(r, cc).border = BORDE
         ws.merge_cells("A12:A14")
         _par(ws, 15, 1, "Fuente de la información", 2, 7, ind.fuente or "", 22)
         # semáforo
@@ -206,7 +209,6 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
             e.font = Font(name=FUENTE, size=10)
             e.alignment = Alignment(wrap_text=True, vertical="center", indent=1)
             e.border = BORDE
-            ws.row_dimensions[fila].height = max(18, 14 * _lineas(v["etiqueta"], 30))
             for j in range(12):
                 c = ws.cell(fila, 2 + j)
                 c.border = BORDE
@@ -266,7 +268,6 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         if periodos:
             ch = LineChart()
             ch.title = ind.nombre[:60]
-            ch.height, ch.width = 7.5, 15.5
             ch.add_data(Reference(ws, min_col=2, max_col=4, min_row=ini_tabla - 1, max_row=fin_tabla), titles_from_data=True)
             ch.set_categories(Reference(ws, min_col=1, min_row=ini_tabla, max_row=fin_tabla))
             estilos = (("0284C7", None, True), ("16A34A", "dash", False), ("DC2626", "dash", False))
@@ -282,9 +283,8 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
                 else:
                     sr.marker.symbol = "none"
             ch.x_axis.delete = ch.y_axis.delete = False
-            ch.legend.position = "b"
-            ws.add_chart(ch, f"G{ini_tabla - 1}")
-        fila = max(fila, ini_tabla + 13)
+            filas_grafico = ubicar_grafico(ch, ws, ini_tabla - 1, 15.5, 7.4, "G")
+            fila = max(fila, ini_tabla - 2 + filas_grafico)             # lo siguiente empieza debajo del gráfico
 
         # --- análisis y evaluación
         fila += 1
@@ -319,9 +319,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
                 if j in (2, 8):
                     c.font = Font(name=FUENTE, size=10)
                     c.alignment = Alignment(wrap_text=True, vertical="top", indent=1)
-            ws.row_dimensions[fila].height = max(
-                20, 14 * max(_lineas(m.analisis if m else "", 66), _lineas(m.plan_mejora if m else "", 66))
-            )
+            ws.row_dimensions[fila].height = 20
 
         # --- notas y pie
         fila += 2
@@ -332,7 +330,6 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         ws.cell(fila, 1, notas)
         ws.cell(fila, 1).alignment = Alignment(wrap_text=True, vertical="top", indent=1)
         ws.cell(fila, 1).font = Font(name=FUENTE, size=10)
-        ws.row_dimensions[fila].height = max(30, 14 * _lineas(notas, 150))
         fila += 2
         ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=13)
         ws.cell(
@@ -346,4 +343,5 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         ws.sheet_properties.pageSetUpPr.fitToPage = True
         ws.page_margins.left = ws.page_margins.right = 0.4
         ws.oddFooter.right.text = f"{params.get('codigo_formato', '')}"
+        ajustar(ws, columnas=False)                 # la cuadrícula de 13 columnas es fija: solo se ajustan las filas
     return wb

@@ -11,6 +11,7 @@ from .comun import (
     FUENTE,
     GRIS,
     ZEBRA,
+    ajustar,
     configurar_impresion,
     encabezado_tabla,
     franja_titulo,
@@ -51,11 +52,12 @@ def reporte_bitacora(registros, codigos: dict, generado_por: str, verificacion: 
             c = ws.cell(k, j, v)
             c.font = Font(name="Consolas" if j == 9 else FUENTE, size=10, color=GRIS if j == 9 else "000000")
             c.border = BORDE
-            c.alignment = Alignment(vertical="top", wrap_text=(j == 8))
+            c.alignment = Alignment(vertical="center", wrap_text=(j == 8))
             if k % 2:
                 c.fill = relleno(ZEBRA)
         ws.cell(k, 2).number_format = "dd/mm/yyyy hh:mm:ss"
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(registros))}"
     configurar_impresion(ws, 4)
+    ajustar(ws)
     return wb

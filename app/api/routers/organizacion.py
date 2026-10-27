@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ... import schemas
 from ...errores import NoEncontrado
 from ...models import Usuario
-from ...servicios import marca, organizacion, parametros
+from ...servicios import marca, organizacion, parametros, reinicio
 from .. import serializadores as ser
 from ..deps import escritura, get_db, requiere, usuario_actual
 
@@ -87,6 +87,14 @@ def ver_parametros(db: Session = Depends(get_db), _=Depends(usuario_actual)):
 def editar_parametros(datos: schemas.ParametrosIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
                       _=Depends(escritura)):
     return parametros.actualizar(db, u, datos)
+
+
+# ---------------------------------------------------------------- reinicio de fábrica
+@router.post("/sistema/reiniciar")
+def reiniciar_sistema(datos: schemas.ReinicioIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+                      _=Depends(escritura)):
+    """Borra TODOS los datos (incluida la bitácora) y deja solo la cuenta del administrador que lo ejecuta."""
+    return reinicio.borrar_todo(db, u, datos.confirmacion, datos.password)
 
 
 # ---------------------------------------------------------------- logo

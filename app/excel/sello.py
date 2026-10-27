@@ -13,7 +13,7 @@ from openpyxl.styles import Alignment, Font
 from openpyxl.workbook.protection import WorkbookProtection
 
 from ..security import firmar_reporte
-from .comun import BORDE, FUENTE, GRIS, NAVY, SEM, franja_titulo, relleno
+from .comun import BORDE, FUENTE, GRIS, NAVY, SEM, ajustar, configurar_impresion, franja_titulo, relleno
 
 HOJA_CONTROL = "Control"
 
@@ -72,7 +72,10 @@ def sellar(wb, numero: str, tipo: str, generado_por: str, fecha: datetime) -> st
         e.font, v.font = Font(name=FUENTE, bold=True, color=NAVY), Font(name="Consolas" if k > 7 else FUENTE, size=9 if k > 7 else 10)
         e.border = v.border = BORDE
         v.alignment = Alignment(wrap_text=True, vertical="center")
+    ws.merge_cells("A11:B11")
     ws.cell(11, 1, "Cualquier cambio en las demás hojas invalida la firma.").font = Font(name=FUENTE, italic=True, size=9, color=GRIS)
+    ajustar(ws, columnas=False)
+    configurar_impresion(ws, 3, apaisado=False)
     return h
 
 

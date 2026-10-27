@@ -76,6 +76,11 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 ## Reportes en Excel
 `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (indicadores clave, cumplimiento por departamento y gráfico), *Mediciones*, *Tendencias* (matriz con semáforos), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) y *Fichas técnicas*. Filtros por año, área y estado; el jefe de área solo obtiene su área. Cada descarga queda en la bitácora. El administrador también puede descargar la bitácora (`/api/reportes/bitacora.xlsx`).
 
+## Formato de los Excel y reinicio de fábrica
+
+- Todos los libros pasan por `excel/comun.ajustar()`: filas y columnas se dimensionan según su contenido (texto largo, celdas combinadas, fórmula en varias líneas), el logo y los gráficos tienen espacio propio y `tests/api/test_excel_formato.py` comprueba que nada se superponga ni se recorte. Al agregar una hoja nueva, termínela con `ajustar(ws)`.
+- **Organización → Zona de peligro → Borrar todos los datos** deja el sistema como recién instalado: elimina indicadores, cargas, áreas, usuarios, listas, parámetros, logo y bitácora. Pide escribir «BORRAR TODO» y la contraseña del administrador, y conserva únicamente esa cuenta para poder volver a entrar. No deja rastro en la bitácora (también queda vacía).
+
 ## Reportes protegidos y verificables
 
 - Los Excel exportados llevan **fórmulas vivas**: en cada ficha el resultado se recalcula desde los datos de su período y el semáforo se evalúa con la meta y el límite (`app/dominio/formula_excel.py` traduce la fórmula del sistema; si alguna no tiene equivalente exacto queda el valor calculado).

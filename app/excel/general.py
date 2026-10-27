@@ -19,14 +19,15 @@ from .comun import (
     NAVY,
     SEM,
     ZEBRA,
+    ajustar,
     celda_semaforo,
     configurar_impresion,
     encabezado_tabla,
     formato_numero,
     franja_titulo,
     hora_local,
-    poner_logo,
     relleno,
+    ubicar_grafico,
 )
 from .sello import colorear_semaforo, formula_semaforo
 
@@ -42,11 +43,11 @@ def reporte_general(
     # ---------- Resumen
     ws = wb.active
     ws.title = "Resumen"
-    franja_titulo(ws, "Tripoliven, C.A. — Sistema de Indicadores de Gestión", sub, 7)
-    if poner_logo(ws, logo, "A1", 32):
-        ws["A1"].alignment = Alignment(vertical="center", indent=7)
+    franja_titulo(ws, "Tripoliven, C.A. — Sistema de Indicadores de Gestión", sub, 7, logo)
     ws["A4"], ws["B4"] = "Filtros aplicados", filtros or "Ninguno (todos los datos)"
     ws["A4"].font = Font(name=FUENTE, bold=True, color=GRIS)
+    ws.merge_cells("B4:G4")
+    ws["B4"].alignment = Alignment(wrap_text=True, vertical="center")
     ultimo = {}
     for m in sorted(mediciones, key=lambda m: (m.indicador_id, m.periodo)):
         if m.estado in ("enviado", "aprobado"):
@@ -143,9 +144,9 @@ def reporte_general(
             s.graphicalProperties.line.solidFill = col
         ch.x_axis.delete = ch.y_axis.delete = False  # Excel oculta los ejes si no se indica
         ch.y_axis.numFmt, ch.y_axis.majorGridlines = "0", None
-        ch.height, ch.width = 8.5, 20
-        ws.add_chart(ch, f"A{fin + 4}")
+        ubicar_grafico(ch, ws, fin + 4, 20, 8.5)
     configurar_impresion(ws, f0, apaisado=False)
+    ajustar(ws)
 
     # ---------- Mediciones
     ws = wb.create_sheet("Mediciones")
@@ -202,7 +203,7 @@ def reporte_general(
             c = ws.cell(k, j, v)
             c.font = Font(name=FUENTE, size=10)
             c.border = BORDE
-            c.alignment = Alignment(vertical="top", wrap_text=j in (2, 16, 17, 18))
+            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 16, 17, 18))
             if k % 2:
                 c.fill = relleno(ZEBRA)
         for j in (6, 7, 8):
@@ -220,6 +221,7 @@ def reporte_general(
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(ordenadas))}"
     configurar_impresion(ws, 4)
+    ajustar(ws)
 
     # ---------- Tendencias (matriz indicador × período, por frecuencia)
     ws = wb.create_sheet("Tendencias")
@@ -227,7 +229,7 @@ def reporte_general(
     fila = 4
     ws.column_dimensions["A"].width = 10
     ws.column_dimensions["B"].width = 38
-    for freq in ("mensual", "trimestral", "semestral", "anual"):
+    for freq in ("mensual", "bimestral", "trimestral", "cuatrimestral", "semestral", "anual", "eventual"):
         inds = [i for i in indicadores if i.frecuencia == freq]
         if not inds:
             continue
@@ -245,7 +247,9 @@ def reporte_general(
             fila += 1
             dec = i.decimales if i.decimales is not None else 2
             ws.cell(fila, 1, i.codigo).font = Font(name=FUENTE, bold=True, size=10)
+            ws.cell(fila, 1).alignment = Alignment(vertical="center")
             ws.cell(fila, 2, i.nombre).alignment = Alignment(wrap_text=True, vertical="center")
+            ws.cell(fila, 2).font = Font(name=FUENTE, size=10)
             for j, p in enumerate(periodos, 3):
                 m = por.get((i.id, p))
                 c = ws.cell(fila, j, m.resultado if m else None)
@@ -264,6 +268,7 @@ def reporte_general(
         fila += 3
     ws.freeze_panes = "C4"
     configurar_impresion(ws, 4)
+    ajustar(ws)
 
     # ---------- Plan de mejora (ISO 9001: 9.1.3 y 10.2)
     ws = wb.create_sheet("Plan de mejora")
@@ -303,13 +308,14 @@ def reporte_general(
             c = ws.cell(k, j, v)
             c.font = Font(name=FUENTE, size=10)
             c.border = BORDE
-            c.alignment = Alignment(vertical="top", wrap_text=j in (2, 9, 10))
+            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 9, 10))
         for j in (5, 6):
             ws.cell(k, j).number_format = formato_numero(i.unidad, dec)
         celda_semaforo(ws.cell(k, 7), m.semaforo)
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(desv))}"
     configurar_impresion(ws, 4)
+    ajustar(ws)
 
     # ---------- Fichas técnicas
     ws = wb.create_sheet("Fichas técnicas")
@@ -363,12 +369,13 @@ def reporte_general(
             c = ws.cell(k, j, v)
             c.font = Font(name="Consolas" if j == 16 else FUENTE, size=10)
             c.border = BORDE
-            c.alignment = Alignment(vertical="top", wrap_text=True)
+            c.alignment = Alignment(vertical="center", wrap_text=True)
             if k % 2:
                 c.fill = relleno(ZEBRA)
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(indicadores))}"
     configurar_impresion(ws, 4)
+    ajustar(ws)
     return wb
 
 
