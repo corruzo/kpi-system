@@ -26,7 +26,7 @@ def test_demasiados_intentos_fallidos_bloquean_temporalmente(client):
             client.post("/api/login", json={"username": usuario, "password": "mala"})
         assert client.post("/api/login", json={"username": usuario, "password": CLAVE}).status_code == 429
     finally:
-        limite_intentos._fallos.clear()
+        limite_intentos.reiniciar()
 
 
 def test_guia_de_bienvenida_se_marca_una_sola_vez(client):
@@ -62,14 +62,14 @@ def test_login_rechaza_campos_demasiado_largos(client):
 def test_password_spraying_desde_un_origen_se_bloquea(client):
     from app.servicios.sesion import MAX_POR_ORIGEN, limite_intentos
     client.cookies.clear()
-    limite_intentos._fallos.clear()
+    limite_intentos.reiniciar()
     try:
         for i in range(MAX_POR_ORIGEN):   # un usuario distinto en cada intento: la pareja IP+usuario nunca llega a su tope
             assert client.post("/api/login", json={"username": f"rociado{i}", "password": "mala"}).status_code == 401
         r = client.post("/api/login", json={"username": "admin", "password": CLAVE_ADMIN})
         assert r.status_code == 429
     finally:
-        limite_intentos._fallos.clear()
+        limite_intentos.reiniciar()
 
 
 def test_muchas_ip_contra_un_mismo_usuario_se_bloquean():
@@ -89,7 +89,7 @@ def test_muchas_ip_contra_un_mismo_usuario_se_bloquean():
             except DemasiadosIntentos:
                 pass
     finally:
-        limite_intentos._fallos.clear()
+        limite_intentos.reiniciar()
 
 
 def test_un_acceso_valido_no_borra_el_contador_del_origen(client):
@@ -99,6 +99,33 @@ def test_un_acceso_valido_no_borra_el_contador_del_origen(client):
     try:
         client.post("/api/login", json={"username": "otro.usuario", "password": "mala"})
         assert client.post("/api/login", json={"username": usuario, "password": CLAVE}).status_code == 200
-        assert len(limite_intentos._fallos["origen|testclient"]) == 1
+        assert limite_intentos.bloqueado("origen|testclient", maximo=1)      # el fallo del origen sigue contando
+        assert not limite_intentos.bloqueado("origen|testclient", maximo=2)
     finally:
-        limite_intentos._fallos.clear()
+        limite_intentos.reiniciar()
+
+
+# ---------------------------------------------------------------- revocación de sesiones
+def test_logout_invalida_el_token_aunque_lo_tengan_copiado(client):
+    usuario = crear_usuario(client, "gerente")
+    entrar(client, usuario)
+    robado = client.cookies.get("sigt_sesion")
+    assert client.post("/api/logout").status_code == 200
+    client.cookies.clear()
+    client.cookies.set("sigt_sesion", robado)
+    assert client.get("/api/me").status_code == 401            # antes seguía valiendo hasta 10 h
+    assert client.post("/api/login", json={"username": usuario, "password": CLAVE}).status_code == 200
+    assert client.get("/api/me").status_code == 200            # y se puede volver a entrar
+
+
+def test_logout_con_token_ajeno_o_sin_sesion_no_falla_ni_revoca_a_otros(client):
+    usuario = crear_usuario(client, "gerente")
+    entrar(client, usuario)
+    valido = client.cookies.get("sigt_sesion")
+    client.cookies.clear()
+    assert client.post("/api/logout").status_code == 200
+    client.cookies.set("sigt_sesion", "basura")
+    assert client.post("/api/logout").status_code == 200
+    client.cookies.clear()
+    client.cookies.set("sigt_sesion", valido)
+    assert client.get("/api/me").status_code == 200

@@ -14,15 +14,17 @@ No incluye datos de ejemplo: se parte de una base vacía y el administrador crea
    | `SIGT_ADMIN_USER` / `SIGT_ADMIN_PASSWORD` | Solo para crear el primer administrador con la base vacía (≥ 10 caracteres). Elimine la contraseña después. |
    | `SIGT_TRUST_PROXY=1` | Detrás de un proxy/balanceador (IP real para el límite de intentos). |
 3. Despliegue: `docker build -t sgc-tripoliven . && docker run -p 8000:8000 --env-file .env sgc-tripoliven` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
-4. Primer arranque: crea las tablas, un *trigger* que impide UPDATE/DELETE en `bitacora` y activa RLS en todas las tablas (la API REST pública de Supabase queda sin acceso; la aplicación usa el rol `postgres`). Si el usuario de la base no tiene permisos para ello, ejecute `scripts/supabase_hardening.sql` en el SQL Editor.
+4. **Migraciones (Alembic).** El esquema solo cambia mediante migraciones versionadas (`migrations/versions/`). Antes de arrancar una versión nueva ejecute `alembic upgrade head` con las mismas variables de entorno (el `Dockerfile` ya lo hace al iniciar el contenedor; el *advisory lock* evita que dos réplicas migren a la vez). En producción la aplicación **solo verifica** que la base esté al día y, si no lo está, responde 503 indicando qué hacer; con `SIGT_AUTO_MIGRATE=1` migra ella sola al arrancar. La primera migración crea las tablas (o completa una base creada antes de Alembic sin perder datos), deja un *trigger* que impide UPDATE/DELETE en `bitacora` y activa RLS en las tablas (la API REST pública de Supabase queda sin acceso; la aplicación usa el rol `postgres`). Si el usuario de la base no tiene permisos para ello, ejecute `scripts/supabase_hardening.sql` en el SQL Editor. **Importante:** la migración `0003` cifra la contraseña de los reportes con `SIGT_SECRET`; ejecútela con la misma `SIGT_SECRET` que usa la aplicación. En Vercel (sin paso de despliegue) migre desde su equipo o CI con `SIGT_DATABASE_URL`/`SIGT_SECRET` de producción, o defina `SIGT_AUTO_MIGRATE=1`.
 5. Ingrese como administrador y siga la guía de configuración inicial: **Organización** (áreas y usuarios) → **Indicadores** (fichas).
 
 Alternativa sin variable de entorno: `python -m app.crear_admin`.
 
 ## Desarrollo local
 ```bash
-pip install -r requirements.txt pytest httpx
-SIGT_ADMIN_USER=admin SIGT_ADMIN_PASSWORD=una-clave-larga python run.py   # SQLite en data/sigt.db
+pip install -r requirements-dev.txt        # dependencias congeladas + pytest, httpx, ruff, pip-audit
+SIGT_ADMIN_USER=admin SIGT_ADMIN_PASSWORD=una-clave-larga python run.py   # SQLite en data/sigt.db (migra solo en desarrollo)
+alembic revision --autogenerate -m "descripción"   # tras cambiar app/models.py; revise el archivo generado
+alembic upgrade head
 pytest                                  # SQLite; con SIGT_DATABASE_URL corre contra Postgres
 npm install && npm run build:css        # solo si modifica las clases Tailwind (el CSS compilado va en el repositorio)
 ```
@@ -62,7 +64,7 @@ Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/
 - Eliminar un indicador o usuario con historial lo archiva/desactiva; un área con indicadores o usuarios no se elimina.
 - Fórmulas con evaluador AST restringido (sin `eval`).
 - Bitácora de solo inserción con cadena SHA-256 (verificable desde la interfaz), protegida además por trigger en Postgres y bloqueo en el ORM; escrituras serializadas con *advisory lock* entre procesos.
-- Contraseñas PBKDF2-SHA256 (210 000 iteraciones), mínimo 10 caracteres; cambiar o restablecer una clave invalida las sesiones previas; bloqueo tras 5 intentos fallidos en 15 min; cabeceras CSP/HSTS/X-Frame-Options.
+- Contraseñas PBKDF2-SHA256 (210 000 iteraciones), mínimo 10 caracteres; cambiar o restablecer una clave invalida las sesiones previas; bloqueo por intentos fallidos (5 por IP+usuario, 20 por IP, 10 por usuario, en 15 min) con contadores en la base, compartidos entre procesos; cerrar sesión revoca el token en el servidor; la contraseña de los reportes se guarda cifrada (Fernet, clave derivada de `SIGT_SECRET`); cabeceras CSP/HSTS/X-Frame-Options.
 
 ## Vercel
 `vercel.json` + `api/index.py` ejecutan la app como función serverless. Variables obligatorias (Project → Settings → Environment Variables): `SIGT_ENV=production`, `SIGT_SECRET`, `SIGT_DATABASE_URL` (use el **pooler** de Supabase, no `db.<proyecto>.supabase.co`, que es solo IPv6), `SIGT_ADMIN_USER`, `SIGT_ADMIN_PASSWORD`. Tras cambiar variables hay que redesplegar. Si falla, revise Deployments → Logs: el mensaje indica la variable que falta.

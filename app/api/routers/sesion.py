@@ -26,7 +26,9 @@ def ingresar(datos: schemas.LoginIn, request: Request, response: Response, db: S
 
 
 @router.post("/logout")
-def salir(response: Response):
+def salir(request: Request, response: Response, db: Session = Depends(get_db)):
+    """Cierra la sesión también en el servidor: el token deja de valer aunque alguien lo haya copiado."""
+    sesion.cerrar(db, security.leer_token(request.cookies.get(security.COOKIE)))
     response.delete_cookie(security.COOKIE)
     return {"ok": True}
 

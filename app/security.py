@@ -5,7 +5,6 @@ import hmac
 import os
 import secrets
 import time
-from collections import defaultdict, deque
 
 from .config import PRODUCCION
 from .database import DATA_DIR
@@ -31,6 +30,11 @@ def _clave() -> bytes:
 
 
 _SECRET = _clave()
+
+
+def secreto() -> bytes:
+    """SIGT_SECRET: material para derivar otras claves (cifrado de secretos en la base)."""
+    return _SECRET
 
 
 def hash_password(password: str) -> str:
@@ -62,37 +66,6 @@ def leer_token(token: str | None) -> tuple[int, int] | None:
     except Exception:
         pass
     return None
-
-
-class LimiteIntentos:
-    """Bloquea temporalmente tras demasiados intentos fallidos (en memoria, por proceso).
-
-    Cada llave tiene su propio tope (`maximo`), de modo que se pueden vigilar a la vez la pareja IP+usuario, la IP sola
-    (password spraying: muchos usuarios desde un mismo origen) y el usuario solo (muchas IP contra una cuenta)."""
-
-    def __init__(self, maximo=5, ventana=900):
-        self.maximo, self.ventana = maximo, ventana
-        self._fallos: dict[str, deque] = defaultdict(deque)
-
-    def _limpiar(self, k):
-        q = self._fallos.get(k)
-        if q is None:
-            return ()
-        while q and q[0] < time.time() - self.ventana:
-            q.popleft()
-        if not q:
-            del self._fallos[k]    # no acumular llaves vacías (los nombres de usuario los elige el atacante)
-        return q
-
-    def bloqueado(self, k: str, maximo: int | None = None) -> bool:
-        return len(self._limpiar(k)) >= (maximo or self.maximo)
-
-    def fallo(self, k: str):
-        self._limpiar(k)
-        self._fallos[k].append(time.time())
-
-    def limpiar(self, k: str):
-        self._fallos.pop(k, None)
 
 
 # Hash válido de una contraseña que nadie conoce: se verifica cuando el usuario no existe para que el tiempo de

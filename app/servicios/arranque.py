@@ -1,4 +1,4 @@
-"""Arranque del sistema: tablas, migración aditiva, endurecimiento en PostgreSQL y primer administrador.
+"""Arranque del sistema: esquema al día (Alembic), primer administrador, parámetros y calendario fiscal.
 
 `iniciar()` se ejecuta una sola vez por proceso (en serverless puede invocarse desde la primera petición).
 """
@@ -6,59 +6,32 @@ import logging
 import os
 import threading
 
-from sqlalchemy import func, inspect, select, text
+from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 
 from .. import security
-from ..database import ES_POSTGRES, Base, SessionLocal, engine
+from ..config import PRODUCCION
+from ..database import SessionLocal
 from ..models import Usuario
-from . import auditoria, ejercicios, parametros
+from . import auditoria, ejercicios, migraciones, parametros
 
 log = logging.getLogger("sigt")
 _candado = threading.Lock()
 _iniciado = False
 
-_TRIGGER_BITACORA = """
-CREATE OR REPLACE FUNCTION bitacora_inmutable() RETURNS trigger AS $$
-BEGIN RAISE EXCEPTION 'La bitácora es inalterable'; END; $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_bitacora_inmutable ON bitacora;
-CREATE TRIGGER trg_bitacora_inmutable BEFORE UPDATE OR DELETE ON bitacora
-FOR EACH ROW EXECUTE FUNCTION bitacora_inmutable();
-"""
-
 
 # ---------------------------------------------------------------- base de datos
-def migrar() -> None:
-    """Migración aditiva: agrega a las tablas existentes las columnas nuevas del modelo (sin perder datos)."""
-    inspector = inspect(engine)
-    for tabla in Base.metadata.sorted_tables:
-        if not inspector.has_table(tabla.name):
-            continue
-        existentes = {c["name"] for c in inspector.get_columns(tabla.name)}
-        for columna in tabla.columns:
-            if columna.name not in existentes:
-                tipo = columna.type.compile(dialect=engine.dialect)
-                with engine.begin() as cx:
-                    cx.execute(text(f'ALTER TABLE "{tabla.name}" ADD COLUMN "{columna.name}" {tipo}'))
-                log.warning("Migración: columna %s.%s agregada.", tabla.name, columna.name)
-
-
-def _endurecer_postgres() -> None:
-    """Bitácora inalterable a nivel de motor y RLS sin políticas (la API REST pública de Supabase queda sin acceso)."""
-    try:
-        with engine.begin() as cx:
-            cx.execute(text(_TRIGGER_BITACORA))
-            for tabla in Base.metadata.tables:
-                cx.execute(text(f'ALTER TABLE "{tabla}" ENABLE ROW LEVEL SECURITY'))
-    except Exception as e:  # permisos insuficientes, etc.
-        log.warning("No se pudo endurecer la base (trigger/RLS): %s. Ejecute scripts/supabase_hardening.sql.", e)
+def migrar_automaticamente() -> bool:
+    """¿Debe este proceso aplicar las migraciones al arrancar? Sí en desarrollo; en producción solo con SIGT_AUTO_MIGRATE=1
+    (lo normal es migrar en el despliegue y que la aplicación únicamente verifique)."""
+    return os.getenv("SIGT_AUTO_MIGRATE", "0" if PRODUCCION else "1") == "1"
 
 
 def preparar_base() -> None:
-    Base.metadata.create_all(engine)
-    migrar()
-    if ES_POSTGRES:
-        _endurecer_postgres()
+    """Esquema al día vía Alembic (aplicándolo o exigiéndolo); no se crean ni alteran tablas por otro camino."""
+    if migrar_automaticamente():
+        migraciones.actualizar()
+    migraciones.exigir_al_dia()
 
 
 # ---------------------------------------------------------------- primer administrador

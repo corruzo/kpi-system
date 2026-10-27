@@ -34,3 +34,8 @@ class Invalido(ErrorNegocio):
 
 class DemasiadosIntentos(ErrorNegocio):
     estado = 429
+
+
+class Ocupado(ErrorNegocio):
+    """El sistema está atendiendo otra escritura y no se pudo esperar más: conviene reintentar."""
+    estado = 503

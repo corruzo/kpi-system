@@ -37,5 +37,5 @@ def borrar_todo(db: Session, u: Usuario, confirmacion: str, password: str) -> di
     db.commit()
     parametros.crear_faltantes(db)                       # parámetros de fábrica
     parametros.refrescar(forzar=True)
-    sesion.limite_intentos._fallos.clear()
+    sesion.limite_intentos.reiniciar()
     return {"ok": True, "conservado": u.username}

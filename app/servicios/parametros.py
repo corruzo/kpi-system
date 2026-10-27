@@ -7,6 +7,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .. import cifrado
 from ..database import SessionLocal
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
@@ -72,7 +73,13 @@ def datos_para_reportes(db: Session) -> dict:
 def clave_de_reportes(db: Session) -> str | None:
     """Contraseña con la que se bloquean los Excel exportados, o None si la protección está desactivada."""
     p = leer(db)
-    return p.get("clave_reportes") or None if p.get("proteger_reportes") == "1" else None
+    if p.get("proteger_reportes") != "1" or not p.get("clave_reportes"):
+        return None
+    try:
+        return cifrado.descifrar(p["clave_reportes"])
+    except cifrado.ErrorDeCifrado:   # no exportar sin protección en silencio si la protección está activada
+        raise Conflicto("No se puede leer la contraseña de los reportes (¿cambió SIGT_SECRET?). "
+                        "Defina una nueva en Organización → Parámetros.") from None
 
 
 def actualizar(db: Session, usuario: Usuario, datos) -> dict:
@@ -92,7 +99,7 @@ def actualizar(db: Session, usuario: Usuario, datos) -> dict:
     nuevos = {**datos.model_dump(exclude={"clave_reportes"}), "ejercicio_inicio": str(datos.ejercicio_inicio),
               "proteger_reportes": "1" if datos.proteger_reportes else "0"}
     if nueva_clave:
-        nuevos["clave_reportes"] = nueva_clave
+        nuevos["clave_reportes"] = cifrado.cifrar(nueva_clave)   # en la base nunca queda en texto plano
     cambios = {}
     for clave, valor in nuevos.items():
         if actuales.get(clave) != valor:

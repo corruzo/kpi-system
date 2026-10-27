@@ -1,3 +1,4 @@
+-- (Las migraciones de Alembic ya intentan aplicar esto; este script es el respaldo manual.)
 -- Ejecutar en el SQL Editor de Supabase si la aplicación no pudo aplicarlo sola.
 -- 1) Bitácora inalterable a nivel de motor
 CREATE OR REPLACE FUNCTION bitacora_inmutable() RETURNS trigger AS $$
@@ -14,3 +15,7 @@ ALTER TABLE indicadores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mediciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notas_auditoria ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bitacora ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parametros ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catalogos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ejercicios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intentos_fallidos ENABLE ROW LEVEL SECURITY;

@@ -4,10 +4,10 @@ from sqlalchemy.orm import Session
 
 from .. import security
 from ..config import TRUST_PROXY
-from ..database import get_db
+from ..database import ES_POSTGRES, get_db
 from ..errores import NoAutenticado, Prohibido
 from ..models import Usuario
-from ..servicios.concurrencia import candado_escritura
+from ..servicios.concurrencia import bloquear_escritura, candado_escritura
 
 __all__ = ["escritura", "get_db", "origen_cliente", "requiere", "usuario_actual"]
 
@@ -30,10 +30,15 @@ def requiere(*roles: str):
     return comprobar
 
 
-def escritura():
-    """Serializa las operaciones que escriben en la base (mantiene íntegra la cadena de la bitácora)."""
-    with candado_escritura:
+def escritura(db: Session = Depends(get_db)):
+    """Serializa las operaciones que escriben en la base (mantiene íntegra la cadena de la bitácora).
+    En PostgreSQL lo hace la propia base con un advisory lock transaccional, sin candados en memoria."""
+    if ES_POSTGRES:
+        bloquear_escritura(db)
         yield
+    else:
+        with candado_escritura:
+            yield
 
 
 def origen_cliente(request: Request) -> str:

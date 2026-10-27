@@ -1,7 +1,7 @@
 """Modelo de datos del SGC • TRIPOLIVEN."""
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, event
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -37,6 +37,16 @@ class Ejercicio(Base):
     reabierto_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_reapertura: Mapped[str | None] = mapped_column(Text, default="")
     cerrado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[cerrado_por_id])
+
+
+class IntentoFallido(Base):
+    """Un intento fallido (de ingreso o de confirmación de reinicio). Los contadores del limitador de intentos viven aquí,
+    no en memoria, para que el bloqueo valga entre todos los procesos. `llave` es un SHA-256: no guarda IP ni usuarios."""
+    __tablename__ = "intentos_fallidos"
+    __table_args__ = (Index("ix_intentos_fallidos_llave_fecha", "llave", "fecha"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    llave: Mapped[str] = mapped_column(String(64))
+    fecha: Mapped[datetime] = mapped_column(DateTime, index=True, default=ahora)
 
 
 class Catalogo(Base):
