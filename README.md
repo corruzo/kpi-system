@@ -83,6 +83,7 @@ El ejercicio elegido en la cabecera gobierna **todas** las pantallas de datos, d
 - **Carga rápida:** solo ofrece los períodos de ese ejercicio (hasta el actual). Los pendientes de otros ejercicios se avisan aparte («Ir a ese ejercicio»).
 - **Bandeja y Historial:** muestran únicamente ese ejercicio; las cargas por aprobar de otros ejercicios se avisan con un botón, y el historial puede incluir «otros ejercicios» agrupados por año.
 - **Inicio, Panel, Fichas y Reportes:** usan el mismo ejercicio (los reportes lo traen preseleccionado y las hojas «Mediciones» y «Plan de mejora» llevan la columna «Ejercicio fiscal»).
+- En pantallas ≥ 1024 px la navegación es una barra lateral (`parciales/barra_lateral.html`); en tabletas, píldoras en la cabecera; en móvil, la barra inferior.
 - Si se está viendo un ejercicio distinto al vigente, un aviso lo indica con el botón «Volver al ejercicio vigente».
 - API: `GET /api/indicadores?ejercicio=` y `GET /api/indicadores/{id}/periodos?ejercicio=` (por defecto, el vigente); cada medición informa su `ejercicio`. Cada módulo de la interfaz recarga lo suyo con el gancho `ejercicio()`.
 

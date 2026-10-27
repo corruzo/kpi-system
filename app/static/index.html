@@ -46,9 +46,11 @@
 <!-- ===================== APLICACIÓN ===================== -->
 <template x-if="user">
 <div class="min-h-screen">
+  <!--#incluir parciales/barra_lateral.html-->
+  <div class="lg:pl-64">
   <!--#incluir parciales/cabecera.html-->
 
-  <main class="mx-auto max-w-6xl px-4 pb-36 pt-6 sm:px-6 md:pb-14 md:pt-8">
+  <main class="mx-auto max-w-6xl px-4 pb-36 pt-6 sm:px-6 md:pb-14 md:pt-8 lg:px-8">
     <!--#incluir parciales/aviso_ejercicio.html-->
 
     <!--#incluir parciales/vistas/inicio.html-->
@@ -76,6 +78,7 @@
     <!--#incluir parciales/vistas/bitacora.html-->
 
   </main>
+  </div>
 
   <!-- navegación móvil y ventanas modales -->
   <!--#incluir parciales/componentes/navegacion_movil.html-->
