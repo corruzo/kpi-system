@@ -1,3 +1,6 @@
+    <div class="card mb-5 border-sky-300 bg-sky-50" x-show="viendoOtroEjercicio" x-transition data-tour="ej-contexto">
+      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm text-sky-900"><span>🗂 Está viendo el ejercicio <b x-text="ejActual.etiqueta"></b> (<span x-text="(estadoEj(ejActual.estado) || '').toLowerCase()"></span>), no el vigente. Todo lo que ve en esta pantalla corresponde solo a ese ejercicio.</span>
+        <button class="btn btn-p btn-sm" @click="volverAlVigente()">Volver al ejercicio vigente</button></div></div>
     <div class="card mb-5 border-amber-300 bg-amber-50" x-show="['admin','gerente'].includes(user.rol) && ejTerminados.length && view!=='ejercicios'" x-transition>
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm text-amber-900"><span>📅 El ejercicio <b x-text="ejTerminados[0] && ejTerminados[0].etiqueta"></b> ya terminó y sigue abierto<span x-show="user.rol==='admin'">: verifíquelo y ciérrelo para archivarlo</span>.</span>
         <button class="btn btn-p btn-sm" @click="go('ejercicios')" x-text="user.rol==='admin' ? 'Ir a ejercicios fiscales' : 'Ver ejercicios'"></button></div></div>

@@ -1,6 +1,7 @@
     <!-- ============ BANDEJA ============ -->
     <section x-show="view==='bandeja'" class="mx-auto max-w-4xl space-y-4">
-      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas enviadas por los jefes de área, pendientes de revisión.</p></div>
+      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> enviadas por los jefes de área, pendientes de revisión.</p></div>
+      <div class="card border-sky-300 bg-sky-50" x-show="bandejaOtros.length"><div class="card-b space-y-2 text-sm text-sky-900"><template x-for="o in bandejaOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>También hay <b x-text="o.n"></b> carga(s) por aprobar del ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ver ese ejercicio</button></div></template></div></div>
       <template x-for="m in bandeja" :key="m.id">
         <div class="card fade-in">
           <div class="card-h">
@@ -18,5 +19,5 @@
           </div>
         </div>
       </template>
-      <div class="card p-10 text-center text-slate-500" x-show="!bandeja.length">✔ No hay cargas pendientes de revisión.</div>
+      <div class="card p-10 text-center text-slate-500" x-show="!bandeja.length">✔ No hay cargas pendientes de revisión en este ejercicio.</div>
     </section>

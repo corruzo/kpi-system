@@ -13,9 +13,11 @@ SIGT.modulos.carga = () => ({
           else { this.f.indicador_id = this.indicadoresCarga[0].id; await this.cambiarIndicador(); }
         },
       },
-      salida() { this.f = { indicador_id: '', periodo: '', valores: {}, analisis: '', plan_mejora: '', tocado: false }; this.periodosInd = []; },
+      ejercicio() { this.limpiarCarga(); },     // otro ejercicio: se descarta el indicador y período elegidos
+      salida() { this.limpiarCarga(); },
     },
 
+    limpiarCarga() { this.f = { indicador_id: '', periodo: '', valores: {}, analisis: '', plan_mejora: '', tocado: false }; this.periodosInd = []; this.calc = null; },
     get ind() { return this.indicadores.find(i => i.id === this.f.indicador_id); },
     get medActual() { return this.periodosInd.find(p => p.periodo === this.f.periodo)?.medicion || null; },
     get gruposPeriodos() {
@@ -26,16 +28,23 @@ SIGT.modulos.carga = () => ({
     get indicadoresCarga() { return this.indicadores.filter(i => i.activo); },
     pendientesTotal() { return this.indicadoresCarga.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
     listaPendientes() { return this.indicadoresCarga.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
+    // Pendientes que quedan en OTROS ejercicios: [{ejercicio, etiqueta, n}] (se avisan, no se mezclan con la lista)
+    get pendientesOtros() {
+      const t = {};
+      for (const i of this.indicadoresCarga) for (const o of i.pendientes_otros || []) (t[o.ejercicio] ||= { ejercicio: o.ejercicio, etiqueta: o.etiqueta, n: 0 }).n += o.n;
+      return Object.values(t).sort((a, b) => b.ejercicio - a.ejercicio);
+    },
+    irAEjercicio(anio) { this.ejSel = anio; return this.cambiarEjercicio(); },
     async elegirPendiente(p) { this.f.indicador_id = p.ind.id; await this.cambiarIndicador(p.periodo); },
     async cambiarIndicador(periodo) {
       this.calc = null; this.periodosInd = [];
       if (!this.f.indicador_id) return;
       await this.refrescarPeriodos();
-      this.f.periodo = periodo || this._sugerido || this.periodosInd[0].periodo;
+      this.f.periodo = periodo || this._sugerido || this.periodosInd[0]?.periodo || '';
       this.cambiarPeriodo();
     },
     async refrescarPeriodos() {
-      const r = await this.api(`/api/indicadores/${this.f.indicador_id}/periodos`);
+      const r = await this.api(`/api/indicadores/${this.f.indicador_id}/periodos?ejercicio=${this.ejSel}`);
       this.periodosInd = r.periodos; this._sugerido = r.sugerido;
     },
     cambiarPeriodo() {

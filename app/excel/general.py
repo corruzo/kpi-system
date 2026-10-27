@@ -155,6 +155,7 @@ def reporte_general(
         "Indicador",
         "Área",
         "Período",
+        "Ejercicio fiscal",
         "Frecuencia",
         "Resultado",
         "Meta",
@@ -171,7 +172,7 @@ def reporte_general(
         "Correcciones / plan de mejora",
         "Versión",
     ]
-    anchos = [10, 38, 20, 16, 12, 14, 12, 14, 12, 12, 13, 24, 17, 24, 17, 34, 44, 44, 9]
+    anchos = [10, 38, 20, 16, 12, 12, 14, 12, 14, 12, 12, 13, 24, 17, 24, 17, 34, 44, 44, 9]
     franja_titulo(ws, "Mediciones registradas", sub, len(cols))
     encabezado_tabla(ws, 4, cols, anchos)
     ordenadas = sorted(mediciones, key=lambda m: (m.indicador.codigo, m.periodo))
@@ -183,6 +184,7 @@ def reporte_general(
             i.nombre,
             i.area.nombre,
             calendario.etiqueta(i.frecuencia, m.periodo),
+            calendario.etiqueta_ejercicio(calendario.ejercicio_de(i.frecuencia, m.periodo)),
             i.frecuencia.capitalize(),
             m.resultado,
             m.meta,
@@ -203,21 +205,21 @@ def reporte_general(
             c = ws.cell(k, j, v)
             c.font = Font(name=FUENTE, size=10)
             c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 16, 17, 18))
+            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 17, 18, 19))
             if k % 2:
                 c.fill = relleno(ZEBRA)
-        for j in (6, 7, 8):
+        for j in (7, 8, 9):
             ws.cell(k, j).number_format = formato_numero(i.unidad, dec)
-        ws.cell(k, 6).font = Font(name=FUENTE, size=10, bold=True)
-        for j in (13, 15):
+        ws.cell(k, 7).font = Font(name=FUENTE, size=10, bold=True)
+        for j in (14, 16):
             ws.cell(k, j).number_format = "dd/mm/yyyy hh:mm"
         if m.meta_tope is None and m.limite_tope is None:
-            ws.cell(k, 10).value = formula_semaforo(f"F{k}", f"G{k}", f"H{k}", m.sentido == "mayor")
-            ws.cell(k, 10).alignment = Alignment(horizontal="center", vertical="center")
+            ws.cell(k, 11).value = formula_semaforo(f"G{k}", f"H{k}", f"I{k}", m.sentido == "mayor")
+            ws.cell(k, 11).alignment = Alignment(horizontal="center", vertical="center")
         else:                                   # con topes, la regla no cabe en una fórmula simple
-            celda_semaforo(ws.cell(k, 10), m.semaforo)
-        ws.cell(k, 10).border = BORDE
-    colorear_semaforo(ws, f"J5:J{max(5, 4 + len(ordenadas))}")
+            celda_semaforo(ws.cell(k, 11), m.semaforo)
+        ws.cell(k, 11).border = BORDE
+    colorear_semaforo(ws, f"K5:K{max(5, 4 + len(ordenadas))}")
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(ordenadas))}"
     configurar_impresion(ws, 4)
@@ -277,6 +279,7 @@ def reporte_general(
         "Indicador",
         "Área",
         "Período",
+        "Ejercicio fiscal",
         "Resultado",
         "Meta",
         "Semáforo",
@@ -286,7 +289,7 @@ def reporte_general(
         "Responsable de la carga",
     ]
     franja_titulo(ws, "Desviaciones y acciones correctivas (ISO 9001:2015, 9.1.3 y 10.2)", sub, len(cols))
-    encabezado_tabla(ws, 4, cols, [10, 36, 20, 16, 13, 12, 12, 13, 50, 50, 24])
+    encabezado_tabla(ws, 4, cols, [10, 36, 20, 16, 12, 13, 12, 12, 13, 50, 50, 24])
     desv = [m for m in ordenadas if m.semaforo != "verde"]
     for k, m in enumerate(sorted(desv, key=lambda m: (m.semaforo != "rojo", m.indicador.codigo, m.periodo)), 5):
         i = m.indicador
@@ -296,6 +299,7 @@ def reporte_general(
             i.nombre,
             i.area.nombre,
             calendario.etiqueta(i.frecuencia, m.periodo),
+            calendario.etiqueta_ejercicio(calendario.ejercicio_de(i.frecuencia, m.periodo)),
             m.resultado,
             m.meta,
             None,
@@ -308,10 +312,10 @@ def reporte_general(
             c = ws.cell(k, j, v)
             c.font = Font(name=FUENTE, size=10)
             c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 9, 10))
-        for j in (5, 6):
+            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 10, 11))
+        for j in (6, 7):
             ws.cell(k, j).number_format = formato_numero(i.unidad, dec)
-        celda_semaforo(ws.cell(k, 7), m.semaforo)
+        celda_semaforo(ws.cell(k, 8), m.semaforo)
     ws.freeze_panes = "C5"
     ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(desv))}"
     configurar_impresion(ws, 4)

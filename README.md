@@ -76,6 +76,16 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 ## Reportes en Excel
 `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (indicadores clave, cumplimiento por departamento y gráfico), *Mediciones*, *Tendencias* (matriz con semáforos), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) y *Fichas técnicas*. Filtros por año, área y estado; el jefe de área solo obtiene su área. Cada descarga queda en la bitácora. El administrador también puede descargar la bitácora (`/api/reportes/bitacora.xlsx`).
 
+## Un ejercicio fiscal a la vez
+
+El ejercicio elegido en la cabecera gobierna **todas** las pantallas de datos, de modo que nunca se mezcla un año con otro:
+
+- **Carga rápida:** solo ofrece los períodos de ese ejercicio (hasta el actual). Los pendientes de otros ejercicios se avisan aparte («Ir a ese ejercicio»).
+- **Bandeja y Historial:** muestran únicamente ese ejercicio; las cargas por aprobar de otros ejercicios se avisan con un botón, y el historial puede incluir «otros ejercicios» agrupados por año.
+- **Inicio, Panel, Fichas y Reportes:** usan el mismo ejercicio (los reportes lo traen preseleccionado y las hojas «Mediciones» y «Plan de mejora» llevan la columna «Ejercicio fiscal»).
+- Si se está viendo un ejercicio distinto al vigente, un aviso lo indica con el botón «Volver al ejercicio vigente».
+- API: `GET /api/indicadores?ejercicio=` y `GET /api/indicadores/{id}/periodos?ejercicio=` (por defecto, el vigente); cada medición informa su `ejercicio`. Cada módulo de la interfaz recarga lo suyo con el gancho `ejercicio()`.
+
 ## Formato de los Excel y reinicio de fábrica
 
 - Todos los libros pasan por `excel/comun.ajustar()`: filas y columnas se dimensionan según su contenido (texto largo, celdas combinadas, fórmula en varias líneas), el logo y los gráficos tienen espacio propio y `tests/api/test_excel_formato.py` comprueba que nada se superponga ni se recorte. Al agregar una hoja nueva, termínela con `ajustar(ws)`.

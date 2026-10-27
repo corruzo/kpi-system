@@ -58,7 +58,7 @@ SIGT.modulos.nucleo = () => ({
         historial: ver('historial', r === 'jefe' ? 'Mis cargas' : 'Todas las cargas', r === 'jefe' ? 'Historial' : 'Cargas'),
         reportes: ver('reportes', 'Reportes', 'Reportes'),
         panel: ver('panel', 'Panel de análisis', 'Panel'),
-        bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandeja.length),
+        bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaTotal.length),
         ejercicios: ver('ejercicios', 'Ejercicios fiscales', 'Ejercicios'),
         fichas: ver('fichas', 'Indicadores', 'Fichas'),
         org: ver('org', 'Organización', 'Equipo'),

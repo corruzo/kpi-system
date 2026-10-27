@@ -25,8 +25,20 @@ def estados_por_periodo(db: Session, indicador_id: int) -> dict[str, str]:
     return dict(db.execute(select(Medicion.periodo, Medicion.estado).where(Medicion.indicador_id == indicador_id)).all())
 
 
-def listar(db: Session, u: Usuario) -> list[tuple[Indicador, int, list[str]]]:
-    """(indicador, cargas registradas, períodos pendientes) de los indicadores visibles para el usuario."""
+def _dividir_pendientes(ind: Indicador, pendientes: list[str], ejercicio: int) -> tuple[list[str], dict[int, int]]:
+    """Separa los períodos pendientes del ejercicio mostrado de los de otros ejercicios ({ejercicio: cantidad})."""
+    aqui = [p for p in pendientes if calendario.ejercicio_de(ind.frecuencia, p) == ejercicio]
+    otros: dict[int, int] = {}
+    for p in pendientes:
+        anio = calendario.ejercicio_de(ind.frecuencia, p)
+        if anio != ejercicio:
+            otros[anio] = otros.get(anio, 0) + 1
+    return aqui, otros
+
+
+def listar(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
+    """(indicador, cargas registradas, pendientes del ejercicio, pendientes de otros ejercicios) de los indicadores
+    visibles para el usuario. Sin `ejercicio` se usa el vigente."""
     q = select(Indicador).order_by(Indicador.codigo)
     if u.rol == "jefe":
         q = q.where(Indicador.area_id == u.area_id)
@@ -34,19 +46,26 @@ def listar(db: Session, u: Usuario) -> list[tuple[Indicador, int, list[str]]]:
         q = q.where(Indicador.activo.is_(True))
     cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).group_by(Medicion.indicador_id)).all())
     hoy = date.today()
-    return [(i, cargas.get(i.id, 0),
-             calendario.periodos_pendientes(i.frecuencia, hoy, estados_por_periodo(db, i.id), i.creado_en.date()))
-            for i in db.scalars(q)]
+    anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
+    filas = []
+    for i in db.scalars(q):
+        pendientes = calendario.periodos_pendientes(i.frecuencia, hoy, estados_por_periodo(db, i.id), i.creado_en.date())
+        filas.append((i, cargas.get(i.id, 0), *_dividir_pendientes(i, pendientes, anio)))
+    return filas
 
 
-def periodos_de_carga(db: Session, u: Usuario, indicador_id: int) -> dict:
-    """Períodos ofrecidos al cargar un indicador, con su carga existente y si su ejercicio está cerrado."""
+def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int | None = None) -> dict:
+    """Períodos de UN ejercicio fiscal ofrecidos al cargar un indicador (sin `ejercicio`, el vigente), con su carga
+    existente y si el ejercicio está cerrado. Los pendientes de otros ejercicios se informan aparte."""
     ind = obtener_visible(db, u, indicador_id)
     hoy = date.today()
     medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id))}
-    pendientes = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
-    return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "cerrados": ejercicios.anios_cerrados(db),
-            "periodos": calendario.periodos_recientes(ind.frecuencia, hoy)}
+    anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
+    todos = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
+    pendientes, otros = _dividir_pendientes(ind, todos, anio)
+    periodos = calendario.periodos_hasta_hoy(ind.frecuencia, anio, hoy)
+    return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "pendientes_otros": otros, "ejercicio": anio,
+            "cerrados": ejercicios.anios_cerrados(db), "periodos": periodos}
 
 
 def contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):

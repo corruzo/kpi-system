@@ -1,7 +1,7 @@
     <!-- ============ HISTORIAL ============ -->
     <section x-show="view==='historial'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 class="text-2xl font-bold" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones.</p></div>
+        <div><h1 class="text-2xl font-bold" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones del ejercicio <b x-text="histTodos ? 'de todos los años' : ejActual.etiqueta"></b>.</p></div>
         <button class="btn btn-s" x-show="user.rol!=='jefe'" :disabled="busy" @click="descargarReporte()">Descargar Excel</button>
       </div>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -11,8 +11,11 @@
         <input class="inp" x-model="filtro2.periodo" @input.debounce.400ms="cargarHistorial()" placeholder="Período exacto (ej. 2026-09, 2026-Q3)" aria-label="Período">
         <select class="inp" x-show="user.rol!=='jefe'" x-model="filtro2.area_id" @change="cargarHistorial()" aria-label="Filtrar por área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
       </div>
+      <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" class="h-4 w-4 accent-slate-900" x-model="histTodos" @change="cargarHistorial()"> Incluir otros ejercicios fiscales (se agrupan por ejercicio)</label>
       <div class="space-y-3">
-        <template x-for="m in historial" :key="m.id">
+        <template x-for="(m, idx) in historial" :key="m.id">
+          <div class="space-y-3">
+          <div class="px-1 pt-2 font-serif text-lg" x-show="nuevoEjercicio(idx)" x-text="'Ejercicio ' + m.ejercicio_etiqueta"></div>
           <div class="card" x-data="{open:false}">
             <button class="flex w-full items-center gap-3 p-4 text-left" @click="open=!open" :aria-expanded="open">
               <span class="h-10 w-1.5 shrink-0 rounded-full" :class="semBg(m.semaforo)"></span>
@@ -33,6 +36,7 @@
                 <button class="btn btn-s whitespace-nowrap" :disabled="busy" @click="agregarNota(m)">Agregar nota</button>
               </div>
             </div>
+          </div>
           </div>
         </template>
         <div class="card p-8 text-center text-sm text-slate-500" x-show="!historial.length">No hay cargas que coincidan.</div>

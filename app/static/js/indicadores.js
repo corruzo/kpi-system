@@ -10,10 +10,12 @@ SIGT.modulos.indicadores = () => ({
     ganchos: {
       ingreso() { return this.cargarIndicadores(); },
       entrar: { fichas() { return this.cargarIndicadores(); } },
+      ejercicio() { return this.cargarIndicadores(); },
       salida() { this.indicadores = []; },
     },
 
-    async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores'); },
+    // Los pendientes de cada indicador corresponden al ejercicio elegido; los de otros ejercicios vienen aparte.
+    async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores' + (this.ejSel ? '?ejercicio=' + this.ejSel : '')); },
     get fichasFiltradas() {
       const q = this.fq.q.trim().toLowerCase();
       return this.indicadores.filter(i =>

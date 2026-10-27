@@ -1,4 +1,6 @@
 """Indicadores: fichas técnicas (consulta, alta, edición, baja), períodos de carga, ficha por ejercicio y fórmulas."""
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -14,8 +16,9 @@ solo_admin = requiere("admin")
 
 
 @router.get("/indicadores")
-def listar(db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u)]
+def listar(ejercicio: int | None = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Indicadores con sus períodos pendientes del ejercicio pedido (y cuántos quedan en otros ejercicios)."""
+    return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u, ejercicio)]
 
 
 @router.post("/indicadores", status_code=201)
@@ -35,16 +38,20 @@ def eliminar(indicador_id: int, db: Session = Depends(get_db), u: Usuario = Depe
 
 
 @router.get("/indicadores/{indicador_id}/periodos")
-def periodos(indicador_id: int, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    d = indicadores.periodos_de_carga(db, u, indicador_id)
+def periodos(indicador_id: int, ejercicio: int | None = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Períodos cargables de un ejercicio fiscal (por defecto el vigente), del más reciente al más antiguo."""
+    d = indicadores.periodos_de_carga(db, u, indicador_id, ejercicio)
     f = d["indicador"].frecuencia
-    return {"sugerido": d["pendientes"][0] if d["pendientes"] else None,
-            "periodos": [{"periodo": p, "etiqueta": calendario.etiqueta(f, p), "actual": orden == 0,
+    actual = calendario.periodo_actual(f, date.today())
+    return {"sugerido": d["pendientes"][0] if d["pendientes"] else None, "ejercicio": d["ejercicio"],
+            "pendientes_otros": [{"ejercicio": a, "etiqueta": calendario.etiqueta_ejercicio(a), "n": n}
+                                 for a, n in sorted(d["pendientes_otros"].items())],
+            "periodos": [{"periodo": p, "etiqueta": calendario.etiqueta(f, p), "actual": p == actual,
                           "pendiente": p in d["pendientes"], "corta": calendario.etiqueta_corta(f, p),
                           "ejercicio": calendario.etiqueta_ejercicio(calendario.ejercicio_de(f, p)),
                           "cerrado": calendario.ejercicio_de(f, p) in d["cerrados"],
                           "medicion": ser.medicion(d["medidas"][p]) if p in d["medidas"] else None}
-                         for orden, p in enumerate(d["periodos"])]}
+                         for p in d["periodos"]]}
 
 
 @router.get("/indicadores/{indicador_id}/ficha")

@@ -10,6 +10,8 @@
 
       <template x-if="indicadoresCarga.length">
       <div class="space-y-4">
+        <div class="card border-sky-300 bg-sky-50" x-show="pendientesOtros.length" x-transition>
+          <div class="card-b space-y-2 text-sm text-sky-900"><template x-for="o in pendientesOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>Además tiene <b x-text="o.n"></b> período(s) pendiente(s) en el ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ir a ese ejercicio</button></div></template></div></div>
         <div class="card border-amber-300 bg-amber-50" x-show="pendientesTotal()" x-transition>
           <div class="card-b">
             <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-900">Pendientes de carga</div>
@@ -33,6 +35,7 @@
             </div>
             <div>
               <label class="lbl" for="sel-per">Período</label>
+              <p class="mb-1.5 text-xs text-slate-500">Períodos del ejercicio <b x-text="ejActual.etiqueta"></b> (cambie de ejercicio en la parte superior).</p>
               <select id="sel-per" class="inp" x-model="f.periodo" @change="cambiarPeriodo()" :disabled="!periodosInd.length">
                 <template x-for="g in gruposPeriodos" :key="g.etiqueta"><optgroup :label="'Ejercicio ' + g.etiqueta"><template x-for="p in g.periodos" :key="p.periodo"><option :value="p.periodo" :selected="p.periodo===f.periodo" x-text="p.etiqueta + (p.actual ? ' (en curso)' : '') + (p.cerrado ? ' — ejercicio cerrado' : estadoSufijo(p))"></option></template></optgroup></template>
               </select>

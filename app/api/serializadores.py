@@ -37,9 +37,10 @@ def indicador(i: Indicador) -> dict:
             "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
 
 
-def indicador_con_pendientes(i: Indicador, cargas: int, pendientes: list[str]) -> dict:
+def indicador_con_pendientes(i: Indicador, cargas: int, pendientes: list[str], otros: dict[int, int]) -> dict:
     return {**indicador(i), "n_mediciones": cargas,
-            "pendientes": [{"periodo": p, "etiqueta": calendario.etiqueta(i.frecuencia, p)} for p in pendientes]}
+            "pendientes": [{"periodo": p, "etiqueta": calendario.etiqueta(i.frecuencia, p)} for p in pendientes],
+            "pendientes_otros": [{"ejercicio": a, "etiqueta": calendario.etiqueta_ejercicio(a), "n": n} for a, n in sorted(otros.items())]}
 
 
 def medicion(m: Medicion) -> dict:
@@ -47,6 +48,8 @@ def medicion(m: Medicion) -> dict:
     return {"id": m.id, "indicador_id": i.id, "codigo": i.codigo, "indicador": i.nombre, "area": i.area.nombre,
             "area_id": i.area_id, "unidad": i.unidad, "frecuencia": i.frecuencia, "variables": i.variables,
             "periodo": m.periodo, "periodo_etiqueta": calendario.etiqueta(i.frecuencia, m.periodo),
+            "ejercicio": (anio := m.ejercicio or calendario.ejercicio_de(i.frecuencia, m.periodo)),
+            "ejercicio_etiqueta": calendario.etiqueta_ejercicio(anio),
             "valores": m.valores, "resultado": m.resultado, "decimales": m.precision, "formula": m.formula_aplicada,
             "constantes": m.constantes_aplicadas, "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite,
             "meta_tope": m.meta_tope, "limite_tope": m.limite_tope, "sentido": m.sentido, "estado": m.estado,

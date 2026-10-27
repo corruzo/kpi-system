@@ -2,17 +2,18 @@
 SIGT.modulos.revision = () => ({
     historial: [], filtro: { indicador_id: '', estado: '' }, filtro2: { semaforo: '', periodo: '', area_id: '' },
     histMas: false, notasHist: {}, reabrirNota: {},
-    bandeja: [], notas: {},
+    bandejaTotal: [], notas: {}, histTodos: false,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
       async ingreso() { if (['gerente', 'admin'].includes(this.user.rol)) await this.cargarBandeja(); },
+      ejercicio() { this.filtro2.periodo = ''; },
       entrar: { historial() { return this.cargarHistorial(); }, bandeja() { return this.cargarBandeja(); } },
     },
 
     async cargarHistorial(reset = true) {
       const q = new URLSearchParams({ limite: 50, desde: reset ? 0 : this.historial.length });
-      if (this.ejSel) q.set('ejercicio', this.ejSel);
+      if (this.ejSel && !this.histTodos) q.set('ejercicio', this.ejSel);     // por defecto, solo el ejercicio elegido
       for (const [k, v] of Object.entries({ ...this.filtro, ...this.filtro2 })) if (v) q.set(k, v);
       const r = await this.api('/api/mediciones?' + q);
       this.historial = reset ? r : [...this.historial, ...r]; this.histMas = r.length === 50;
@@ -42,7 +43,17 @@ SIGT.modulos.revision = () => ({
       try { await this.api(`/api/mediciones/${m.id}/reabrir`, { method: 'POST', body: { accion: 'observar', nota } }); this.avisar('Carga devuelta al jefe de área.'); await this.cargarHistorial(); } catch { }
       this.busy = false;
     },
-    async cargarBandeja() { this.bandeja = await this.api('/api/mediciones?estado=enviado'); },
+    // La bandeja trae todas las cargas por aprobar (ninguna se pierde), pero se muestran las del ejercicio elegido;
+    // las de otros ejercicios se avisan aparte.
+    async cargarBandeja() { this.bandejaTotal = await this.api('/api/mediciones?estado=enviado'); },
+    get bandeja() { return this.bandejaTotal.filter(m => m.ejercicio === this.ejSel); },
+    get bandejaOtros() {
+      const t = {};
+      for (const m of this.bandejaTotal) if (m.ejercicio !== this.ejSel) (t[m.ejercicio] ||= { ejercicio: m.ejercicio, etiqueta: m.ejercicio_etiqueta, n: 0 }).n++;
+      return Object.values(t).sort((a, b) => b.ejercicio - a.ejercicio);
+    },
+    // Separador cuando el historial mezcla ejercicios («todos los ejercicios»): marca dónde empieza cada uno
+    nuevoEjercicio(i) { return this.histTodos && (i === 0 || this.historial[i].ejercicio !== this.historial[i - 1].ejercicio); },
     async revisar(m, accion) {
       const nota = (this.notas[m.id] || '').trim();
       if (accion === 'observar' && nota.length < 5) { this.avisar('Indique el motivo de la devolución.', true); return; }

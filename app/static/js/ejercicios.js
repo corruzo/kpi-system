@@ -1,6 +1,6 @@
 /* Ejercicios fiscales: selector global, listado, verificación, cierre y reapertura. */
 SIGT.modulos.ejercicios = () => ({
-    ejLista: [], ejSel: null, ejVista: [],
+    ejLista: [], ejSel: null, ejVigente: null, ejVista: [],
     cierre: { abierto: false, e: null, v: null, nota: '', aceptar: false },
     reap: { abierto: false, e: null, nota: '' },
 
@@ -19,11 +19,18 @@ SIGT.modulos.ejercicios = () => ({
     get ejActual() { return this.ejLista.find(e => e.anio === this.ejSel) || {}; },
     estadoEj: e => ({ vigente: 'Vigente', terminado: 'Terminado · por cerrar', cerrado: 'Cerrado', futuro: 'Próximo' }[e] || e),
     claseEj: e => ({ vigente: 'border-green-300 bg-green-50 text-green-800', terminado: 'border-amber-300 bg-amber-50 text-amber-800', cerrado: 'border-slate-300 bg-slate-100 text-slate-700', futuro: 'border-sky-300 bg-sky-50 text-sky-800' }[e] || ''),
+    // El ejercicio elegido gobierna TODAS las pantallas de datos: cada módulo recarga lo suyo (gancho «ejercicio»)
+    // y se vuelve a abrir la vista actual, de modo que nunca quede información de otro ejercicio en pantalla.
     async cambiarEjercicio() {
       try { localStorage.setItem('sigt_ej', String(this.ejSel)); } catch { }
-      if (['panel', 'historial', 'reportes'].includes(this.view)) await this.go(this.view);
+      for (const recargar of this.ganchos.ejercicio) await recargar.call(this);
+      if (this.view === 'ficha') { this.fv.ejercicio = this.ejSel; await this.cargarFicha(); }
+      else if (!['ejercicios', 'org', 'importar', 'bitacora'].includes(this.view)) await this.go(this.view);
       this.avisar('Ejercicio ' + this.ejActual.etiqueta + (this.ejActual.estado === 'cerrado' ? ' (cerrado, solo lectura)' : ''));
     },
+    volverAlVigente() { this.ejSel = this.ejVigente; return this.cambiarEjercicio(); },
+    // ¿La pantalla muestra datos de un ejercicio distinto al vigente? (para el aviso de contexto)
+    get viendoOtroEjercicio() { return this.ejVigente && this.ejSel !== this.ejVigente && !['ejercicios', 'org', 'importar', 'bitacora', 'fichas'].includes(this.view); },
     async cargarEjerciciosVista() { const r = await this.api('/api/ejercicios?detalle=1'); this.ejVista = r.ejercicios; this.ejLista = r.ejercicios; },
     get ejTerminados() { return this.ejLista.filter(e => e.estado === 'terminado'); },
     get anchoAmplio() { return window.innerWidth >= 640; },
@@ -42,7 +49,7 @@ SIGT.modulos.ejercicios = () => ({
       try { await this.api(`/api/ejercicios/${this.reap.e.anio}/reabrir`, { method: 'POST', body: { nota: this.reap.nota } }); this.reap.abierto = false; this.avisar('Ejercicio reabierto.'); await this.cargarEjerciciosVista(); } catch { }
       this.busy = false;
     },
-    verEjercicio(e) { this.ejSel = e.anio; try { localStorage.setItem('sigt_ej', String(e.anio)); } catch { } return this.go('panel'); },
+    async verEjercicio(e) { this.ejSel = e.anio; await this.cambiarEjercicio(); return this.go('panel'); },
     descargarEjercicio(e) { return this.descargar('/api/reportes/general.xlsx?anio=' + e.anio, `reporte_${e.etiqueta}.xlsx`); },
     descargarFichasEjercicio(e) { return this.descargar('/api/reportes/fichas.xlsx?ejercicio=' + e.anio, `fichas_${e.etiqueta}.xlsx`); },
 });

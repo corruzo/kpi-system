@@ -137,14 +137,21 @@ def periodos_del_ejercicio(f: str, y: int) -> list[str]:
     return [codigo(f, suma_meses(ini, i * k)) for i in range(12 // k)]
 
 
-def periodos_pendientes(f: str, hoy: date, estados: dict[str, str], desde: date | None = None) -> list[str]:
+def periodos_hasta_hoy(f: str, anio: int, hoy: date) -> list[str]:
+    """Períodos del ejercicio que ya empezaron (el más reciente primero): los únicos que tiene sentido cargar."""
+    return [p for p in reversed(periodos_del_ejercicio(f, anio)) if not es_futuro(f, p, hoy)]
+
+
+def periodos_pendientes(f: str, hoy: date, estados: dict[str, str], desde: date | None = None,
+                        ejercicio: int | None = None) -> list[str]:
     """Períodos cerrados sin carga (o devueltos), del más antiguo al más reciente.
 
     `desde`: fecha de creación del indicador; lo que terminó antes de existir el indicador no se le debe
-    (aunque puede cargarse como histórico)."""
+    (aunque puede cargarse como histórico). `ejercicio`: limita el resultado a un ejercicio fiscal."""
     ventana = periodos_cerrados(f, hoy, VENTANA_PENDIENTE[f]) if VENTANA_PENDIENTE[f] else []
     return [p for p in reversed(ventana)
-            if estados.get(p) == "observado" or (p not in estados and (desde is None or rango(f, p)[1] >= desde))]
+            if (ejercicio is None or ejercicio_de(f, p) == ejercicio)
+            and (estados.get(p) == "observado" or (p not in estados and (desde is None or rango(f, p)[1] >= desde)))]
 
 
 def es_futuro(f: str, p: str, hoy: date) -> bool:

@@ -4,6 +4,8 @@ SIGT.modulos.reportes = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
+      ejercicio() { this.rep.anio = this.ejSel || ''; },
+      ingreso() { this.rep.anio = this.ejSel || ''; },
       entrar: { async reportes() { if (this.user.rol !== 'jefe' && !this.areas.length) await this.cargarAreas(); } },
     },
 

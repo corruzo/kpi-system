@@ -79,5 +79,10 @@ def escenario(client):
 
 
 def periodo_actual(c, indicador_id: int, posicion: int = 0) -> str:
-    """Código de un período cargable: 0 = el actual, 1 = el anterior…"""
-    return c.get(f"/api/indicadores/{indicador_id}/periodos").json()["periodos"][posicion]["periodo"]
+    """Código de un período cargable del ejercicio vigente (0 = el actual, 1 = el anterior…) o, si no alcanza, de uno anterior."""
+    from datetime import date
+
+    from app.dominio import calendario
+    frecuencia = c.get("/api/indicadores").json()
+    frecuencia = next(i["frecuencia"] for i in frecuencia if i["id"] == indicador_id)
+    return calendario.periodos_recientes(frecuencia, date.today(), posicion + 1)[posicion]
