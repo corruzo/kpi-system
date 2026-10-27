@@ -94,3 +94,10 @@ def test_la_migracion_3_cifra_la_clave_de_reportes_existente_y_se_puede_revertir
         "command.upgrade(cfg, 'head'); v = leer(); print(v.startswith('fernet:'), 'texto-plano' in v, cifrado.descifrar(v)); "
         "command.downgrade(cfg, '0002'); print(leer())"))
     assert salida.splitlines() == ["True False texto-plano-123", "texto-plano-123"]
+
+
+def test_en_vercel_migra_solo_salvo_que_se_desactive(tmp_path):
+    codigo = "from app.servicios.arranque import preparar_base; preparar_base(); print('listo')"
+    assert correr_ok(tmp_path, codigo, SIGT_ENV="production", VERCEL="1") == "listo"
+    r = correr(tmp_path / "otra", codigo, SIGT_ENV="production", VERCEL="1", SIGT_AUTO_MIGRATE="0") if (tmp_path / "otra").mkdir() is None else None
+    assert r.returncode != 0 and "alembic upgrade head" in r.stderr

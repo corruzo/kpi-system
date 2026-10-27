@@ -22,9 +22,11 @@ _iniciado = False
 
 # ---------------------------------------------------------------- base de datos
 def migrar_automaticamente() -> bool:
-    """¿Debe este proceso aplicar las migraciones al arrancar? Sí en desarrollo; en producción solo con SIGT_AUTO_MIGRATE=1
-    (lo normal es migrar en el despliegue y que la aplicación únicamente verifique)."""
-    return os.getenv("SIGT_AUTO_MIGRATE", "0" if PRODUCCION else "1") == "1"
+    """¿Debe este proceso aplicar las migraciones al arrancar? Sí en desarrollo y en Vercel (no tiene paso de despliegue donde
+    migrar); en el resto de producción solo con SIGT_AUTO_MIGRATE=1 (lo normal es migrar en el despliegue y que la
+    aplicación únicamente verifique). SIGT_AUTO_MIGRATE=0 lo desactiva siempre."""
+    por_defecto = "1" if (not PRODUCCION or os.getenv("VERCEL")) else "0"
+    return os.getenv("SIGT_AUTO_MIGRATE", por_defecto) == "1"
 
 
 def preparar_base() -> None:
