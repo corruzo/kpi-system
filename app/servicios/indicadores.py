@@ -35,7 +35,7 @@ def listar(db: Session, u: Usuario) -> list[tuple[Indicador, int, list[str]]]:
     cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).group_by(Medicion.indicador_id)).all())
     hoy = date.today()
     return [(i, cargas.get(i.id, 0),
-             calendario.periodos_pendientes(i.frecuencia, hoy, estados_por_periodo(db, i.id)))
+             calendario.periodos_pendientes(i.frecuencia, hoy, estados_por_periodo(db, i.id), i.creado_en.date()))
             for i in db.scalars(q)]
 
 
@@ -44,7 +44,7 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int) -> dict:
     ind = obtener_visible(db, u, indicador_id)
     hoy = date.today()
     medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id))}
-    pendientes = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()})
+    pendientes = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
     return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "cerrados": ejercicios.anios_cerrados(db),
             "periodos": calendario.periodos_recientes(ind.frecuencia, hoy)}
 

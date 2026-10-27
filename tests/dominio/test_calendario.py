@@ -66,3 +66,10 @@ def test_validacion_de_codigos(ejercicio_octubre):
 def test_con_inicio_en_enero_coincide_con_el_ano_natural(ejercicio_anual_natural):
     assert calendario.codigo("semestral", date(2026, 3, 1)) == "2026-S1"
     assert calendario.etiqueta_ejercicio(2026) == "2026"
+
+
+def test_un_indicador_nuevo_no_debe_periodos_anteriores_a_su_creacion(ejercicio_octubre):
+    hoy = date(2026, 10, 26)
+    assert calendario.periodos_pendientes("mensual", hoy, {}, desde=hoy) == []                       # creado hoy: nada debido
+    assert calendario.periodos_pendientes("mensual", hoy, {}, desde=date(2026, 8, 15)) == ["2026-08", "2026-09"]
+    assert calendario.periodos_pendientes("mensual", hoy, {"2026-07": "observado"}, desde=hoy) == ["2026-07"]   # lo devuelto sigue pendiente

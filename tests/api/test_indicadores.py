@@ -66,3 +66,9 @@ def test_eliminar_un_indicador_con_cargas_lo_archiva(client, escenario):
                                          "valores": {"dias": 2, "tickets": 1}})
     entrar(client, "admin", "clave-admin-123")
     assert client.delete(f"/api/indicadores/{ind['id']}").json()["archivado"] is True
+
+
+def test_un_indicador_recien_creado_no_tiene_meses_pendientes(client, escenario):
+    entrar(client, escenario["jefe"])
+    ind = next(i for i in client.get("/api/indicadores").json() if i["id"] == escenario["indicador"]["id"])
+    assert ind["pendientes"] == []
