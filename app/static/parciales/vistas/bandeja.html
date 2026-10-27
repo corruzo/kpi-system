@@ -1,17 +1,17 @@
     <!-- ============ BANDEJA ============ -->
     <section x-show="view==='bandeja'" class="mx-auto max-w-4xl space-y-4">
       <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> enviadas por los jefes de área, pendientes de revisión.</p></div>
-      <div class="card border-sky-300 bg-sky-50" x-show="bandejaOtros.length"><div class="card-b space-y-2 text-sm text-sky-900"><template x-for="o in bandejaOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>También hay <b x-text="o.n"></b> carga(s) por aprobar del ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ver ese ejercicio</button></div></template></div></div>
+      <div class="card border-brand/30 bg-brand-light" x-show="bandejaOtros.length"><div class="card-b space-y-2 text-sm text-cobalt"><template x-for="o in bandejaOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>También hay <b x-text="o.n"></b> carga(s) por aprobar del ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ver ese ejercicio</button></div></template></div></div>
       <template x-for="m in bandeja" :key="m.id">
         <div class="card fade-in">
           <div class="card-h">
             <div class="min-w-0"><div class="text-xs text-slate-500" x-text="m.area + ' · ' + m.periodo_etiqueta + (m.version>1 ? ' · reenvío v'+m.version : '')"></div><div class="truncate font-semibold" x-text="m.codigo + ' · ' + m.indicador"></div></div>
-            <div class="flex shrink-0 items-center gap-2"><span class="font-serif text-2xl font-medium" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip !border-transparent !text-white" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span></div>
+            <div class="flex shrink-0 items-center gap-2"><span class="text-2xl font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip !border-transparent !text-white" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span></div>
           </div>
           <div class="card-b space-y-4">
             <div x-html="detalleHtml(m)"></div>
             <div><label class="lbl">Nota de auditoría / motivo de devolución</label><textarea class="inp" rows="2" x-model="notas[m.id]" placeholder="Opcional al aprobar; obligatoria al devolver"></textarea></div>
-            <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="m.cargado_por_id===user.id">Carga realizada por usted: por segregación de funciones debe revisarla otra persona.</p>
+            <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="m.cargado_por_id===user.id">Carga realizada por usted: por segregación de funciones debe revisarla otra persona.</p>
             <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button class="btn btn-d" :disabled="busy || m.cargado_por_id===user.id" @click="revisar(m,'observar')">Devolver con observación</button>
               <button class="btn btn-p" :disabled="busy || m.cargado_por_id===user.id" @click="revisar(m,'aprobar')">Aprobar formalmente</button>

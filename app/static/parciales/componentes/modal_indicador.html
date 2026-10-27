@@ -4,7 +4,7 @@
       <div class="card-h"><div><h2 class="text-lg font-bold" x-text="ficha.id ? 'Editar indicador' : 'Nuevo indicador'"></h2><p class="text-xs text-slate-500">Toque <span class="info !h-4 !w-4 !text-[10px]">i</span> junto a cada campo para ver su explicación.</p></div>
         <div class="flex gap-2"><button type="button" class="btn btn-s btn-sm" @click="verGuiaFormulas=true">Guía de fórmulas</button><button type="button" class="btn btn-s btn-sm" @click="modal=false" aria-label="Cerrar">✕</button></div></div>
       <div class="card-b space-y-4 overflow-y-auto">
-        <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="fichaBloqueada">Este indicador tiene <b x-text="ficha.n_mediciones"></b> carga(s). Por trazabilidad no se puede cambiar la frecuencia ni las claves de variables y constantes; sí la meta, la fórmula y los textos (quedan en la bitácora y no alteran el histórico).</p>
+        <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="fichaBloqueada">Este indicador tiene <b x-text="ficha.n_mediciones"></b> carga(s). Por trazabilidad no se puede cambiar la frecuencia ni las claves de variables y constantes; sí la meta, la fórmula y los textos (quedan en la bitácora y no alteran el histórico).</p>
 
         <section class="sec"><header class="sec-h"><span class="sec-n">1</span><div><h3 class="font-semibold">Identificación</h3><p class="text-xs text-slate-500">Cómo se llama y quién lo gestiona.</p></div></header>
           <div class="space-y-3 p-4">
@@ -49,14 +49,14 @@
 
         <section class="sec"><header class="sec-h"><span class="sec-n">5</span><div><h3 class="font-semibold">Variables (datos que digita el jefe)</h3><p class="text-xs text-slate-500">Mantenga pocas: menos campos, menos errores.</p></div><button type="button" class="info ml-auto" @click="toggleAyuda('variables')" aria-label="Ayuda: Variables">i</button></header>
           <div class="space-y-2 p-4"><div class="ayuda" x-show="ay==='variables'" x-html="ayudaHtml('variables')" x-transition></div>
-            <template x-for="(v,idx) in ficha.variables" :key="idx"><div class="rounded-xl border border-slate-200 p-2">
+            <template x-for="(v,idx) in ficha.variables" :key="idx"><div class="rounded-lg border border-slate-200 p-2">
               <div class="grid grid-cols-[1fr_auto] gap-2">
                 <input class="inp" x-model="v.etiqueta" @input="autoClave(v)" placeholder="Etiqueta visible (ej. Solicitudes gestionadas)" aria-label="Etiqueta" required>
                 <div class="flex gap-1"><button type="button" class="btn btn-s !px-2" @click="mover(idx,-1)" :disabled="idx===0" aria-label="Subir">↑</button><button type="button" class="btn btn-s !px-2" @click="mover(idx,1)" :disabled="idx===ficha.variables.length-1" aria-label="Bajar">↓</button>
                   <button type="button" class="btn btn-s !px-2" @click="ficha.variables.splice(idx,1); validarFormula()" :disabled="fichaBloqueada || ficha.variables.length<2" aria-label="Quitar">✕</button></div></div>
               <div class="mt-2 flex items-center gap-2"><span class="text-xs text-slate-500">clave</span><input class="inp !min-h-[36px] font-mono !text-sm" x-model="v.clave" @input="v._manual=true; validarFormula()" :disabled="fichaBloqueada" pattern="[a-z][a-z0-9_]*" aria-label="Clave" required>
                 <button type="button" class="btn btn-s btn-sm whitespace-nowrap" @click="v._op=!v._op" x-text="v._op ? 'Ocultar' : 'Opciones'"></button></div>
-              <div class="mt-2 space-y-2 rounded-xl bg-slate-50 p-2" x-show="v._op" x-transition>
+              <div class="mt-2 space-y-2 rounded-lg bg-slate-50 p-2" x-show="v._op" x-transition>
                 <input class="inp" x-model="v.ayuda" maxlength="300" placeholder="Texto de ayuda para quien carga (ej. «Sin incluir devoluciones»)">
                 <input class="inp" x-model="v.unidad" maxlength="12" placeholder="Unidad que se muestra junto al campo (ej. TM, h, USD)">
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="h-5 w-5" x-model="v.opcional"> Opcional (si queda vacío se usa un valor por defecto)</label>
@@ -83,11 +83,11 @@
               <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Variables</span><template x-for="v in ficha.variables.filter(v=>v.clave)"><button type="button" class="rounded border border-slate-300 px-2 py-1 font-mono text-xs hover:bg-slate-100" @click="insertar(v.clave)" x-text="v.clave"></button></template>
                 <template x-for="c in (ficha.constantes||[]).filter(c=>c.clave)"><button type="button" class="rounded border border-violet-300 bg-violet-50 px-2 py-1 font-mono text-xs hover:bg-violet-100" @click="insertar(c.clave)" x-text="c.clave"></button></template></div>
               <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Operadores</span><template x-for="o in ['+','−','×','÷','^','(',')','>','<','>=','<=','==','!=','and','or']"><button type="button" class="min-w-[2rem] rounded border border-slate-300 px-2 py-1 font-mono text-xs hover:bg-slate-100" @click="insertar(o==='−'?'-':o==='×'?'*':o==='÷'?'/':o)" x-text="o"></button></template></div>
-              <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Funciones</span><template x-for="f in ['si','div','pct','min','max','sum','avg','abs','round','sqrt','clamp']"><button type="button" class="rounded border border-sky-300 bg-sky-50 px-2 py-1 font-mono text-xs hover:bg-sky-100" @click="insertar(f+'()',1)" x-text="f+'( )'"></button></template></div>
+              <div class="flex flex-wrap gap-1"><span class="self-center pr-1 text-xs text-slate-500">Funciones</span><template x-for="f in ['si','div','pct','min','max','sum','avg','abs','round','sqrt','clamp']"><button type="button" class="rounded border border-brand/30 bg-brand-light px-2 py-1 font-mono text-xs hover:bg-brand-light" @click="insertar(f+'()',1)" x-text="f+'( )'"></button></template></div>
             </div>
             <p class="text-xs" :class="!formulaMsg.ok ? 'text-red-600' : formulaMsg.aviso ? 'text-amber-700' : 'text-green-700'" x-text="formulaMsg.txt"></p>
-            <p class="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600" x-show="ficha.formula && formulaMsg.ok"><b>Se lee:</b> <span x-text="formulaLegible({formula: ficha.formula, variables: ficha.variables.filter(v=>v.clave), constantes: (ficha.constantes||[]).filter(c=>c.clave)})"></span></p>
-            <div class="rounded-xl border border-dashed border-slate-300 p-3" x-show="ficha.formula && formulaMsg.ok">
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" x-show="ficha.formula && formulaMsg.ok"><b>Se lee:</b> <span x-text="formulaLegible({formula: ficha.formula, variables: ficha.variables.filter(v=>v.clave), constantes: (ficha.constantes||[]).filter(c=>c.clave)})"></span></p>
+            <div class="rounded-lg border border-dashed border-slate-300 p-3" x-show="ficha.formula && formulaMsg.ok">
               <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Probar con valores de ejemplo</div>
               <div class="grid grid-cols-1 gap-2 sm:grid-cols-2"><template x-for="v in ficha.variables.filter(v=>v.clave)" :key="v.clave"><div><label class="text-xs text-slate-600" x-text="(v.etiqueta || v.clave) + (v.opcional ? ' (opcional)' : '')"></label><input class="inp" type="number" step="any" inputmode="decimal" x-model="prueba.valores[v.clave]" @input.debounce.250ms="probar()"></div></template></div>
               <div class="mt-3" x-show="prueba.res">

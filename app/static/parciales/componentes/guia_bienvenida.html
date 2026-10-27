@@ -5,7 +5,7 @@
     <div class="pointer-events-none absolute rounded-2xl transition-all duration-300" x-show="tour.hole" :style="tour.hole ? `top:${tour.hole.top}px;left:${tour.hole.left}px;width:${tour.hole.w}px;height:${tour.hole.h}px;box-shadow:0 0 0 3px rgba(255,255,255,.95),0 0 0 9999px rgba(20,20,19,.55)` : ''"></div>
     <div x-ref="tourpop" class="absolute rounded-3xl border border-slate-200 bg-white p-5 shadow-float transition-all duration-300" :style="`top:${tour.pop.top}px;left:${tour.pop.left}px;width:${tour.pop.w}px`" role="dialog" aria-live="polite" aria-label="Guía de uso">
       <div class="flex items-center justify-between text-xs text-slate-500"><span x-text="'Paso ' + (tour.i + 1) + ' de ' + tour.pasos.length"></span><button class="rounded-full px-3 py-1.5 font-medium hover:bg-slate-100" @click="terminarTour()">Omitir guía</button></div>
-      <h3 class="mt-2 font-serif text-xl font-medium" x-text="pasoTourActual.t"></h3>
+      <h3 class="mt-2 text-xl font-bold" x-text="pasoTourActual.t"></h3>
       <p class="mt-1.5 text-sm leading-relaxed text-slate-600" x-text="pasoTourActual.d"></p>
       <div class="mt-4 flex items-center justify-between gap-2">
         <div class="flex gap-1"><template x-for="(p,k) in tour.pasos" :key="k"><span class="h-1.5 rounded-full transition-all" :class="k===tour.i ? 'w-5 bg-slate-900' : 'w-1.5 bg-slate-300'"></span></template></div>

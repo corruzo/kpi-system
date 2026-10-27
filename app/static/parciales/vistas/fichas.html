@@ -4,9 +4,9 @@
         <div><h1 class="page-title">Fichas técnicas</h1><p class="text-sm text-slate-600">Configuración de indicadores, fórmulas y semáforos.</p></div>
         <button data-tour="fichas-nuevo" class="btn btn-p w-full sm:w-auto" @click="nuevaFicha()" :disabled="!areas.length">+ Nuevo indicador</button>
       </div>
-      <template x-if="!setup().completo"><div class="card border-sky-300 bg-sky-50"><div class="card-b space-y-2">
-        <div class="font-semibold text-sky-900">Configuración inicial</div>
-        <template x-for="p in setup().pasos" :key="p.t"><button class="flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-left text-sm" @click="go(p.v)"><span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white" :class="p.ok ? 'bg-green-600' : 'bg-slate-400'" x-text="p.ok ? '✓' : p.n"></span><span class="flex-1" x-text="p.t"></span><span class="text-brand">Ir →</span></button></template>
+      <template x-if="!setup().completo"><div class="card border-brand/30 bg-brand-light"><div class="card-b space-y-2">
+        <div class="font-semibold text-cobalt">Configuración inicial</div>
+        <template x-for="p in setup().pasos" :key="p.t"><button class="flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2.5 text-left text-sm" @click="go(p.v)"><span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white" :class="p.ok ? 'bg-green-600' : 'bg-slate-400'" x-text="p.ok ? '✓' : p.n"></span><span class="flex-1" x-text="p.t"></span><span class="text-brand">Ir →</span></button></template>
       </div></div></template>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4" x-show="indicadores.length">
         <input class="inp lg:col-span-1" type="search" x-model="fq.q" placeholder="Buscar código, nombre o área" aria-label="Buscar">

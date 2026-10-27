@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf9f5">
+  <meta name="theme-color" content="#f8f9fb">
   <title>SGC • TRIPOLIVEN</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f172a'/><path d='M7 22V10m6 12V14m6 8V8m6 14V12' stroke='%2338bdf8' stroke-width='3' stroke-linecap='round'/></svg>">
   <link rel="stylesheet" href="/static/tailwind.css">
@@ -37,7 +37,7 @@
 <body x-data="sigt()" x-init="init()" x-cloak class="min-h-screen">
 
 <div class="fixed inset-x-4 top-4 z-[60] mx-auto max-w-sm" x-show="toast.msg" x-transition role="status">
-  <div class="rounded-full px-5 py-3 text-center text-sm font-medium text-white shadow-float" :class="toast.error ? 'bg-red-600' : 'bg-slate-900'" x-text="toast.msg"></div>
+  <div class="rounded-lg px-5 py-3 text-center text-sm font-semibold text-white shadow-float" :class="toast.error ? 'bg-red-600' : 'bg-slate-900'" x-text="toast.msg"></div>
 </div>
 
 <!-- ===================== INGRESO ===================== -->

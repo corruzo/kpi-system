@@ -10,7 +10,7 @@
         <div class="card overflow-hidden" data-tour="panel-resumen">
           <div class="card-b flex flex-wrap items-center gap-x-8 gap-y-4">
             <div class="min-w-[12rem] flex-1">
-              <div class="flex flex-wrap items-center gap-2"><h2 class="font-serif text-2xl font-medium" x-text="'Ejercicio ' + dash.ejercicio.etiqueta"></h2><span class="chip" :class="claseEj(dash.ejercicio.estado)" x-text="estadoEj(dash.ejercicio.estado)"></span></div>
+              <div class="flex flex-wrap items-center gap-2"><h2 class="text-2xl font-bold" x-text="'Ejercicio ' + dash.ejercicio.etiqueta"></h2><span class="chip" :class="claseEj(dash.ejercicio.estado)" x-text="estadoEj(dash.ejercicio.estado)"></span></div>
               <p class="mt-0.5 text-sm text-slate-500" x-text="fechaCorta(dash.ejercicio.desde) + ' – ' + fechaCorta(dash.ejercicio.hasta)"></p>
               <p class="mt-1 text-xs text-amber-800" x-show="dash.ejercicio.estado==='cerrado'">🔒 Cerrado por <span x-text="dash.ejercicio.cerrado_por"></span> · solo lectura</p>
               <p class="mt-1 text-xs text-amber-800" x-show="dash.ejercicio.estado==='terminado'">Terminó y aún no se ha cerrado.</p>
@@ -18,8 +18,8 @@
             <div class="w-full min-w-[14rem] flex-1 sm:w-auto"><div class="mb-1.5 flex justify-between text-xs text-slate-500"><span>Avance del ejercicio</span><b class="text-slate-800" x-text="Math.round(dash.ejercicio.avance*100) + '%'"></b></div>
               <div class="h-2.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand transition-all" :style="'width:' + (dash.ejercicio.avance*100) + '%'"></div></div>
               <div class="mb-1.5 mt-3 flex justify-between text-xs text-slate-500"><span>Carga al día</span><b class="text-slate-800" x-text="dash.resumen.carga_al_dia + '%'"></b></div>
-              <div class="h-2.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-violet-500 transition-all" :style="'width:' + dash.resumen.carga_al_dia + '%'"></div></div></div>
-            <div class="flex gap-6 text-center"><div><div class="font-serif text-3xl" x-text="dash.resumen.por_aprobar"></div><div class="text-xs text-slate-500">Por aprobar</div></div><div><div class="font-serif text-3xl" x-text="dash.resumen.devueltas"></div><div class="text-xs text-slate-500">Devueltas</div></div><div><div class="font-serif text-3xl" x-text="dash.resumen.cargas"></div><div class="text-xs text-slate-500">Cargas</div></div></div>
+              <div class="h-2.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-cobalt transition-all" :style="'width:' + dash.resumen.carga_al_dia + '%'"></div></div></div>
+            <div class="flex gap-6 text-center"><div><div class="text-3xl font-bold" x-text="dash.resumen.por_aprobar"></div><div class="text-xs text-slate-500">Por aprobar</div></div><div><div class="text-3xl font-bold" x-text="dash.resumen.devueltas"></div><div class="text-xs text-slate-500">Devueltas</div></div><div><div class="text-3xl font-bold" x-text="dash.resumen.cargas"></div><div class="text-xs text-slate-500">Cargas</div></div></div>
           </div>
         </div>
 
@@ -29,17 +29,17 @@
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-tour="panel-kpis">
             <template x-for="k in kpis()" :key="k.t">
-              <div class="card p-4"><div class="flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="'background:'+k.c"></span><span class="truncate text-xs font-medium text-slate-500" x-text="k.t"></span></div><div class="mt-1.5 font-serif text-[1.9rem] font-medium leading-none" x-text="k.v"></div><div class="mt-1.5 text-[11px] leading-tight" :class="k.subc || 'text-slate-500'" x-show="k.sub" x-text="k.sub"></div></div>
+              <div class="card p-4"><div class="flex items-center gap-2"><span class="h-2.5 w-2.5 shrink-0 rounded-full" :style="'background:'+k.c"></span><span class="truncate text-xs font-medium text-slate-500" x-text="k.t"></span></div><div class="mt-1.5 text-[1.9rem] font-bold leading-none" x-text="k.v"></div><div class="mt-1.5 text-[11px] leading-tight" :class="k.subc || 'text-slate-500'" x-show="k.sub" x-text="k.sub"></div></div>
             </template>
           </div>
 
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
             <div class="card lg:col-span-2" data-tour="panel-atencion"><div class="card-h"><h2>Requiere atención</h2><span class="chip border-slate-200 bg-slate-100 text-slate-600" x-text="dash.atencion.length"></span></div>
               <ul class="divide-y divide-slate-100 px-2 pb-2 pt-1">
-                <template x-for="a in dash.atencion" :key="a.id + a.motivo"><li><button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50" @click="verFicha(a.id)">
+                <template x-for="a in dash.atencion" :key="a.id + a.motivo"><li><button class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition hover:bg-slate-50" @click="verFicha(a.id)">
                   <span class="h-9 w-1.5 shrink-0 rounded-full" :class="a.semaforo ? semBg(a.semaforo) : 'bg-slate-300'"></span>
                   <span class="min-w-0 flex-1"><span class="block text-xs text-slate-500" x-text="a.codigo + ' · ' + a.area"></span><span class="block truncate text-sm font-medium" x-text="a.nombre"></span><span class="block text-xs text-slate-600" x-text="a.motivo"></span></span>
-                  <span class="font-serif text-lg" x-show="a.resultado !== null" x-text="fmt(a.resultado, a.unidad, a.decimales)"></span></button></li></template>
+                  <span class="text-lg font-bold" x-show="a.resultado !== null" x-text="fmt(a.resultado, a.unidad, a.decimales)"></span></button></li></template>
               </ul>
               <p class="px-6 pb-6 pt-2 text-center text-sm text-green-700" x-show="!dash.atencion.length">✔ Sin alertas: todo en orden.</p>
             </div>
@@ -69,7 +69,7 @@
                   <tr class="cursor-pointer transition hover:bg-slate-50" @click="verFicha(i.id)">
                     <td class="td whitespace-nowrap font-semibold" x-text="i.codigo"></td><td class="td" x-text="i.nombre"></td><td class="td" x-text="i.area"></td>
                     <td class="td"><span x-text="i.ultimo ? i.ultimo.etiqueta : '—'"></span><span x-show="i.faltantes.length" class="ml-1 text-xs text-amber-700" x-text="'(' + i.faltantes.length + ' sin cargar)'"></span></td>
-                    <td class="td font-serif text-base" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></td>
+                    <td class="td text-base font-bold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></td>
                     <td class="td font-medium" :class="tendClase(i.tendencia)" x-text="tendTxt(i.tendencia)"></td><td class="td" x-text="umbralTxt(i)"></td>
                     <td class="td"><span x-show="i.ultimo" class="chip border-transparent text-white" :class="semBg(i.ultimo && i.ultimo.semaforo)" x-text="semTxt(i.ultimo && i.ultimo.semaforo)"></span></td>
                   </tr></template></tbody></table>
@@ -79,7 +79,7 @@
                 <button class="flex w-full items-center gap-3 p-4 text-left" @click="verFicha(i.id)">
                   <span class="h-10 w-1.5 shrink-0 rounded-full" :class="i.ultimo ? semBg(i.ultimo.semaforo) : 'bg-slate-300'"></span>
                   <span class="min-w-0 flex-1"><span class="block text-xs text-slate-500" x-text="i.codigo + ' · ' + i.area"></span><span class="block truncate text-sm font-medium" x-text="i.nombre"></span><span class="block text-xs text-slate-500" x-text="(i.ultimo ? i.ultimo.etiqueta : 'Sin datos') + (i.faltantes.length ? ' · ' + i.faltantes.length + ' sin cargar' : '')"></span></span>
-                  <span class="text-right"><span class="block font-serif text-lg" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></span><span class="block text-xs font-medium" :class="tendClase(i.tendencia)" x-text="tendTxt(i.tendencia)"></span></span>
+                  <span class="text-right"><span class="block text-lg font-bold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></span><span class="block text-xs font-medium" :class="tendClase(i.tendencia)" x-text="tendTxt(i.tendencia)"></span></span>
                 </button>
               </template>
             </div>

@@ -9,8 +9,8 @@
       <div class="card" data-tour="inicio-tareas"><div class="card-h"><h2>Qué hacer ahora</h2></div>
         <div class="px-2 pb-2 pt-1">
           <template x-for="t in tareas()" :key="t.id">
-            <div class="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-50">
-              <span class="flex h-10 min-w-[2.5rem] items-center justify-center rounded-full bg-amber-100 px-2 font-serif text-lg text-amber-900" x-text="t.n"></span>
+            <div class="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-slate-50">
+              <span class="flex h-10 min-w-[2.5rem] items-center justify-center rounded-full bg-amber-100 px-2 text-lg text-amber-900 font-bold" x-text="t.n"></span>
               <span class="flex-1 text-sm" x-text="t.texto"></span>
               <button class="btn btn-p" @click="irATarea(t)" x-text="t.boton"></button>
             </div>
@@ -20,17 +20,17 @@
       </div>
 
       <div x-show="resumenInicio && resumenInicio.total" class="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">Cumplimiento</div><div class="mt-1 font-serif text-3xl" x-text="resumenInicio.cumplimiento + '%'"></div></div></template>
-        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">En verde</div><div class="mt-1 font-serif text-3xl text-green-700" x-text="resumenInicio.verde"></div></div></template>
-        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">En alerta</div><div class="mt-1 font-serif text-3xl text-amber-600" x-text="resumenInicio.amarillo"></div></div></template>
-        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">Críticos</div><div class="mt-1 font-serif text-3xl text-red-700" x-text="resumenInicio.rojo"></div></div></template>
+        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">Cumplimiento</div><div class="mt-1 text-3xl font-bold" x-text="resumenInicio.cumplimiento + '%'"></div></div></template>
+        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">En verde</div><div class="mt-1 text-3xl text-green-700 font-bold" x-text="resumenInicio.verde"></div></div></template>
+        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">En alerta</div><div class="mt-1 text-3xl text-amber-600 font-bold" x-text="resumenInicio.amarillo"></div></div></template>
+        <template x-if="resumenInicio"><div class="card p-4"><div class="text-xs text-slate-500">Críticos</div><div class="mt-1 text-3xl text-red-700 font-bold" x-text="resumenInicio.rojo"></div></div></template>
       </div>
 
       <div><h2 class="mb-2 px-1 text-sm font-medium text-slate-500">Secciones</h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <template x-for="a in accesos()" :key="a.id">
             <button class="card flex items-start gap-3 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-float" @click="go(a.id)">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(a.id)"/></svg></span>
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(a.id)"/></svg></span>
               <span class="min-w-0 flex-1"><span class="flex items-center gap-2 font-medium"><span x-text="a.label"></span><span x-show="a.badge" class="rounded-full bg-amber-400 px-1.5 text-[11px] font-semibold text-slate-900" x-text="a.badge"></span></span><span class="mt-0.5 block text-xs text-slate-500" x-text="descripcionAcceso(a.id)"></span></span>
             </button>
           </template>

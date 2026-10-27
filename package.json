@@ -3,7 +3,13 @@
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i src/input.css -o app/static/tailwind.css --minify",
+    "build:fonts": "cp node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2 node_modules/@fontsource-variable/manrope/files/manrope-latin-ext-wght-normal.woff2 app/static/fonts/",
     "watch:css": "tailwindcss -c tailwind.config.js -i src/input.css -o app/static/tailwind.css --watch"
   },
-  "devDependencies": { "tailwindcss": "3.4.17", "alpinejs": "3.14.8", "chart.js": "4.4.7" }
+  "devDependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "alpinejs": "3.14.8",
+    "chart.js": "4.4.7",
+    "tailwindcss": "3.4.17"
+  }
 }

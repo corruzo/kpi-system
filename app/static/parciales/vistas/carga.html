@@ -10,8 +10,8 @@
 
       <template x-if="indicadoresCarga.length">
       <div class="space-y-4">
-        <div class="card border-sky-300 bg-sky-50" x-show="pendientesOtros.length" x-transition>
-          <div class="card-b space-y-2 text-sm text-sky-900"><template x-for="o in pendientesOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>Además tiene <b x-text="o.n"></b> período(s) pendiente(s) en el ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ir a ese ejercicio</button></div></template></div></div>
+        <div class="card border-brand/30 bg-brand-light" x-show="pendientesOtros.length" x-transition>
+          <div class="card-b space-y-2 text-sm text-cobalt"><template x-for="o in pendientesOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>Además tiene <b x-text="o.n"></b> período(s) pendiente(s) en el ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ir a ese ejercicio</button></div></template></div></div>
         <div class="card border-amber-300 bg-amber-50" x-show="pendientesTotal()" x-transition>
           <div class="card-b">
             <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-900">Pendientes de carga</div>
@@ -62,7 +62,7 @@
             </div>
 
             <div x-show="periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">🔒 Este período pertenece a un <b>ejercicio fiscal cerrado</b>: solo lectura. El administrador puede reabrirlo si hay que corregir algo.</div>
-            <div x-show="medActual && medActual.estado!=='observado'" class="card px-4 py-3 text-sm" :class="medActual && medActual.estado==='aprobado' ? 'border-green-300 bg-green-50 text-green-900' : 'border-sky-300 bg-sky-50 text-sky-900'">
+            <div x-show="medActual && medActual.estado!=='observado'" class="card px-4 py-3 text-sm" :class="medActual && medActual.estado==='aprobado' ? 'border-green-300 bg-green-50 text-green-900' : 'border-brand/30 bg-brand-light text-cobalt'">
               <b x-text="medActual && medActual.estado==='aprobado' ? 'Carga aprobada.' : 'Carga enviada, en revisión.'"></b>
               <span x-text="medActual ? ' Cargada por ' + medActual.cargado_por + ' el ' + fecha(medActual.cargado_en) + '.' : ''"></span>
               <span x-show="medActual && medActual.nota_revision" x-text="' Nota: ' + (medActual && medActual.nota_revision)"></span>
@@ -89,7 +89,7 @@
               <div class="card-b flex items-center justify-between gap-4">
                 <div>
                   <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado <button type="button" class="info" @click="toggleAyuda('semaforo')" aria-label="¿Qué significa el semáforo?">i</button></div>
-                  <div class="font-serif text-5xl font-medium tracking-tight" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad, ind.decimales) : '—'"></div>
+                  <div class="text-5xl font-bold tracking-tight" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad, ind.decimales) : '—'"></div>
                   <div class="text-sm text-red-600" x-show="calc && !calc.ok && f.tocado" x-text="calc && calc.error"></div>
                   <div class="ayuda max-w-md" x-show="ay==='semaforo'" x-html="ayudaHtml('semaforo')" x-transition></div>
                 </div>

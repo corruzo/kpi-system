@@ -15,7 +15,7 @@
       <div class="space-y-3">
         <template x-for="(m, idx) in historial" :key="m.id">
           <div class="space-y-3">
-          <div class="px-1 pt-2 font-serif text-lg" x-show="nuevoEjercicio(idx)" x-text="'Ejercicio ' + m.ejercicio_etiqueta"></div>
+          <div class="px-1 pt-2 text-lg font-bold" x-show="nuevoEjercicio(idx)" x-text="'Ejercicio ' + m.ejercicio_etiqueta"></div>
           <div class="card" x-data="{open:false}">
             <button class="flex w-full items-center gap-3 p-4 text-left" @click="open=!open" :aria-expanded="open">
               <span class="h-10 w-1.5 shrink-0 rounded-full" :class="semBg(m.semaforo)"></span>
@@ -27,7 +27,7 @@
             </button>
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>
-              <div class="space-y-2 rounded-xl bg-amber-50 p-3" x-show="['gerente','admin'].includes(user.rol) && m.estado==='aprobado'">
+              <div class="space-y-2 rounded-lg bg-amber-50 p-3" x-show="['gerente','admin'].includes(user.rol) && m.estado==='aprobado'">
                 <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala al jefe de área para corregirla (queda registrado).</p>
                 <div class="flex flex-col gap-2 sm:flex-row"><input class="inp" x-model="reabrirNota[m.id]" placeholder="Motivo de la reapertura"><button class="btn btn-d whitespace-nowrap" :disabled="busy" @click="reabrir(m)">Reabrir carga</button></div></div>
               <button class="btn btn-s btn-sm" @click="verFicha(m.indicador_id)">Ver ficha del indicador</button>

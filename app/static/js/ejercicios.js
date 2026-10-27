@@ -18,7 +18,7 @@ SIGT.modulos.ejercicios = () => ({
     get ejercicios() { return this.ejLista.map(e => ({ valor: e.anio, etiqueta: e.etiqueta })); },
     get ejActual() { return this.ejLista.find(e => e.anio === this.ejSel) || {}; },
     estadoEj: e => ({ vigente: 'Vigente', terminado: 'Terminado · por cerrar', cerrado: 'Cerrado', futuro: 'Próximo' }[e] || e),
-    claseEj: e => ({ vigente: 'border-green-300 bg-green-50 text-green-800', terminado: 'border-amber-300 bg-amber-50 text-amber-800', cerrado: 'border-slate-300 bg-slate-100 text-slate-700', futuro: 'border-sky-300 bg-sky-50 text-sky-800' }[e] || ''),
+    claseEj: e => ({ vigente: 'border-green-300 bg-green-50 text-green-800', terminado: 'border-amber-300 bg-amber-50 text-amber-800', cerrado: 'border-slate-300 bg-slate-100 text-slate-700', futuro: 'border-brand/30 bg-brand-light text-cobalt' }[e] || ''),
     // El ejercicio elegido gobierna TODAS las pantallas de datos: cada módulo recarga lo suyo (gancho «ejercicio»)
     // y se vuelve a abrir la vista actual, de modo que nunca quede información de otro ejercicio en pantalla.
     async cambiarEjercicio() {

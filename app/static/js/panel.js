@@ -13,7 +13,7 @@ SIGT.modulos.panel = () => ({
         { t: 'Indicadores', v: r.total, c: NAVY },
         { t: 'Cumplimiento', v: r.cumplimiento + '%', c: BRAND, sub: d === null ? (r.sin_datos === r.total ? 'Aún sin mediciones' : 'Sin ejercicio anterior') : `${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${nf(Math.abs(d), 1)} pts vs ${ant.etiqueta}`, subc: d > 0 ? 'text-green-700' : d < 0 ? 'text-red-700' : 'text-slate-500' },
         { t: 'En verde', v: r.verde, c: SEM.verde }, { t: 'En alerta', v: r.amarillo, c: SEM.amarillo }, { t: 'Críticos', v: r.rojo, c: SEM.rojo },
-        { t: 'Carga al día', v: r.carga_al_dia + '%', c: '#7c3aed', sub: r.faltantes ? `${r.faltantes} período(s) sin cargar` : 'Todo cargado', subc: r.faltantes ? 'text-amber-700' : 'text-green-700' }];
+        { t: 'Carga al día', v: r.carga_al_dia + '%', c: '#004eba', sub: r.faltantes ? `${r.faltantes} período(s) sin cargar` : 'Todo cargado', subc: r.faltantes ? 'text-amber-700' : 'text-green-700' }];
     },
     celdaClase: c => c ? ({ verde: 'bg-green-500 text-white', amarillo: 'bg-amber-400 text-slate-900', rojo: 'bg-red-500 text-white' }[c.semaforo]) : 'bg-slate-100 text-slate-300',
     tendTxt(t) { return !t ? '—' : `${t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '='} ${nf(Math.abs(t.delta), 2)}`; },
@@ -27,7 +27,7 @@ SIGT.modulos.panel = () => ({
     dibujar() {
       if (!this.dash || typeof Chart === 'undefined') return;
       const nuevo = (id, cfg) => { const c = document.getElementById(id); if (!c) return; Chart.getChart(c)?.destroy(); new Chart(c, cfg); };
-      Chart.defaults.font.family = 'ui-sans-serif, system-ui, "Segoe UI", sans-serif'; Chart.defaults.color = '#5f5d52'; Chart.defaults.borderColor = '#e8e5da';
+      Chart.defaults.font.family = 'Manrope, ui-sans-serif, system-ui, "Segoe UI", sans-serif'; Chart.defaults.color = '#476788'; Chart.defaults.borderColor = '#d4e0ed';
       const r = this.dash.resumen, i = this.dash.indicadores.find(x => x.id === this.tendInd);
       if (i && i.serie.length) {
         const s = i.serie;
