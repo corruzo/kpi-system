@@ -30,7 +30,7 @@ def fichas(ejercicio: int | None = None, area_id: int | None = None, indicador_i
 
 @router.post("/verificar")
 async def verificar(archivo: UploadFile = File(...), db: Session = Depends(get_db), _: Usuario = Depends(requiere("admin", "gerente"))):
-    """Comprueba que un Excel descargado del SIGT conserva exactamente lo que el sistema emitió."""
+    """Comprueba que un Excel descargado del SGC • TRIPOLIVEN conserva exactamente lo que el sistema emitió."""
     return reportes.verificar(db, await archivo.read(10_000_000))
 
 

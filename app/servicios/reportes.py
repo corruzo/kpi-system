@@ -15,7 +15,7 @@ from . import auditoria, bitacora, indicadores, marca, parametros
 
 
 def _nombre_archivo(prefijo: str) -> str:
-    return f"SIGT_{prefijo}_{date.today():%Y%m%d}.xlsx"
+    return f"SGC_TRIPOLIVEN_{prefijo}_{date.today():%Y%m%d}.xlsx"
 
 
 def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: dict) -> tuple[bytes, str]:
@@ -33,18 +33,18 @@ def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: 
 
 
 def verificar(db: Session, contenido: bytes) -> dict:
-    """Comprueba que un Excel descargado del SIGT no fue modificado: firma del sistema, huella del contenido y
+    """Comprueba que un Excel descargado del SGC • TRIPOLIVEN no fue modificado: firma del sistema, huella del contenido y
     constancia de su emisión en la bitácora."""
     c = sello.leer_control(contenido)
     if not c or not c["numero"]:
-        raise Invalido("El archivo no es un reporte del SIGT (no tiene la hoja «Control»).")
+        raise Invalido("El archivo no es un reporte del SGC • TRIPOLIVEN (no tiene la hoja «Control»).")
     firma_valida = c["firma"] == firmar_reporte(f"{c['numero']}|{c['huella_declarada']}")
     contenido_intacto = c["huella_real"] == c["huella_declarada"]
     emitido = any((b.detalle or {}).get("numero") == c["numero"]
                   for b in db.scalars(select(Bitacora).where(Bitacora.accion == "REPORTE_EXPORTADO").order_by(Bitacora.id.desc()).limit(5000)))
     ok = firma_valida and contenido_intacto and emitido
     motivo = ("Reporte auténtico: su contenido coincide con el que emitió el sistema." if ok else
-              "La firma del sistema no es válida: el archivo no fue emitido por este SIGT." if not firma_valida else
+              "La firma del sistema no es válida: el archivo no fue emitido por este sistema." if not firma_valida else
               "El contenido del archivo fue modificado después de su emisión." if not contenido_intacto else
               "El número de reporte no consta en la bitácora de este sistema.")
     return {"ok": ok, "numero": c["numero"], "tipo": c["tipo"], "generado_por": c["generado_por"], "fecha": c["fecha"], "motivo": motivo}

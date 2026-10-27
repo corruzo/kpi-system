@@ -11,7 +11,7 @@ SIGT.modulos.ficha_tecnica = () => ({
       this.fv.ejercicio = this.fv.data.ejercicio;
       this.$nextTick(() => this.dibujarFicha());
     },
-    fichaDescargar() { return this.descargar(`/api/reportes/fichas.xlsx?indicador_id=${this.fv.id}&ejercicio=${this.fv.ejercicio}`, 'ficha_sigt.xlsx'); },
+    fichaDescargar() { return this.descargar(`/api/reportes/fichas.xlsx?indicador_id=${this.fv.id}&ejercicio=${this.fv.ejercicio}`, 'ficha_sgc_tripoliven.xlsx'); },
     valorFicha(p, clave) { const m = p.medicion; return m && m.estado !== 'observado' && m.valores[clave] !== undefined ? nf(m.valores[clave], 2) : ''; },
     semaforoFranjas(i) {
       const f = x => (x === null || x === undefined) ? '' : this.fmt(x, i.unidad, i.decimales), mayor = i.sentido === 'mayor';

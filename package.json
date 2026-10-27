@@ -1,5 +1,5 @@
 {
-  "name": "sigt-tripoliven",
+  "name": "sgc-tripoliven",
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i src/input.css -o app/static/tailwind.css --minify",

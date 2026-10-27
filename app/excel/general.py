@@ -43,7 +43,7 @@ def reporte_general(
     # ---------- Resumen
     ws = wb.active
     ws.title = "Resumen"
-    franja_titulo(ws, "Tripoliven, C.A. — Sistema de Indicadores de Gestión", sub, 7, logo)
+    franja_titulo(ws, "SGC • TRIPOLIVEN — Indicadores de gestión", sub, 7, logo)
     ws["A4"], ws["B4"] = "Filtros aplicados", filtros or "Ninguno (todos los datos)"
     ws["A4"].font = Font(name=FUENTE, bold=True, color=GRIS)
     ws.merge_cells("B4:G4")

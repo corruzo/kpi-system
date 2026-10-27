@@ -1,4 +1,4 @@
-# SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A.
+# SGC • TRIPOLIVEN · Sistema de Gestión de la Calidad — indicadores de gestión de Tripoliven, C.A.
 
 Aplicación web (FastAPI + SQLAlchemy + Alpine.js + Tailwind + Chart.js) para cargar, aprobar y analizar indicadores bajo ISO 9001:2015. Diseño por tarjetas, responsive, con navegación inferior en móvil.
 No incluye datos de ejemplo: se parte de una base vacía y el administrador crea áreas, usuarios e indicadores desde la propia interfaz.
@@ -13,7 +13,7 @@ No incluye datos de ejemplo: se parte de una base vacía y el administrador crea
    | `SIGT_SECRET` | 32+ caracteres aleatorios (firma de sesiones). |
    | `SIGT_ADMIN_USER` / `SIGT_ADMIN_PASSWORD` | Solo para crear el primer administrador con la base vacía (≥ 10 caracteres). Elimine la contraseña después. |
    | `SIGT_TRUST_PROXY=1` | Detrás de un proxy/balanceador (IP real para el límite de intentos). |
-3. Despliegue: `docker build -t sigt . && docker run -p 8000:8000 --env-file .env sigt` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
+3. Despliegue: `docker build -t sgc-tripoliven . && docker run -p 8000:8000 --env-file .env sgc-tripoliven` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
 4. Primer arranque: crea las tablas, un *trigger* que impide UPDATE/DELETE en `bitacora` y activa RLS en todas las tablas (la API REST pública de Supabase queda sin acceso; la aplicación usa el rol `postgres`). Si el usuario de la base no tiene permisos para ello, ejecute `scripts/supabase_hardening.sql` en el SQL Editor.
 5. Ingrese como administrador y siga la guía de configuración inicial: **Organización** (áreas y usuarios) → **Indicadores** (fichas).
 

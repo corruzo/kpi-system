@@ -1,4 +1,4 @@
-"""SIGT · Sistema de Indicadores de Gestión — Tripoliven, C.A.
+"""SGC • TRIPOLIVEN · Sistema de Gestión de la Calidad — indicadores de gestión de Tripoliven, C.A.
 
 Ensamblado de la aplicación: arranque diferido, cabeceras de seguridad, traducción de errores de negocio,
 routers de la API y archivos estáticos. La lógica vive en `servicios/` y `dominio/`.
@@ -40,7 +40,7 @@ async def ciclo_de_vida(_):
     yield
 
 
-app = FastAPI(title="SIGT Tripoliven", lifespan=ciclo_de_vida,
+app = FastAPI(title="SGC • TRIPOLIVEN", lifespan=ciclo_de_vida,
               docs_url=None if PRODUCCION else "/docs", redoc_url=None,
               openapi_url=None if PRODUCCION else "/openapi.json")
 
@@ -52,7 +52,7 @@ async def asegurar_arranque_y_cabeceras(request: Request, call_next):
             await run_in_threadpool(arranque.iniciar)
         except Exception as e:
             log.exception("Fallo al preparar la base de datos")
-            return PlainTextResponse(f"SIGT no pudo preparar la base de datos.\n\n{arranque.motivo_del_fallo(e)}\n", status_code=503)
+            return PlainTextResponse(f"SGC • TRIPOLIVEN no pudo preparar la base de datos.\n\n{arranque.motivo_del_fallo(e)}\n", status_code=503)
     if arranque.esta_iniciado() and request.url.path.startswith("/api/"):
         await run_in_threadpool(parametros.refrescar)
     respuesta = await call_next(request)

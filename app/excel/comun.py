@@ -80,7 +80,7 @@ def configurar_impresion(ws, fila_encabezado, apaisado=True):
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
     ws.print_title_rows = f"{fila_encabezado}:{fila_encabezado}"
-    ws.oddFooter.center.text = "Tripoliven, C.A. · SIGT · Página &P de &N"
+    ws.oddFooter.center.text = "SGC • TRIPOLIVEN · Página &P de &N"
     ws.page_margins.left = ws.page_margins.right = 0.4
 
 

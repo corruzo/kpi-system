@@ -1,4 +1,4 @@
-"""Modelo de datos del SIGT."""
+"""Modelo de datos del SGC • TRIPOLIVEN."""
 from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, event

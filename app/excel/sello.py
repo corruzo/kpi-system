@@ -62,7 +62,7 @@ def sellar(wb, numero: str, tipo: str, generado_por: str, fecha: datetime) -> st
     """Agrega la hoja «Control» (número, quién y cuándo, huella y firma) y devuelve la huella."""
     h = huella(wb)
     ws = wb.create_sheet(HOJA_CONTROL)
-    franja_titulo(ws, "Control del reporte", "Este archivo fue generado por el SIGT y puede verificarse en el sistema (Reportes → Verificar).", 2)
+    franja_titulo(ws, "Control del reporte", "Este archivo fue generado por el SGC • TRIPOLIVEN y puede verificarse en el sistema (Reportes → Verificar).", 2)
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 26, 78
     filas = [("Número de reporte", numero), ("Tipo", tipo), ("Generado por", generado_por),
              ("Fecha de emisión", f"{fecha:%d/%m/%Y %H:%M}"), ("Huella del contenido", h),
@@ -93,7 +93,7 @@ def proteger(wb, clave: str) -> None:
 
 
 def leer_control(contenido: bytes) -> dict:
-    """Datos de la hoja «Control» y huella recalculada; {} si el archivo no es un reporte del SIGT."""
+    """Datos de la hoja «Control» y huella recalculada; {} si el archivo no es un reporte del SGC • TRIPOLIVEN."""
     try:
         wb = load_workbook(io.BytesIO(contenido))
     except Exception:

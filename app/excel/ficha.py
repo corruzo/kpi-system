@@ -333,7 +333,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         fila += 2
         ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=13)
         ws.cell(
-            fila, 1, f"{params.get('codigo_formato', '')} · Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por} · SIGT"
+            fila, 1, f"{params.get('codigo_formato', '')} · Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por} · SGC • TRIPOLIVEN"
         )
         ws.cell(fila, 1).font = Font(name=FUENTE, size=8, color=GRIS)
         ws.cell(fila, 1).alignment = Alignment(horizontal="right")

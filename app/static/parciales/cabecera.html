@@ -3,7 +3,7 @@
       <div class="flex shrink-0 items-center gap-2.5 lg:hidden">
         <img x-show="logoUrl" :src="logoUrl" alt="Logo de la empresa" class="h-9 max-w-[110px] object-contain sm:max-w-[150px]">
         <svg x-show="!logoUrl" class="h-9 w-9" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#0f172a"/><path d="M8 22V12m5 10V15m5 7V9m5 13V13" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
-        <div class="hidden leading-tight sm:block"><div class="font-serif text-lg font-medium">SIGT</div><div class="hidden text-[11px] text-slate-500 lg:block" x-text="(params.empresa || 'Tripoliven, C.A.') + ' · ISO 9001'"></div></div>
+        <div class="hidden leading-tight sm:block"><div class="font-serif text-lg font-medium">SGC • TRIPOLIVEN</div><div class="hidden text-[11px] text-slate-500 lg:block">Sistema de Gestión de la Calidad · ISO 9001</div></div>
       </div>
       <nav class="pill-nav mx-auto hidden min-w-0 md:flex lg:hidden" aria-label="Principal">
         <template x-for="n in nav()" :key="n.id">

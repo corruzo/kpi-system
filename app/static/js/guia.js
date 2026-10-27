@@ -9,7 +9,7 @@ SIGT.modulos.guia = () => ({
 
     pasosBase() {
       const r = this.user.rol, nav = (id, t, d) => ({ sel: `[data-tour="nav-${id}"]`, alt: '[data-tour="nav-_mas"]', t, d });
-      const ini = { t: '¡Bienvenido al SIGT!', d: 'Este sistema reúne los indicadores de gestión de Tripoliven: cargar datos, aprobarlos, analizarlos y generar reportes. Le mostramos en un minuto para qué sirve cada parte. Puede omitir la guía cuando quiera y repetirla desde el menú de su perfil.' };
+      const ini = { t: '¡Bienvenido al SGC • TRIPOLIVEN!', d: 'Este sistema reúne los indicadores de gestión de Tripoliven: cargar datos, aprobarlos, analizarlos y generar reportes. Le mostramos en un minuto para qué sirve cada parte. Puede omitir la guía cuando quiera y repetirla desde el menú de su perfil.' };
       const ej = { sel: '[data-tour="ej-selector"]', t: 'Ejercicio fiscal', d: 'Todo el sistema se organiza por ejercicio fiscal (por ejemplo 2025-2026). Aquí elige cuál ver: así los registros de años distintos no se mezclan. Los ejercicios cerrados quedan de solo lectura.' };
       const menu = { sel: '[data-tour="menu-usuario"]', t: 'Su perfil', d: 'Desde aquí cambia su contraseña, vuelve a ver esta guía o cierra la sesión.' };
       const info = { sel: '.info', t: 'Botones «i»', d: 'Cada vez que vea un botón con una «i», tóquelo: explica el campo o el concepto en lenguaje sencillo.' };
