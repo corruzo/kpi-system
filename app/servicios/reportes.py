@@ -11,7 +11,9 @@ from ..errores import Invalido, NoEncontrado
 from ..excel import comun, sello
 from ..models import Area, Bitacora, Indicador, Medicion, Usuario
 from ..security import firmar_reporte
-from . import auditoria, bitacora, indicadores, marca, parametros
+from . import auditoria, bitacora, indicadores, marca, parametros, zip_seguro
+
+MAX_BYTES_VERIFICAR = 10_000_000
 
 
 def _nombre_archivo(prefijo: str) -> str:
@@ -35,6 +37,12 @@ def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: 
 def verificar(db: Session, contenido: bytes) -> dict:
     """Comprueba que un Excel descargado del SGC • TRIPOLIVEN no fue modificado: firma del sistema, huella del contenido y
     constancia de su emisión en la bitácora."""
+    if len(contenido) > MAX_BYTES_VERIFICAR:
+        raise Invalido("El archivo supera 10 MB.")
+    try:
+        zip_seguro.validar_xlsx(contenido)
+    except ValueError as e:
+        raise Invalido(str(e)) from None
     c = sello.leer_control(contenido)
     if not c or not c["numero"]:
         raise Invalido("El archivo no es un reporte del SGC • TRIPOLIVEN (no tiene la hoja «Control»).")

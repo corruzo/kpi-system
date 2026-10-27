@@ -1,5 +1,5 @@
 """Esquemas de entrada (validación de los datos que llegan a la API), ordenados por dominio."""
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -9,16 +9,17 @@ from .dominio.calendario import FRECUENCIAS
 Rol = Literal["jefe", "gerente", "admin"]
 Frecuencia = Literal[tuple(FRECUENCIAS)]
 CLAVE_RX = r"^[a-z][a-z0-9_]{0,39}$"
+Numero = Annotated[float, Field(allow_inf_nan=False)]   # rechaza NaN e Infinity (no son datos válidos)
 
 
 # ---------------------------------------------------------------- sesión
 class LoginIn(BaseModel):
-    username: str
-    password: str
+    username: str = Field(max_length=40)      # mismo tope que al crear el usuario
+    password: str = Field(max_length=128)
 
 
 class ClaveIn(BaseModel):
-    actual: str
+    actual: str = Field(max_length=128)
     nueva: str = Field(min_length=10, max_length=128)
 
 
@@ -78,14 +79,14 @@ class VariableIn(BaseModel):
     ayuda: str = Field(default="", max_length=300)      # texto de apoyo para quien carga el dato
     unidad: str = Field(default="", max_length=12)      # sufijo informativo (ej. TM, h, USD)
     opcional: bool = False                              # si queda vacía se usa «defecto»
-    defecto: float = 0
+    defecto: Numero = 0
     negativo: bool = False                              # permite valores negativos
 
 
 class ConstanteIn(BaseModel):
     clave: str = Field(pattern=CLAVE_RX)
     etiqueta: str = Field(min_length=2, max_length=80)
-    valor: float
+    valor: Numero
 
 
 class IndicadorIn(BaseModel):
@@ -111,10 +112,10 @@ class IndicadorIn(BaseModel):
     resp_medicion: str = Field(default="", max_length=150)
     resp_registro: str = Field(default="", max_length=150)
     resp_analisis: str = Field(default="", max_length=150)
-    meta: float
-    limite: float
-    meta_tope: float | None = None
-    limite_tope: float | None = None
+    meta: Numero
+    limite: Numero
+    meta_tope: Numero | None = None
+    limite_tope: Numero | None = None
     activo: bool = True
 
     @field_validator("codigo")
@@ -136,20 +137,20 @@ class FormulaIn(BaseModel):
 
 class ProbarIn(BaseModel):
     formula: str
-    valores: dict[str, float]
-    constantes: dict[str, float] = {}
+    valores: dict[str, Numero]
+    constantes: dict[str, Numero] = {}
     decimales: int = Field(default=2, ge=0, le=6)
-    meta: float
-    limite: float
-    meta_tope: float | None = None
-    limite_tope: float | None = None
+    meta: Numero
+    limite: Numero
+    meta_tope: Numero | None = None
+    limite_tope: Numero | None = None
     sentido: Literal["mayor", "menor"]
 
 
 # ---------------------------------------------------------------- mediciones
 class CalcIn(BaseModel):
     indicador_id: int
-    valores: dict[str, float | None]
+    valores: dict[str, Numero | None]
 
 
 class CargaIn(CalcIn):
@@ -180,7 +181,7 @@ class ReaperturaIn(BaseModel):
 # ---------------------------------------------------------------- importación de fichas históricas
 class ImpMedicion(BaseModel):
     periodo: str
-    valores: dict[str, float]
+    valores: dict[str, Numero]
     analisis: str = Field(default="", max_length=4000)
     plan_mejora: str = Field(default="", max_length=4000)
 

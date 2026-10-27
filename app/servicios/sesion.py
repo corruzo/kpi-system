@@ -8,19 +8,27 @@ from ..models import Usuario
 from . import auditoria
 
 limite_intentos = security.LimiteIntentos()
+MAX_POR_PAREJA = 5      # misma IP contra el mismo usuario
+MAX_POR_ORIGEN = 20     # una IP probando muchos usuarios (password spraying)
+MAX_POR_USUARIO = 10    # muchas IP contra un mismo usuario (más holgado: bloquear la cuenta ajena es un riesgo)
 
 
 def autenticar(db: Session, username: str, password: str, origen: str) -> Usuario:
     """Valida credenciales (con bloqueo temporal tras demasiados fallos) y registra el ingreso."""
     usuario = username.strip().lower()
-    llave = f"{origen}|{usuario}"
-    if limite_intentos.bloqueado(llave):
+    pareja, por_origen, por_usuario = f"{origen}|{usuario}", f"origen|{origen}", f"usuario|{usuario}"
+    if (limite_intentos.bloqueado(pareja, MAX_POR_PAREJA) or limite_intentos.bloqueado(por_origen, MAX_POR_ORIGEN)
+            or limite_intentos.bloqueado(por_usuario, MAX_POR_USUARIO)):
         raise DemasiadosIntentos("Demasiados intentos fallidos. Intente de nuevo en 15 minutos.")
     u = db.scalar(select(Usuario).where(Usuario.username == usuario))
-    if not u or not u.activo or not security.verificar_password(password, u.password_hash):
-        limite_intentos.fallo(llave)
+    # Se verifica siempre una contraseña (la ficticia si el usuario no existe) para que el tiempo no delate cuentas.
+    correcta = security.verificar_password(password, u.password_hash if u else security.HASH_FICTICIO)
+    if not u or not u.activo or not correcta:
+        for llave in (pareja, por_origen, por_usuario):   # también cuentan los usuarios inexistentes
+            limite_intentos.fallo(llave)
         raise NoAutenticado("Usuario o contraseña incorrectos.")
-    limite_intentos.limpiar(llave)
+    limite_intentos.limpiar(pareja)
+    limite_intentos.limpiar(por_usuario)   # el contador del origen NO se borra: un acceso válido no perdona el spraying
     auditoria.registrar(db, u, "INICIO_SESION", "usuario", u.id)
     db.commit()
     return u

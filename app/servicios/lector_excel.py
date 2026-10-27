@@ -12,6 +12,7 @@ from datetime import date
 from openpyxl import load_workbook
 
 from ..dominio import calendario, formulas, semaforo
+from . import zip_seguro
 
 MAX_BYTES = 8 * 1024 * 1024
 SEGUIMIENTO = {"desempeño de proceso": "proceso", "objetivo organizacional": "objetivo",
@@ -304,6 +305,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
 def leer_libro(contenido: bytes, archivo: str = "") -> dict:
     if len(contenido) > MAX_BYTES:
         raise ValueError("El archivo supera 8 MB.")
+    zip_seguro.validar_xlsx(contenido)   # antes de que openpyxl descomprima nada
     try:
         wb = load_workbook(io.BytesIO(contenido), data_only=False)
         wv = load_workbook(io.BytesIO(contenido), data_only=True)

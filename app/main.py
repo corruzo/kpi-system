@@ -9,11 +9,13 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from . import csrf
 from .api.deps import get_db
 from .api.routers import ROUTERS
 from .config import PRODUCCION
@@ -64,9 +66,24 @@ async def asegurar_arranque_y_cabeceras(request: Request, call_next):
     return respuesta
 
 
+@app.middleware("http")   # se registra después: es la capa más externa y corta la petición antes de cualquier trabajo
+async def rechazar_peticiones_de_otro_origen(request: Request, call_next):
+    if not csrf.peticion_legitima(request):
+        return JSONResponse({"detail": "Petición rechazada: origen no permitido."}, status_code=403)
+    return await call_next(request)
+
+
 @app.exception_handler(ErrorNegocio)
 async def responder_error_de_negocio(_, e: ErrorNegocio):
     return JSONResponse({"detail": e.detalle}, status_code=e.estado)
+
+
+@app.exception_handler(RequestValidationError)
+async def responder_entrada_invalida(_, e: RequestValidationError):
+    """Igual que la respuesta 422 de FastAPI, pero sin `input` ni `ctx`: devolver un NaN/Infinity enviado por el cliente
+    haría fallar la serialización a JSON (500), y reflejar la entrada tampoco aporta nada."""
+    errores = [{"type": x["type"], "loc": list(x["loc"]), "msg": x["msg"]} for x in e.errors()]
+    return JSONResponse({"detail": errores}, status_code=422)
 
 
 for router in ROUTERS:
