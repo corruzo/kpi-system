@@ -106,7 +106,8 @@ def main() -> None:
         sys.exit("El ejercicio fiscal actual empieza en otro año: use --inicio-ejercicio 1 para el ejemplo.")
     cargas = {}
     for i, periodo in enumerate(meses):
-        for cod, _, _, _, _, _, variables, meta, limite, *_ in INDICADORES:
+        for ind in INDICADORES:
+            cod, variables = ind[0], ind[6]
             valores = dict(zip((v[0] for v in variables), DATOS[cod][i], strict=True))
             cuerpo = {"indicador_id": ids[cod], "periodo": periodo, "valores": valores, "analisis": ANALISIS[0], "plan_mejora": ANALISIS[1]}
             cargas[(cod, periodo)] = exigir(jefe.post("/api/mediciones", json=cuerpo), f"Cargar {cod} {periodo}")
