@@ -16,7 +16,7 @@ quien_revisa = requiere("gerente", "admin")
 @router.post("/calcular")
 def calcular(datos: schemas.CalcIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_carga)):
     """Resultado y semáforo de los datos digitados, sin guardar nada."""
-    return mediciones.calcular(db, u, datos.indicador_id, datos.valores)
+    return mediciones.calcular(db, u, datos.indicador_id, datos.valores, datos.periodo)
 
 
 @router.post("/mediciones", status_code=201)

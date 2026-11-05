@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, semaforo
 from ..errores import Invalido, NoEncontrado, Prohibido
-from ..models import Area, Indicador, Medicion, Usuario
+from ..models import Area, Indicador, Medicion, Presupuesto, Usuario
 from . import auditoria, ejercicios
 
 
@@ -64,7 +64,9 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
     todos = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
     pendientes, otros = _dividir_pendientes(ind, todos, anio)
     periodos = calendario.periodos_hasta_hoy(ind.frecuencia, anio, hoy)
+    presupuestados = {p.periodo: p.valor for p in db.scalars(select(Presupuesto).where(Presupuesto.indicador_id == ind.id))}
     return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "pendientes_otros": otros, "ejercicio": anio,
+            "presupuestos": presupuestados, "creado": ejercicios.creado(db, anio),
             "cerrados": ejercicios.anios_cerrados(db), "periodos": periodos}
 
 
@@ -77,8 +79,10 @@ def contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
     disponibles = sorted(set(con_datos) | {vigente}, reverse=True)
     # sin ejercicio pedido: el vigente, o el más reciente con datos si el vigente aún está vacío
     anio = ejercicio if ejercicio in disponibles else (vigente if vigente in con_datos or not con_datos else con_datos[0])
+    presupuestados = {p.periodo: p.valor for p in db.scalars(select(Presupuesto).where(Presupuesto.indicador_id == ind.id))}
     periodos = [{"periodo": p, "etiqueta": calendario.etiqueta(f, p), "corta": calendario.etiqueta_corta(f, p),
-                 "medicion": medidas.get(p)} for p in calendario.periodos_del_ejercicio(f, anio)]
+                 "presupuesto": presupuestados.get(p), "medicion": medidas.get(p)}
+                for p in calendario.periodos_del_ejercicio(f, anio)]
     return anio, disponibles, periodos
 
 

@@ -36,7 +36,23 @@ class Ejercicio(Base):
     reabierto_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     reabierto_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_reapertura: Mapped[str | None] = mapped_column(Text, default="")
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    creado_en: Mapped[datetime | None] = mapped_column(DateTime)
     cerrado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[cerrado_por_id])
+
+
+class Presupuesto(Base):
+    """Lo que se presupuesta para un indicador en un período de su frecuencia (paso 3 del flujo anual).
+    Al cargar el dato real, el presupuesto vigente se copia a la medición y se compara con el resultado."""
+    __tablename__ = "presupuestos"
+    __table_args__ = (UniqueConstraint("indicador_id", "periodo"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ejercicio: Mapped[int] = mapped_column(ForeignKey("ejercicios.anio"), index=True)
+    indicador_id: Mapped[int] = mapped_column(ForeignKey("indicadores.id"))
+    periodo: Mapped[str] = mapped_column(String(10))
+    valor: Mapped[float] = mapped_column(Float)
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class IntentoFallido(Base):
@@ -143,6 +159,7 @@ class Medicion(Base):
     decimales: Mapped[int | None] = mapped_column(Integer)
     meta_tope: Mapped[float | None] = mapped_column(Float)
     limite_tope: Mapped[float | None] = mapped_column(Float)
+    presupuesto: Mapped[float | None] = mapped_column(Float)  # lo presupuestado para el período, copiado al cargar
     ejercicio: Mapped[int | None] = mapped_column(Integer)   # año en que termina el ejercicio fiscal del período
     indicador: Mapped[Indicador] = relationship()
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id])

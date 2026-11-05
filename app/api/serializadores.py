@@ -1,6 +1,7 @@
 """Conversión de los modelos y resultados de servicios al JSON que consume la interfaz."""
 from ..dominio import calendario
 from ..dominio.ficha_texto import meta_texto
+from ..dominio.presupuesto import comparar
 from ..models import Area, Bitacora, Catalogo, Indicador, Medicion, Usuario
 
 
@@ -53,6 +54,7 @@ def medicion(m: Medicion) -> dict:
             "valores": m.valores, "resultado": m.resultado, "decimales": m.precision, "formula": m.formula_aplicada,
             "constantes": m.constantes_aplicadas, "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite,
             "meta_tope": m.meta_tope, "limite_tope": m.limite_tope, "sentido": m.sentido, "estado": m.estado,
+            "presupuesto": m.presupuesto, "vs_presupuesto": comparar(m.resultado, m.presupuesto, m.sentido),
             "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
             "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
             "revisado_por": m.revisado_por.nombre if m.revisado_por else None, "revisado_en": iso(m.revisado_en),
@@ -72,7 +74,8 @@ def ejercicio(desc: dict) -> dict:
     fila = desc["fila"]
     cerrado = desc["estado"] == "cerrado"
     return {"anio": desc["anio"], "etiqueta": desc["etiqueta"], "desde": fecha_iso(desc["desde"]),
-            "hasta": fecha_iso(desc["hasta"]), "estado": desc["estado"], "cerrado_por": desc["cerrado_por"],
+            "hasta": fecha_iso(desc["hasta"]), "estado": desc["estado"], "creado": desc["creado"],
+            "creado_en": iso(fila.creado_en) if fila else None, "cerrado_por": desc["cerrado_por"],
             "cerrado_en": iso(fila.cerrado_en) if cerrado else None, "nota": (fila.nota or "") if fila else "",
             "reabierto_en": iso(fila.reabierto_en) if fila else None,
             "nota_reapertura": (fila.nota_reapertura or "") if fila else ""}
@@ -87,9 +90,17 @@ def fila_del_panel(f: dict) -> dict:
                         "resultado": ultimo.resultado, "semaforo": ultimo.semaforo, "estado": ultimo.estado}
                        if ultimo else None),
             "serie": [{"periodo": m.periodo, "etiqueta": calendario.etiqueta(f_, m.periodo), "resultado": m.resultado,
-                       "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite} for m in f["validas"]],
+                       "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite, "presupuesto": m.presupuesto}
+                      for m in f["validas"]],
+            "vs_presupuesto": _resumen_presupuesto(f["validas"]),
             "celdas": f["celdas"], "faltantes": [calendario.etiqueta(f_, p) for p in f["faltantes"]],
             "devueltas": f["devueltas"], "tendencia": f["tendencia"]}
+
+
+def _resumen_presupuesto(validas) -> dict:
+    """Cuántas cargas tenían presupuesto y cuántas lo alcanzaron."""
+    con = [m for m in validas if m.presupuesto is not None]
+    return {"con_presupuesto": len(con), "cumplen": sum(comparar(m.resultado, m.presupuesto, m.sentido)["cumple"] for m in con)}
 
 
 def ficha_periodos(periodos: list[dict]) -> list[dict]:

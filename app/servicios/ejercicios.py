@@ -24,6 +24,39 @@ def exigir_abierto(db: Session, anio: int | None) -> None:
                         "El administrador puede reabrirlo desde Ejercicios fiscales.")
 
 
+def creado(db: Session, anio: int | None) -> bool:
+    """¿Existe el período fiscal (paso 1)? Sin crearlo no se presupuesta ni se carga."""
+    return anio is not None and db.get(Ejercicio, anio) is not None
+
+
+def exigir_creado(db: Session, anio: int) -> None:
+    if not creado(db, anio):
+        raise Conflicto(f"El período fiscal {calendario.etiqueta_ejercicio(anio)} todavía no ha sido creado. "
+                        "El administrador debe crearlo en «Período y presupuesto» antes de presupuestar o cargar datos.")
+
+
+def crear(db: Session, usuario: Usuario, anio: int, nota: str = "") -> Ejercicio:
+    """Paso 1 del flujo anual: crea (abre) un período fiscal."""
+    if not 2000 <= anio <= 2100:
+        raise Invalido("Año no válido (entre 2000 y 2100).")
+    if creado(db, anio):
+        raise Conflicto(f"El período fiscal {calendario.etiqueta_ejercicio(anio)} ya existe.")
+    fila = Ejercicio(anio=anio, estado="abierto", creado_por_id=usuario.id, creado_en=ahora(), nota=nota.strip())
+    db.add(fila)
+    auditoria.registrar(db, usuario, "EJERCICIO_CREADO", "ejercicio", anio,
+                        {"ejercicio": calendario.etiqueta_ejercicio(anio), "nota": nota.strip()})
+    db.commit()
+    return fila
+
+
+def asegurar_creado(db: Session, usuario: Usuario, anio: int) -> None:
+    """Crea el período si falta (lo usa la importación de históricos, que ya trae datos de años anteriores)."""
+    if not creado(db, anio):
+        db.add(Ejercicio(anio=anio, estado="abierto", creado_por_id=usuario.id, creado_en=ahora(),
+                         nota="Creado al importar datos históricos."))
+        db.flush()
+
+
 def anios_cerrados(db: Session) -> set[int]:
     return {e.anio for e in db.scalars(select(Ejercicio)) if e.estado == "cerrado"}
 
@@ -38,10 +71,11 @@ def estado(db: Session, anio: int, hoy: date) -> str:
 
 
 def anios_conocidos(db: Session, hoy: date) -> list[int]:
-    """Ejercicios con datos, con fila propia y el vigente; el más reciente primero."""
+    """Ejercicios con datos, con fila propia, el vigente y el siguiente; el más reciente primero."""
     anios = {a for a in db.scalars(select(Medicion.ejercicio).distinct()) if a}
     anios |= set(db.scalars(select(Ejercicio.anio)))
-    anios.add(calendario.ejercicio_de_fecha(hoy))
+    vigente = calendario.ejercicio_de_fecha(hoy)
+    anios |= {vigente, vigente + 1}   # el siguiente se ofrece para crearlo con antelación
     return sorted(anios, reverse=True)
 
 
@@ -141,7 +175,7 @@ def descripcion(db: Session, anio: int, hoy: date) -> dict:
     fila = db.get(Ejercicio, anio)
     cerrado = bool(fila and fila.estado == "cerrado")
     return {"anio": anio, "etiqueta": calendario.etiqueta_ejercicio(anio), "desde": ini, "hasta": fin,
-            "estado": estado(db, anio, hoy), "fila": fila,
+            "estado": estado(db, anio, hoy), "fila": fila, "creado": fila is not None,
             "cerrado_por": fila.cerrado_por.nombre if cerrado and fila.cerrado_por else None}
 
 
@@ -173,6 +207,7 @@ def verificar(db: Session, anio: int, hoy: date | None = None) -> dict:
 
 def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, aceptar_faltantes: bool, hoy: date | None = None) -> None:
     hoy = hoy or date.today()
+    exigir_creado(db, anio)
     v = verificar(db, anio, hoy)
     if v["descripcion"]["estado"] == "cerrado":
         raise Conflicto("El ejercicio ya está cerrado.")

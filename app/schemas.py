@@ -151,6 +151,7 @@ class ProbarIn(BaseModel):
 class CalcIn(BaseModel):
     indicador_id: int
     valores: dict[str, Numero | None]
+    periodo: str | None = None      # opcional: con él el cálculo en vivo incluye la comparación con el presupuesto
 
 
 class CargaIn(CalcIn):
@@ -169,6 +170,23 @@ class NotaIn(BaseModel):
 
 
 # ---------------------------------------------------------------- ejercicios fiscales
+class EjercicioIn(BaseModel):
+    anio: int = Field(ge=2000, le=2100)
+    nota: str = Field(default="", max_length=2000)
+
+
+# ---------------------------------------------------------------- presupuesto
+class PresupuestoIn(BaseModel):
+    """O bien `valores` (período → valor), o bien `anual` con su `reparto` (igual | repetir)."""
+    valores: dict[str, Numero] | None = None
+    anual: Numero | None = None
+    reparto: Literal["igual", "repetir"] = "igual"
+
+
+class CopiaPresupuestoIn(BaseModel):
+    desde: int = Field(ge=2000, le=2100)
+
+
 class CierreIn(BaseModel):
     nota: str = Field(default="", max_length=2000)
     aceptar_faltantes: bool = False

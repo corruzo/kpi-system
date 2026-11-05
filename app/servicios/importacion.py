@@ -67,6 +67,7 @@ def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind,
         if med.periodo in periodos:
             raise Invalido(f"{ind.codigo}: período {med.periodo} repetido.")
         anio = calendario.ejercicio_de(ind.frecuencia, med.periodo)
+        ejercicios.asegurar_creado(db, admin, anio)
         ejercicios.exigir_abierto(db, anio)
         r = mediciones.evaluar_carga(ind, dict(med.valores))   # el resultado se recalcula aquí: no se confía en el cliente
         if not r["ok"]:

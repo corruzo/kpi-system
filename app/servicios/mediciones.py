@@ -4,10 +4,10 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..dominio import calendario, formulas, semaforo
+from ..dominio import calendario, formulas, presupuesto, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
 from ..models import Indicador, Medicion, NotaAuditoria, Usuario, ahora
-from . import auditoria, ejercicios, indicadores
+from . import auditoria, ejercicios, indicadores, presupuestos
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
 MIN_TEXTO_NOTA = 5
@@ -39,8 +39,15 @@ def evaluar_carga(ind: Indicador, valores: dict) -> dict:
     return {"ok": True, "resultado": resultado, "semaforo": color, "requiere_analisis": color != "verde", "valores": finales}
 
 
-def calcular(db: Session, u: Usuario, indicador_id: int, valores: dict) -> dict:
-    return evaluar_carga(indicadores.obtener_visible(db, u, indicador_id), valores)
+def calcular(db: Session, u: Usuario, indicador_id: int, valores: dict, periodo: str | None = None) -> dict:
+    """Resultado en vivo; con `periodo` incluye la comparación contra lo presupuestado para ese período."""
+    ind = indicadores.obtener_visible(db, u, indicador_id)
+    r = evaluar_carga(ind, valores)
+    if r["ok"] and periodo and calendario.periodo_valido(ind.frecuencia, periodo):
+        existente = db.scalar(select(Medicion).where(Medicion.indicador_id == ind.id, Medicion.periodo == periodo))
+        base = existente.presupuesto if existente and existente.presupuesto is not None else presupuestos.del_periodo(db, ind.id, periodo)
+        r["vs_presupuesto"] = presupuesto.comparar(r["resultado"], base, ind.sentido)
+    return r
 
 
 # ---------------------------------------------------------------- envío de una carga
@@ -63,6 +70,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
         raise Conflicto("El indicador está archivado.")
     _exigir_periodo_cargable(ind, datos.periodo)
     anio = calendario.ejercicio_de(ind.frecuencia, datos.periodo)
+    ejercicios.exigir_creado(db, anio)
     ejercicios.exigir_abierto(db, anio)
     r = evaluar_carga(ind, datos.valores)
     if not r["ok"]:
@@ -76,10 +84,11 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
         raise Conflicto("Este período ya fue cargado y no puede modificarse.")
     reenvio = m is not None
     if m is None:
-        m = Medicion(indicador_id=ind.id, periodo=datos.periodo, version=1)
+        base = presupuestos.exigir_presupuestado(db, ind, datos.periodo)   # sin presupuesto no hay con qué comparar
+        m = Medicion(indicador_id=ind.id, periodo=datos.periodo, version=1, presupuesto=base)
         db.add(m)
     else:
-        m.version += 1
+        m.version += 1   # un reenvío conserva el presupuesto con que se cargó por primera vez
     m.valores, m.resultado, m.semaforo, m.ejercicio = r["valores"], r["resultado"], r["semaforo"], anio
     _copiar_foto_del_indicador(m, ind)
     m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
@@ -89,7 +98,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
     db.flush()
     auditoria.registrar(db, u, "REENVIO" if reenvio else "CARGA", "medicion", m.id,
                         {"periodo": m.periodo, "valores": m.valores, "resultado": m.resultado, "semaforo": m.semaforo,
-                         "analisis": analisis, "plan_mejora": plan, "version": m.version}, ind)
+                         "presupuesto": m.presupuesto, "analisis": analisis, "plan_mejora": plan, "version": m.version}, ind)
     db.commit()
     return m
 

@@ -63,11 +63,38 @@ def ficha_base(area_id: int, **cambios) -> dict:
     return {**base, **cambios}
 
 
-def crear_indicador(c, area_id: int, **cambios) -> dict:
+def crear_periodo(c, anio: int) -> None:
+    """Paso 1 del flujo: crea el período fiscal si aún no existe."""
+    entrar(c, "admin", CLAVE_ADMIN)
+    r = c.post("/api/ejercicios", json={"anio": anio})
+    assert r.status_code in (201, 409), r.text
+
+
+def presupuestar(c, indicador: dict, valor: float | None = None, anio: int | None = None) -> None:
+    """Pasos 1 y 3: crea los períodos fiscales que toquen y presupuesta el indicador (por defecto, su meta, repetida)."""
+    from datetime import date
+
+    from app.dominio import calendario
+    entrar(c, "admin", CLAVE_ADMIN)
+    vigente = calendario.ejercicio_de_fecha(date.today())
+    for a in ([anio] if anio else [vigente, vigente - 1]):
+        crear_periodo(c, a)
+        if indicador["frecuencia"] == "eventual":
+            continue
+        r = c.put(f"/api/ejercicios/{a}/presupuesto/{indicador['id']}",
+                  json={"anual": indicador["meta"] if valor is None else valor, "reparto": "repetir"})
+        assert r.status_code == 200, r.text
+
+
+def crear_indicador(c, area_id: int, presupuesto: bool = True, **cambios) -> dict:
+    """Crea un indicador y, salvo que se pida lo contrario, ya presupuestado (vigente y año anterior)."""
     entrar(c, "admin", CLAVE_ADMIN)
     r = c.post("/api/indicadores", json=ficha_base(area_id, **cambios))
     assert r.status_code == 201, r.text
-    return r.json()
+    ind = r.json()
+    if presupuesto:
+        presupuestar(c, ind)
+    return ind
 
 
 @pytest.fixture()

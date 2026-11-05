@@ -50,6 +50,7 @@ def periodos(indicador_id: int, ejercicio: int | None = None, db: Session = Depe
                           "pendiente": p in d["pendientes"], "corta": calendario.etiqueta_corta(f, p),
                           "ejercicio": calendario.etiqueta_ejercicio(calendario.ejercicio_de(f, p)),
                           "cerrado": calendario.ejercicio_de(f, p) in d["cerrados"],
+                          "presupuesto": d["presupuestos"].get(p), "creado": d["creado"],
                           "medicion": ser.medicion(d["medidas"][p]) if p in d["medidas"] else None}
                          for p in d["periodos"]]}
 
