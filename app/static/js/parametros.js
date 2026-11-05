@@ -1,6 +1,6 @@
 /* Parámetros del sistema (empresa, formato, inicio del ejercicio fiscal) y logo de la empresa. */
 SIGT.modulos.parametros = () => ({
-    marca: { empresa: '', logo_url: null },     // datos públicos: visibles antes de iniciar sesión
+    marca: { logo_url: null },     // datos públicos: visibles antes de iniciar sesión
     params: {}, parForm: {},
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.

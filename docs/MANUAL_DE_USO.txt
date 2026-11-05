@@ -95,7 +95,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
         c) Un valor ANUAL repetido en cada período (para porcentajes, promedios y tiempos).
 
 2.5 DATO REAL y RESULTADO
-    Cada mes el jefe digita las VARIABLES del indicador (ej. "TM producidas" y "TM planificadas"). El
+    Cada mes el jefe digita las VARIABLES del indicador (ej. "TM producidas" y "TM presupuestadas"). El
     sistema calcula el RESULTADO con la fórmula (ej. real / plan * 100 = 90 %).
 
 2.6 COMPARACIÓN REAL vs. PRESUPUESTO
@@ -114,7 +114,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
         Verde = Cumple | Amarillo = Alerta | Rojo = Crítico.
     Si queda en Alerta o Crítico, el jefe DEBE escribir el análisis y el plan de mejora (mínimo 10
     caracteres cada uno). El semáforo y el presupuesto son dos lecturas complementarias: el semáforo
-    mide contra la meta de calidad; el presupuesto mide contra lo planificado para ese período.
+    mide contra la meta de calidad; el presupuesto mide contra lo presupuestado para ese período.
 
 2.8 ESTADOS DE UNA CARGA
     ENVIADO ("En revisión")  El jefe la envió; espera al gerente. No se puede modificar.
@@ -165,7 +165,7 @@ Menú de cada rol (lo que ve en pantalla):
 4. INSTALACIÓN Y PUESTA EN SERVICIO TÉCNICA
 ====================================================================================================
 
-Esta sección es para quien instala el sistema (programador o responsable de TI).
+Esta sección es para quien instala el sistema (responsable técnico o de TI).
 
 4.1 REQUISITOS
     - Python 3.12 o superior.
@@ -764,7 +764,7 @@ PASO 5.  CARGA MENSUAL
    PASO 2   Admin: crea dos indicadores del área Producción:
                PRO-01  Cumplimiento del plan de producción   % · mensual · mayor es mejor
                         fórmula: real / plan * 100     meta 95 · límite crítico 85
-                        variables: "TM producidas" (real), "TM planificadas" (plan)
+                        variables: "TM producidas" (real), "TM presupuestadas" (plan)
                PRO-02  Producción trimestral de caliza        TM · trimestral · mayor es mejor
                         fórmula: real     meta 1000 · límite 800     variable: "TM" (real)
    PASO 3   Admin: Período y presupuesto > "2026-2027" > "Crear período fiscal 2026-2027".
@@ -775,7 +775,7 @@ PASO 5.  CARGA MENSUAL
                         -> 1.000 TM para cada trimestre (T1 cierra en diciembre).
                Resultado en pantalla: "2 de 2 indicadores con presupuesto completo".
    PASO 5   Octubre: la jefa Marta entra > Carga del mes > PRO-01 > Octubre 2026.
-               TM producidas 900, TM planificadas 1000 -> Resultado 90 % -> semáforo ALERTA
+               TM producidas 900, TM presupuestadas 1000 -> Resultado 90 % -> semáforo ALERTA
                (meta 95, crítico < 85).
                Cuadro: Presupuestado 96 % · Real 90 % · Diferencia -6 (93,8 % · no alcanza).
                Como es Alerta, escribe el análisis ("Paro de molino 3 por falla eléctrica") y el

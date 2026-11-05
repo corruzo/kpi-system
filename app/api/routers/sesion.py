@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ... import schemas, security
 from ...config import PRODUCCION
 from ...models import Usuario
-from ...servicios import marca, parametros, sesion
+from ...servicios import marca, sesion
 from .. import serializadores as ser
 from ..deps import escritura, get_db, origen_cliente, usuario_actual
 
@@ -53,5 +53,5 @@ def marcar_guia(datos: schemas.TourIn, db: Session = Depends(get_db), u: Usuario
 
 @router.get("/publico")
 def datos_publicos(db: Session = Depends(get_db)):
-    """Nombre de la empresa y logo, visibles antes de iniciar sesión."""
-    return {"empresa": parametros.leer(db).get("empresa", ""), "logo_url": marca.url_logo(db)}
+    """Único dato visible antes de iniciar sesión: el logo (la pantalla de ingreso no muestra nada más)."""
+    return {"logo_url": marca.url_logo(db)}
