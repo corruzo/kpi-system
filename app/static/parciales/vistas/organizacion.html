@@ -23,10 +23,14 @@
         <div class="card lg:col-span-3 self-start">
           <div class="card-h"><h2 class="font-semibold">Usuarios</h2><button class="btn btn-p btn-sm" @click="nuevoUsuario()">+ Nuevo usuario</button></div>
           <ul class="divide-y divide-slate-100">
-            <template x-for="x in usuarios" :key="x.id"><li class="flex items-center gap-3 p-4" :class="!x.activo && 'opacity-50'">
+            <template x-for="x in usuarios" :key="x.id"><li class="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap" :class="!x.activo && 'bg-slate-50'">
               <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600" x-text="iniciales(x)"></span>
-              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inactivo')"></span></span>
-              <button class="btn btn-s btn-sm" @click="editarUsuario(x)">Editar</button>
+              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" :class="!x.activo && 'text-slate-500'" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inactivo')"></span></span>
+              <span class="flex shrink-0 flex-wrap justify-end gap-1.5">
+                <button class="btn btn-s btn-sm" @click="editarUsuario(x)">Editar</button>
+                <button class="btn btn-s btn-sm" x-show="x.id !== user.id" :disabled="busy" @click="alternarUsuario(x)" x-text="x.activo ? 'Inhabilitar' : 'Habilitar'"></button>
+                <button class="btn btn-d btn-sm" x-show="x.id !== user.id" :disabled="busy || !x.puede_eliminarse" @click="eliminarUsuario(x)" :title="x.puede_eliminarse ? 'Eliminar definitivamente' : 'Tiene actividad registrada: solo puede inhabilitarse'">Eliminar</button>
+              </span>
             </li></template>
           </ul>
         </div>

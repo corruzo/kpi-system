@@ -56,12 +56,12 @@ Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/
 |---|---|
 | Jefe de Área | Carga rápida de su área; resultado y semáforo en vivo; análisis y plan de mejora obligatorios si hay Alerta/Crítico (validado en servidor); reenvío de cargas devueltas. |
 | Gerente / Auditor SGC | Bandeja de aprobación, notas de auditoría, panel de análisis, exportación CSV. |
-| Administrador SGC | Fichas de indicadores, áreas, usuarios (alta, roles, restablecer clave, desactivar), bitácora. |
+| Administrador SGC | Fichas de indicadores, áreas, usuarios (alta, roles, restablecer clave, inhabilitar, eliminar), bitácora. |
 
 ## Reglas y seguridad
 - Semáforo «mayor es mejor»: verde ≥ meta, amarillo ≥ límite, rojo < límite; el inverso es simétrico.
 - Cada carga guarda meta/límite vigentes; editar la ficha no altera el histórico. Cargas enviadas/aprobadas no se modifican; si se devuelven, se reenvían (versión +1).
-- Eliminar un indicador o usuario con historial lo archiva/desactiva; un área con indicadores o usuarios no se elimina.
+- Eliminar un indicador con historial lo archiva; a un usuario sin actividad se le puede eliminar (botón «Eliminar») y con actividad solo se inhabilita (no puede ingresar y su historial se conserva); un área con indicadores o usuarios no se elimina.
 - Fórmulas con evaluador AST restringido (sin `eval`).
 - Bitácora de solo inserción con cadena SHA-256 (verificable desde la interfaz), protegida además por trigger en Postgres y bloqueo en el ORM; escrituras serializadas con *advisory lock* entre procesos.
 - Contraseñas PBKDF2-SHA256 (210 000 iteraciones), mínimo 10 caracteres; cambiar o restablecer una clave invalida las sesiones previas; bloqueo por intentos fallidos (5 por IP+usuario, 20 por IP, 10 por usuario, en 15 min) con contadores en la base, compartidos entre procesos; cerrar sesión revoca el token en el servidor; la contraseña de los reportes se guarda cifrada (Fernet, clave derivada de `SIGT_SECRET`); cabeceras CSP/HSTS/X-Frame-Options.

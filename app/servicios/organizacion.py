@@ -1,10 +1,10 @@
 """Estructura de la empresa: áreas, usuarios y listas de apoyo de la ficha (gerencias, procesos, objetivos, cargos)."""
-from sqlalchemy import func, select
+from sqlalchemy import func, select, union
 from sqlalchemy.orm import Session
 
 from .. import security
 from ..errores import Conflicto, Invalido, NoEncontrado
-from ..models import Area, Catalogo, Indicador, Usuario
+from ..models import Area, Bitacora, Catalogo, Ejercicio, Indicador, Medicion, NotaAuditoria, Presupuesto, Usuario
 from . import auditoria
 
 
@@ -106,6 +106,31 @@ def editar_usuario(db: Session, admin: Usuario, usuario_id: int, datos) -> Usuar
         auditoria.registrar(db, admin, "USUARIO_EDITADO", "usuario", u.id, {"username": u.username, "cambios": cambios})
     db.commit()
     return u
+
+
+def ids_con_historial(db: Session) -> set[int]:
+    """Usuarios que figuran en algún registro (bitácora, cargas, revisiones, notas, ejercicios o presupuestos). A esos no se
+    les puede borrar sin romper la trazabilidad: se inhabilitan."""
+    consultas = [select(Bitacora.usuario_id), select(Medicion.cargado_por_id), select(Medicion.revisado_por_id),
+                 select(NotaAuditoria.usuario_id), select(Ejercicio.creado_por_id), select(Ejercicio.cerrado_por_id),
+                 select(Ejercicio.reabierto_por_id), select(Presupuesto.actualizado_por_id)]
+    return {i for i in db.scalars(union(*consultas)) if i is not None}
+
+
+def eliminar_usuario(db: Session, admin: Usuario, usuario_id: int) -> None:
+    """Borra definitivamente a un usuario que nunca tuvo actividad (por ejemplo, uno creado por error).
+    Quien ya aparece en la bitácora, en cargas o en revisiones no puede borrarse: debe inhabilitarse."""
+    u = db.get(Usuario, usuario_id)
+    if not u:
+        raise NoEncontrado("Usuario no encontrado.")
+    if u.id == admin.id:
+        raise Invalido("No puede eliminar su propia cuenta.")
+    if u.id in ids_con_historial(db):
+        raise Conflicto("Este usuario tiene actividad registrada (ingresos, cargas o revisiones) y no puede eliminarse sin perder la "
+                        "trazabilidad. Inhabilítelo: no podrá ingresar y su historial se conserva.")
+    auditoria.registrar(db, admin, "USUARIO_ELIMINADO", "usuario", u.id, {"username": u.username, "nombre": u.nombre, "rol": u.rol})
+    db.delete(u)
+    db.commit()
 
 
 # ---------------------------------------------------------------- listas de apoyo

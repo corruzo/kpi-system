@@ -535,9 +535,12 @@ PASO 5.  CARGA MENSUAL
    La contraseña de un usuario                Usuarios > Editar > "Nueva contraseña (opcional)". Cierra
                                               sus sesiones activas. El propio usuario: menú de perfil >
                                               Cambiar contraseña.
-   Desactivar a alguien                       Usuarios > Editar > quitar "Usuario activo". No puede
+   Inhabilitar / habilitar a alguien          Usuarios > botón "Inhabilitar" (o "Habilitar"). No puede
                                               ingresar; su historial se conserva. Un administrador no
-                                              puede desactivarse a sí mismo.
+                                              puede inhabilitarse a sí mismo.
+   Eliminar un usuario                        Usuarios > botón "Eliminar" (definitivo). Solo si nunca tuvo
+                                              actividad (ej. creado por error); si ya ingresó, cargó o
+                                              revisó algo, el botón queda bloqueado y hay que inhabilitarlo.
    Empresa, código de formato, logo           Organización y equipo > Empresa y logo.
    Contraseña de los reportes                 Empresa y logo > casilla de bloqueo > nueva contraseña.
    Mes de inicio del año fiscal               Empresa y logo > Inicio del ejercicio fiscal. Bloqueado si
@@ -565,7 +568,9 @@ PASO 5.  CARGA MENSUAL
    Elemento              Qué pasa y por qué
    -------------------   ---------------------------------------------------------------------------
    Área                  Se elimina solo si NO tiene indicadores ni usuarios.
-   Usuario               NO se elimina: se DESACTIVA (para conservar quién hizo qué).
+   Usuario               Sin actividad registrada (nunca ingresó ni cargó nada): botón "Eliminar", definitivo.
+                         Con actividad: NO se elimina, se INHABILITA (para conservar quién hizo qué).
+                         Nadie puede eliminarse ni inhabilitarse a sí mismo.
    Indicador             Sin cargas: se elimina, con su presupuesto. Con cargas: se ARCHIVA (deja de
                          aparecer para cargar; el historial se conserva; se puede RESTAURAR).
    Carga                 NO se elimina. Se devuelve y se corrige (versiones) para dejar trazabilidad.

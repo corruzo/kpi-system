@@ -39,7 +39,8 @@ def eliminar_area(area_id: IdRuta, db: Session = Depends(get_db), u: Usuario = D
 # ---------------------------------------------------------------- usuarios
 @router.get("/usuarios")
 def listar_usuarios(db: Session = Depends(get_db), _=Depends(solo_admin)):
-    return [ser.usuario(x) for x in organizacion.listar_usuarios(db)]
+    con_historial = organizacion.ids_con_historial(db)
+    return [{**ser.usuario(x), "puede_eliminarse": x.id not in con_historial} for x in organizacion.listar_usuarios(db)]
 
 
 @router.post("/usuarios", status_code=201)
@@ -51,6 +52,13 @@ def crear_usuario(datos: schemas.UsuarioIn, db: Session = Depends(get_db), u: Us
 def editar_usuario(usuario_id: IdRuta, datos: schemas.UsuarioEdit, db: Session = Depends(get_db),
                    u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     return ser.usuario(organizacion.editar_usuario(db, u, usuario_id, datos))
+
+
+@router.delete("/usuarios/{usuario_id}")
+def eliminar_usuario(usuario_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+    """Elimina a un usuario sin actividad; si ya tiene historial hay que inhabilitarlo (PUT con activo = false)."""
+    organizacion.eliminar_usuario(db, u, usuario_id)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------- listas de apoyo

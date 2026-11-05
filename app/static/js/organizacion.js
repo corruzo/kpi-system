@@ -41,6 +41,24 @@ SIGT.modulos.organizacion = () => ({
       } catch { }
       this.busy = false;
     },
+    // Inhabilitar: el usuario no puede ingresar y su historial se conserva (siempre disponible). Se revierte con «Habilitar».
+    async alternarUsuario(x) {
+      const accion = x.activo ? 'inhabilitar' : 'habilitar';
+      if (x.activo && !confirm(`¿Inhabilitar a «${x.nombre}»? No podrá ingresar al sistema (su historial se conserva y puede habilitarlo de nuevo).`)) return;
+      this.busy = true;
+      try {
+        await this.api(`/api/usuarios/${x.id}`, { method: 'PUT', body: { nombre: x.nombre, rol: x.rol, area_id: x.area_id || null, activo: !x.activo } });
+        this.usuarios = await this.api('/api/usuarios'); this.avisar(`Usuario ${accion === 'inhabilitar' ? 'inhabilitado' : 'habilitado'}.`);
+      } catch { }
+      this.busy = false;
+    },
+    // Eliminar: definitivo; solo para quien nunca tuvo actividad (creado por error). Con historial, el servidor lo rechaza.
+    async eliminarUsuario(x) {
+      if (!confirm(`¿Eliminar definitivamente a «${x.nombre}»? Esta acción no se puede deshacer.`)) return;
+      this.busy = true;
+      try { await this.api(`/api/usuarios/${x.id}`, { method: 'DELETE' }); this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario eliminado.'); } catch { }
+      this.busy = false;
+    },
     get catActual() { return this.catalogos.filter(c => c.tipo === this.catTab); },
     async guardarCat() {
       this.busy = true;
