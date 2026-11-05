@@ -29,7 +29,8 @@ def test_reporte_general_en_excel(client, escenario):
     r = client.get("/api/reportes/general.xlsx")
     assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
     libro = load_workbook(BytesIO(r.content))
-    assert libro.sheetnames == ["Resumen", "Mediciones", "Tendencias", "Plan de mejora", "Fichas técnicas", "Control"]
+    assert libro.sheetnames[:2] == ["Resumen", "Real vs Presupuesto"] and libro.sheetnames[-3:] == ["Plan de mejora", "Indicadores", "Control"]
+    assert any(n.startswith("Matriz ") for n in libro.sheetnames)
     assert client.get("/api/reportes/bitacora.xlsx").status_code == 200
     entrar(client, escenario["jefe"])
     assert client.get("/api/reportes/general.xlsx").status_code == 200       # el jefe descarga solo su área

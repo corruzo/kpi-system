@@ -1,63 +1,33 @@
-"""Bitácora del sistema en Excel (solo administrador)."""
-
+"""Bitácora del sistema en Excel (solo administrador). Blanco y negro, sin logo."""
 from datetime import datetime
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
-from .comun import (
-    BORDE,
-    FUENTE,
-    GRIS,
-    ZEBRA,
-    ajustar,
-    configurar_impresion,
-    encabezado_tabla,
-    franja_titulo,
-    hora_local,
-    relleno,
-)
+from .comun import ajustar, celda, configurar_impresion, encabezado_hoja, encabezado_tabla, hora_local
 
 
-def reporte_bitacora(registros, codigos: dict, generado_por: str, verificacion: dict) -> Workbook:
+def reporte_bitacora(empresa: str, registros, codigos: dict, generado_por: str, verificacion: dict) -> Workbook:
     wb = Workbook()
+    wb.properties.creator = empresa
     ws = wb.active
     ws.title = "Bitácora"
     ahora = hora_local(datetime.utcnow())
-    estado = "ÍNTEGRA ✔" if verificacion["ok"] else f"ALTERADA ✖ (registro #{verificacion['primer_error_id']})"
-    cols = ["#", "Fecha y hora", "Usuario", "Rol", "Acción", "Entidad", "Indicador", "Detalle", "Hash SHA-256"]
-    franja_titulo(
-        ws,
-        "Bitácora de trazabilidad del sistema",
-        f"Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por} · Cadena de hashes: {estado} · "
-        f"{verificacion['total']} registros",
-        len(cols),
-    )
-    encabezado_tabla(ws, 4, cols, [8, 17, 28, 11, 22, 12, 11, 90, 24])
-    for k, b in enumerate(registros, 5):
+    estado = "íntegra" if verificacion["ok"] else f"ALTERADA (registro #{verificacion['primer_error_id']})"
+    fila0 = encabezado_hoja(ws, empresa, "Bitácora de trazabilidad del sistema", [
+        f"Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por}",
+        f"Cadena de huellas: {estado} · {verificacion['total']} registros"])
+    cols = ["#", "Fecha y hora", "Usuario", "Rol", "Acción", "Entidad", "Indicador", "Detalle", "Huella SHA-256"]
+    encabezado_tabla(ws, fila0, cols, [8, 19, 28, 11, 22, 12, 11, 90, 24])
+    for k, b in enumerate(registros, fila0 + 1):
         det = "; ".join(f"{a}: {v}" for a, v in (b.detalle or {}).items())
-        fila = [
-            b.id,
-            hora_local(b.fecha),
-            b.usuario_nombre,
-            b.rol,
-            b.accion,
-            b.entidad,
-            codigos.get(b.indicador_id, ""),
-            det,
-            b.hash[:16] + "…",
-        ]
-        for j, v in enumerate(fila, 1):
-            c = ws.cell(k, j, v)
-            c.font = Font(name="Consolas" if j == 9 else FUENTE, size=10, color=GRIS if j == 9 else "000000")
-            c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=(j == 8))
-            if k % 2:
-                c.fill = relleno(ZEBRA)
-        ws.cell(k, 2).number_format = "dd/mm/yyyy hh:mm:ss"
-    ws.freeze_panes = "C5"
-    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(registros))}"
-    configurar_impresion(ws, 4)
+        valores = [b.id, hora_local(b.fecha), b.usuario_nombre, b.rol, b.accion, b.entidad, codigos.get(b.indicador_id, ""),
+                   det, b.hash[:16] + "…"]
+        for j, v in enumerate(valores, 1):
+            celda(ws, k, j, v, "dd/mm/yyyy hh:mm:ss" if j == 2 else None, alinear="center" if j in (1, 2, 4, 7) else "left",
+                  ajustar_texto=(j == 8), mono=(j == 9))
+    ws.freeze_panes = ws.cell(fila0 + 1, 3)
+    ws.auto_filter.ref = f"A{fila0}:{get_column_letter(len(cols))}{max(fila0 + 1, fila0 + len(registros))}"
+    configurar_impresion(ws, fila0, empresa=empresa)
     ajustar(ws)
     return wb

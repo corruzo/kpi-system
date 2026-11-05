@@ -8,12 +8,11 @@ import io
 from datetime import datetime
 
 from openpyxl import load_workbook
-from openpyxl.formatting.rule import CellIsRule
-from openpyxl.styles import Alignment, Font
+from openpyxl.styles import Alignment
 from openpyxl.workbook.protection import WorkbookProtection
 
 from ..security import firmar_reporte
-from .comun import BORDE, FUENTE, GRIS, NAVY, SEM, ajustar, configurar_impresion, franja_titulo, relleno
+from .comun import BORDE, ajustar, configurar_impresion, encabezado_hoja, fuente
 
 HOJA_CONTROL = "Control"
 
@@ -24,13 +23,6 @@ def formula_semaforo(resultado: str, meta, limite, mayor: bool) -> str:
     op = ">=" if mayor else "<="
     return (f'=IF({resultado}="","",IF({resultado}{op}{meta!r},"Cumple",'
             f'IF({resultado}{op}{limite!r},"Alerta","Crítico")))')
-
-
-def colorear_semaforo(ws, rango: str) -> None:
-    """Color de fondo según el texto de la celda (Cumple / Alerta / Crítico)."""
-    for fondo, texto, etiqueta in SEM.values():
-        ws.conditional_formatting.add(rango, CellIsRule(
-            operator="equal", formula=[f'"{etiqueta}"'], fill=relleno(fondo), font=Font(bold=True, color=texto)))
 
 
 # ------------------------------------------------------------------ huella del contenido
@@ -58,24 +50,23 @@ def huella(wb) -> str:
 
 
 # ------------------------------------------------------------------ sellar, proteger, verificar
-def sellar(wb, numero: str, tipo: str, generado_por: str, fecha: datetime) -> str:
+def sellar(wb, numero: str, tipo: str, generado_por: str, fecha: datetime, empresa: str = "") -> str:
     """Agrega la hoja «Control» (número, quién y cuándo, huella y firma) y devuelve la huella."""
     h = huella(wb)
     ws = wb.create_sheet(HOJA_CONTROL)
-    franja_titulo(ws, "Control del reporte", "Este archivo fue generado por el SGC • TRIPOLIVEN y puede verificarse en el sistema (Reportes → Verificar).", 2)
+    encabezado_hoja(ws, empresa, "Control del reporte")      # filas 1-2; los datos empiezan en la fila 4
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 26, 78
     filas = [("Número de reporte", numero), ("Tipo", tipo), ("Generado por", generado_por),
              ("Fecha de emisión", f"{fecha:%d/%m/%Y %H:%M}"), ("Huella del contenido", h),
              ("Firma del sistema", firmar_reporte(f"{numero}|{h}"))]
     for k, (etiqueta, valor) in enumerate(filas, 4):
         e, v = ws.cell(k, 1, etiqueta), ws.cell(k, 2, valor)
-        e.font, v.font = Font(name=FUENTE, bold=True, color=NAVY), Font(name="Consolas" if k > 7 else FUENTE, size=9 if k > 7 else 10)
+        e.font, v.font = fuente(True), fuente(tam=9 if k > 7 else 10, mono=k > 7)
         e.border = v.border = BORDE
         v.alignment = Alignment(wrap_text=True, vertical="center")
-    ws.merge_cells("A11:B11")
-    ws.cell(11, 1, "Cualquier cambio en las demás hojas invalida la firma.").font = Font(name=FUENTE, italic=True, size=9, color=GRIS)
+    ws.cell(11, 1, "Cualquier cambio en las demás hojas invalida la firma. Puede verificarse en el sistema (Reportes → Verificar).").font = fuente(cursiva=True, tam=9)
     ajustar(ws, columnas=False)
-    configurar_impresion(ws, 3, apaisado=False)
+    configurar_impresion(ws, 0, apaisado=False, empresa=empresa)
     return h
 
 

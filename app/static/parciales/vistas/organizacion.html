@@ -37,7 +37,7 @@
           <div class="card-b flex flex-wrap items-center gap-5">
             <div class="flex h-24 w-full max-w-[12rem] shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-2"><img x-show="logoUrl" :src="logoUrl" alt="Logo actual" class="max-h-20 max-w-full object-contain"><span x-show="!logoUrl" class="text-xs text-slate-400">Sin logo</span></div>
             <div class="min-w-0 flex-1 basis-56 space-y-2">
-              <p class="text-sm text-slate-600">Aparece en la pantalla de ingreso, la cabecera, la ficha técnica y los reportes en Excel. Formatos PNG, JPG o WebP; se ajusta automáticamente (máx. 600 px).</p>
+              <p class="text-sm text-slate-600">Aparece en la pantalla de ingreso y en la cabecera. Los reportes en Excel no llevan logo: solo el nombre de la empresa. Formatos PNG, JPG o WebP; se ajusta automáticamente (máx. 600 px).</p>
               <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
               <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
             </div></div></div>

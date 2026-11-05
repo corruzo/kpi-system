@@ -60,7 +60,7 @@ SIGT.modulos.nucleo = () => ({
         panel: ver('panel', 'Panel de análisis', 'Panel'),
         bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaTotal.length),
         ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
-        presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presupuesto'),
+        presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presup.'),
         fichas: ver('fichas', 'Indicadores', 'Fichas'),
         org: ver('org', 'Organización y equipo', 'Equipo'),
         importar: ver('importar', 'Importar', 'Importar'),

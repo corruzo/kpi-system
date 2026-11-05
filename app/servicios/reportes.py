@@ -9,29 +9,30 @@ from .. import excel
 from ..dominio import calendario
 from ..errores import Invalido, NoEncontrado
 from ..excel import comun, sello
-from ..models import Area, Bitacora, Indicador, Medicion, Usuario
+from ..models import Area, Bitacora, Indicador, Medicion, Presupuesto, Usuario
 from ..security import firmar_reporte
-from . import auditoria, bitacora, indicadores, marca, parametros, zip_seguro
+from . import auditoria, bitacora, indicadores, parametros, zip_seguro
 
 MAX_BYTES_VERIFICAR = 10_000_000
 
 
-def _nombre_archivo(prefijo: str) -> str:
-    return f"SGC_TRIPOLIVEN_{prefijo}_{date.today():%Y%m%d}.xlsx"
+def _nombre_archivo(empresa: str, prefijo: str) -> str:
+    return f"{comun.slug(empresa)}_{prefijo}_{date.today():%Y%m%d}.xlsx"
 
 
 def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: dict) -> tuple[bytes, str]:
     """Último paso de todo reporte: lo numera y firma, lo bloquea con la contraseña de Parámetros (si está activa),
     deja constancia en la bitácora y devuelve el archivo."""
     numero = f"R-{date.today():%Y%m%d}-{secrets.token_hex(3).upper()}"
-    huella = sello.sellar(libro, numero, tipo, u.nombre, comun.hora_local(datetime.utcnow()))
+    empresa = parametros.datos_para_reportes(db)["empresa"]
+    huella = sello.sellar(libro, numero, tipo, u.nombre, comun.hora_local(datetime.utcnow()), empresa)
     clave = parametros.clave_de_reportes(db)
     if clave:
         sello.proteger(libro, clave)
     auditoria.registrar(db, u, "REPORTE_EXPORTADO", "reporte", None,
                         {"numero": numero, "tipo": tipo, "huella": huella[:16], "protegido": bool(clave), **detalle})
     db.commit()
-    return comun.a_bytes(libro), _nombre_archivo(prefijo)
+    return comun.a_bytes(libro), _nombre_archivo(empresa, prefijo)
 
 
 def verificar(db: Session, contenido: bytes) -> dict:
@@ -59,7 +60,7 @@ def verificar(db: Session, contenido: bytes) -> dict:
 
 
 def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, estado: str | None) -> tuple[bytes, str]:
-    """Resumen, mediciones, tendencias, plan de mejora y fichas. El jefe solo obtiene su área."""
+    """Real contra presupuesto. El jefe solo obtiene su área."""
     if u.rol == "jefe":
         area_id = u.area_id
     q_ind = select(Indicador).order_by(Indicador.codigo)
@@ -77,10 +78,20 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
     inds, meds = db.scalars(q_ind).all(), db.scalars(q_med).all()
     if anio:
         meds = [m for m in meds if calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
+    q_pres = select(Presupuesto).join(Indicador, Presupuesto.indicador_id == Indicador.id)
+    if area_id:
+        q_pres = q_pres.where(Indicador.area_id == area_id)
+    if anio:
+        q_pres = q_pres.where(Presupuesto.ejercicio == int(anio))
+    presupuestos = {(p.indicador_id, p.periodo): p.valor for p in db.scalars(q_pres)}
+    anios = {int(anio)} if anio else ({m.ejercicio or calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) for m in meds}
+                                      | {p.ejercicio for p in db.scalars(q_pres)})
     por_aprobar = len(db.scalars(select(Medicion.id).join(Indicador).where(
         Medicion.estado == "enviado", *([Indicador.area_id == area_id] if area_id else []))).all())
-    libro = excel.general.reporte_general(meds, inds, u.nombre, " · ".join(filtros), por_aprobar, marca.bytes_logo(db))
-    return _entregar(db, u, libro, "General", "reporte", {"filtros": filtros, "filas": len(meds)})
+    empresa = parametros.datos_para_reportes(db)["empresa"]
+    libro = excel.general.reporte_general(empresa, meds, inds, presupuestos, sorted(anios), u.nombre, " · ".join(filtros),
+                                          por_aprobar, solo_cargadas=bool(estado))
+    return _entregar(db, u, libro, "General", "real_vs_presupuesto", {"filtros": filtros, "filas": len(meds)})
 
 
 def fichas(db: Session, u: Usuario, ejercicio: int | None, area_id: int | None, indicador_id: int | None) -> tuple[bytes, str]:
@@ -108,5 +119,5 @@ def fichas(db: Session, u: Usuario, ejercicio: int | None, area_id: int | None, 
 
 def de_bitacora(db: Session, u: Usuario) -> tuple[bytes, str]:
     registros = db.scalars(select(Bitacora).order_by(Bitacora.id.desc()).limit(50000)).all()
-    libro = excel.bitacora.reporte_bitacora(registros, bitacora.codigos_de_indicadores(db), u.nombre, auditoria.verificar(db))
+    libro = excel.bitacora.reporte_bitacora(parametros.datos_para_reportes(db)["empresa"], registros, bitacora.codigos_de_indicadores(db), u.nombre, auditoria.verificar(db))
     return _entregar(db, u, libro, "Bitácora", "bitacora", {"registros": len(registros)})

@@ -507,7 +507,7 @@ PASO 5.  CARGA MENSUAL
     ficha o el presupuesto de otros períodos NO cambia el pasado.
 
 8.4 REPORTES VERIFICABLES
-    Cada Excel lleva un número y una hoja "Control" con huella y firma del sistema. En Reportes >
+    (ver sección 13) Cada Excel lleva un número y una hoja "Control" con huella y firma del sistema. En Reportes >
     "Verificar un reporte" (gerente / administrador) se sube el archivo y el sistema dice si es
     auténtico o fue alterado. Cada descarga queda en la bitácora.
 
@@ -621,20 +621,55 @@ PASO 5.  CARGA MENSUAL
        hay comparación para ellos); los años nuevos sí se presupuestan con normalidad.
 
 
-====================================================================================================
+====================================================================================================================================================================================================
 13. REPORTES Y SU VERIFICACIÓN  (menú Analizar > Reportes)
 ====================================================================================================
-    - Informe de indicadores de gestión (Excel): filtros por Ejercicio (o todos), Área y Estado de
-      la carga. Hojas: Resumen, Mediciones, Tendencias, Plan de mejora y Fichas técnicas, más una hoja
-      "Control". El jefe solo obtiene su área.
-    - Fichas técnicas (formato SGC): una hoja por indicador con el diseño de la ficha en papel.
-    - Verificar un reporte (gerente / administrador): suba un Excel descargado; dice si es auténtico.
-    - Si el administrador activó el bloqueo con contraseña, los archivos se pueden abrir y leer, pero
-      modificar sus hojas exige esa contraseña.
+    TODOS los Excel son en BLANCO Y NEGRO, sin logo y sin gráficos (los gráficos se ven en la
+    aplicación). Cada hoja empieza únicamente con el NOMBRE DE LA EMPRESA cargado en Parámetros. Sirven
+    para imprimir y para comparar números: lo REAL contra lo PRESUPUESTADO.
+
+    13.1 INFORME "REAL VS PRESUPUESTO"  (botón "Descargar reporte Excel")
+        Filtros: Ejercicio (o todos), Área (no para el jefe) y Estado de la carga. El archivo se
+        llama  <Empresa>_real_vs_presupuesto_AAAAMMDD.xlsx.  Hojas:
+          Resumen ............. Totales (indicadores, períodos presupuestados, con real, que cumplen y
+                                que no alcanzan, cargas por aprobar, % de cumplimiento) y cumplimiento
+                                del presupuesto por ÁREA y por INDICADOR.
+          Real vs Presupuesto . Una fila por indicador y período, incluidos los períodos presupuestados
+                                que aún no se cargan ("Sin cargar" / "Por venir"). Columnas: Ejercicio,
+                                Código, Indicador, Área, Unidad, Sentido, Período, PRESUPUESTADO, REAL,
+                                DIFERENCIA, REAL / PRESUPUESTO (%), CUMPLE PRESUPUESTO (Sí/No), Semáforo y
+                                Estado. Tiene filtros y los títulos quedan fijos al desplazarse.
+          Matriz <ejercicio> .. Una hoja por ejercicio. Por indicador, tres filas: Presupuestado, Real y
+                                Diferencia, con los meses del año fiscal en columnas (un trimestre se ubica
+                                en su último mes) y al final cuántos períodos tienen real y cuántos cumplen.
+          Plan de mejora ...... Cargas fuera de meta con su análisis y su plan (ISO 9001, 9.1.3 y 10.2).
+          Indicadores ......... Definición de cada indicador: fórmula, sentido, meta y límite.
+          Control ............. Número, huella y firma del reporte (ver 13.4).
+        Diferencia, porcentaje y "Cumple" son FÓRMULAS vivas de Excel (se recalculan si se corrige un
+        valor). "Cumple" = real >= presupuesto si "mayor es mejor", o real <= presupuesto si "menor es
+        mejor". Si a un período le falta el presupuesto o el real, esas celdas quedan vacías.
+        Un indicador histórico importado sin presupuesto aparece con el presupuesto vacío.
+        El jefe solo obtiene su área.
+
+    13.2 FICHAS TÉCNICAS (formato SGC)  (botón "Descargar fichas en Excel")
+        Una hoja por indicador con el diseño de la ficha en papel, también en blanco y negro: proceso,
+        definición, semáforo (Mín./Máx.), responsables, datos de cada período, la sección
+        "REAL VS PRESUPUESTO" (presupuestado, real, diferencia, % , cumple, semáforo y estado de cada
+        período del ejercicio), análisis y notas. El resultado y el semáforo son fórmulas vivas.
+        Filtros: Área e Indicador. Usa el ejercicio fiscal elegido (o el vigente).
+
+    13.3 BITÁCORA EN EXCEL (solo administrador)  (Bitácora > "Descargar Excel")
+        Mismo estilo; incluye el estado de la cadena de huellas.
+
+    13.4 VERIFICAR UN REPORTE (gerente / administrador)
+        "Elegir archivo para verificar": suba un Excel descargado del sistema. Dice si es auténtico o si
+        fue modificado. Cada reporte lleva un número y una hoja "Control" con huella y firma.
+    - Si el administrador activó el bloqueo con contraseña (Organización > Empresa y logo), los archivos
+      se pueden abrir y leer, pero modificar sus hojas exige esa contraseña.
     - Cada descarga queda en la bitácora.
 
 
-====================================================================================================
+====
 14. REINICIO DE FÁBRICA (BORRAR TODO)
 ====================================================================================================
     Deja el sistema como recién instalado. Úselo solo para empezar desde cero (por ejemplo, tras

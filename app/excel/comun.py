@@ -1,24 +1,23 @@
-"""Piezas comunes de los reportes en Excel: paleta, estilos, encabezados, impresión, logo y guardado."""
+"""Piezas comunes de los reportes en Excel.
 
+Estilo único de todos los reportes: BLANCO Y NEGRO, sin logo, sin gráficos y sin colores. Cada hoja empieza con el
+nombre de la empresa (el cargado en Parámetros); las tablas llevan encabezado negro con letras blancas y bordes finos.
+"""
 import io
-import math
+import re
 import textwrap
 from datetime import UTC, datetime, timedelta
 
-from openpyxl.drawing.image import Image as XLImagen
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-NAVY, BRAND, GRIS, ZEBRA = "0F172A", "0284C7", "64748B", "F8FAFC"
-SEM = {
-    "verde": ("DCFCE7", "166534", "Cumple"),
-    "amarillo": ("FEF3C7", "92400E", "Alerta"),
-    "rojo": ("FEE2E2", "991B1B", "Crítico"),
-}
+NEGRO, BLANCO = "000000", "FFFFFF"
+FUENTE = "Arial"
+SEMAFORO = {"verde": "Cumple", "amarillo": "Alerta", "rojo": "Crítico"}
 ESTADO = {"enviado": "En revisión", "aprobado": "Aprobado", "observado": "Devuelto"}
-FUENTE = "Calibri"
-_lado = Side(style="thin", color="E2E8F0")
+_lado = Side(style="thin", color=NEGRO)
 BORDE = Border(left=_lado, right=_lado, top=_lado, bottom=_lado)
+SENTIDO = {"mayor": "Mayor es mejor", "menor": "Menor es mejor"}
 
 
 def hora_local(dt):
@@ -33,94 +32,65 @@ def formato_numero(unidad: str, dec: int) -> str:
     )
 
 
-def relleno(hex_):
-    return PatternFill("solid", start_color=hex_, end_color=hex_)
+def fuente(negrita=False, tam=10, cursiva=False, mono=False, blanca=False) -> Font:
+    return Font(name="Consolas" if mono else FUENTE, bold=negrita, italic=cursiva, size=tam, color=BLANCO if blanca else NEGRO)
 
 
-def encabezado_tabla(ws, fila, textos, ancho=None):
+def relleno_negro() -> PatternFill:
+    return PatternFill("solid", start_color=NEGRO, end_color=NEGRO)
+
+
+def slug(texto: str, largo: int = 40) -> str:
+    """Texto apto para nombre de archivo."""
+    return re.sub(r"[^A-Za-z0-9]+", "_", texto).strip("_")[:largo] or "empresa"
+
+
+def encabezado_hoja(ws, empresa: str, titulo: str, lineas: list[str] | None = None) -> int:
+    """Primeras filas de toda hoja: nombre de la empresa, título del reporte y líneas de contexto (sin logo ni
+    adornos). Devuelve la primera fila libre (deja una en blanco)."""
+    ws.sheet_view.showGridLines = False
+    ws.cell(1, 1, empresa).font = fuente(True, 16)
+    ws.cell(2, 1, titulo).font = fuente(True, 12)
+    fila = 3
+    for t in lineas or []:
+        ws.cell(fila, 1, t).font = fuente(tam=9)
+        fila += 1
+    return fila + 1
+
+
+def encabezado_tabla(ws, fila, textos, anchos=None, alto=32):
+    """Fila de títulos de una tabla: fondo negro, letras blancas en negrita, texto ajustado."""
     for j, t in enumerate(textos, 1):
         c = ws.cell(fila, j, t)
-        c.font = Font(name=FUENTE, bold=True, color="FFFFFF", size=10)
-        c.fill = relleno(NAVY)
+        c.font = fuente(True, 10, blanca=True)
+        c.fill = relleno_negro()
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = BORDE
-    ws.row_dimensions[fila].height = 32
-    for j, w in enumerate(ancho or [], 1):
+    ws.row_dimensions[fila].height = alto
+    for j, w in enumerate(anchos or [], 1):
         ws.column_dimensions[get_column_letter(j)].width = w
 
 
-def franja_titulo(ws, titulo, subtitulo, ncols, logo: bytes | None = None):
-    """Título y subtítulo de la hoja. Con logo, la primera columna queda para la imagen (fondo blanco) y el
-    texto empieza en la segunda, de modo que nunca se superponen."""
-    ws.sheet_view.showGridLines = False
-    primera = 1
-    if logo and ncols > 1:
-        primera = 2
-        ws.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
-        ws.cell(1, 1).fill = relleno("FFFFFF")
-        ws.cell(1, 1).border = BORDE
-        poner_logo(ws, logo, "A1", 40, max_ancho=170)
-    ws.merge_cells(start_row=1, start_column=primera, end_row=1, end_column=ncols)
-    c = ws.cell(1, primera, titulo)
-    c.font = Font(name=FUENTE, bold=True, size=16, color="FFFFFF")
-    c.fill = relleno(NAVY)
-    c.alignment = Alignment(vertical="center", indent=1)
-    ws.row_dimensions[1].height = 34
-    ws.merge_cells(start_row=2, start_column=primera, end_row=2, end_column=ncols)
-    c = ws.cell(2, primera, subtitulo)
-    c.font = Font(name=FUENTE, size=10, color="FFFFFF")
-    c.fill = relleno(BRAND)
-    c.alignment = Alignment(vertical="center", indent=1)
-    ws.row_dimensions[2].height = 20
+def celda(ws, fila, col, valor, formato=None, negrita=False, alinear="left", ajustar_texto=False, mono=False):
+    """Celda de datos con borde fino."""
+    c = ws.cell(fila, col, valor)
+    c.font = fuente(negrita, 10, mono=mono)
+    c.border = BORDE
+    c.alignment = Alignment(horizontal=alinear, vertical="top" if ajustar_texto else "center", wrap_text=ajustar_texto)
+    if formato:
+        c.number_format = formato
+    return c
 
 
-def configurar_impresion(ws, fila_encabezado, apaisado=True):
+def configurar_impresion(ws, fila_encabezado, apaisado=True, empresa=""):
     ws.page_setup.orientation = "landscape" if apaisado else "portrait"
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.print_title_rows = f"{fila_encabezado}:{fila_encabezado}"
-    ws.oddFooter.center.text = "SGC • TRIPOLIVEN · Página &P de &N"
+    if fila_encabezado:
+        ws.print_title_rows = f"{fila_encabezado}:{fila_encabezado}"
+    ws.oddFooter.center.text = f"{empresa.replace('&', '&&')} · Página &P de &N" if empresa else "Página &P de &N"
     ws.page_margins.left = ws.page_margins.right = 0.4
-
-
-def celda_semaforo(c, semaforo):
-    bg, fg, txt = SEM[semaforo]
-    c.value = txt
-    c.fill = relleno(bg)
-    c.font = Font(name=FUENTE, bold=True, color=fg, size=10)
-    c.alignment = Alignment(horizontal="center", vertical="center")
-
-
-def poner_logo(ws, logo: bytes | None, celda: str = "A1", alto: int = 36, max_ancho: int = 0) -> int:
-    """Inserta el logo de la empresa (PNG) si existe; devuelve su ancho en píxeles (0 si no hay logo)."""
-    if not logo:
-        return 0
-    try:
-        img = XLImagen(io.BytesIO(logo))
-        img.width, img.height = int(img.width * alto / img.height), alto
-        if max_ancho and img.width > max_ancho:           # logos muy anchos se reducen para caber en su espacio
-            img.height, img.width = int(img.height * max_ancho / img.width), max_ancho
-        ws.add_image(img, celda)
-        return img.width
-    except Exception:
-        return 0
-
-
-def ubicar_grafico(ch, ws, pos_fila: int, ancho_cm: float, alto_cm: float, columna: str = "A") -> int:
-    """Coloca un gráfico con la leyenda debajo y sin invadir el área de trazado; devuelve cuántas filas ocupa
-    (las filas miden 15 pt = 0,53 cm), para que lo siguiente empiece después de él."""
-    from openpyxl.chart.layout import Layout, ManualLayout
-    ch.width, ch.height = ancho_cm, alto_cm
-    if ch.legend is not None:
-        ch.legend.position = "b"
-        ch.legend.overlay = False
-    if ch.title is not None:
-        ch.title.overlay = False
-    ch.plot_area.layout = Layout(manualLayout=ManualLayout(layoutTarget="inner", xMode="edge", yMode="edge",
-                                                           x=0.09, y=0.16, w=0.88, h=0.58))
-    ws.add_chart(ch, f"{columna}{pos_fila}")
-    return math.ceil(alto_cm / 0.53) + 1
 
 
 # ------------------------------------------------------------------ ajuste de filas y columnas al contenido

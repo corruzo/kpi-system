@@ -11,7 +11,10 @@
   unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 
 @layer base {
-  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+  /* táctil: sin retardo de doble toque, sin selección de texto ni menú contextual al mantener pulsado un botón */
+  button, a, select, summary, [role="button"], [role="tab"] { touch-action: manipulation; }
+  button, .tile, .dock-item, .nav-item, .pill { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   body { @apply bg-slate-50 font-sans text-slate-900 antialiased; }
   ::selection { background: #cce1ff; }
   :focus-visible { @apply outline-none ring-2 ring-brand/60 ring-offset-2 ring-offset-slate-50; }
@@ -94,6 +97,9 @@
   .pill-on { @apply bg-white text-brand shadow-soft; }
   .pill-on svg { @apply text-brand; }
   .dock { @apply fixed inset-x-3 bottom-3 z-30 rounded-[1.9rem] border border-slate-200/80 bg-white/95 p-2 shadow-float backdrop-blur-xl; padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+  .tile:active, .btn:active, .nav-item:active, .pill:active { filter: brightness(.96); }
+  .slide-ind { transition: transform .42s cubic-bezier(.34,1.4,.5,1), width .42s cubic-bezier(.34,1.4,.5,1), height .42s cubic-bezier(.34,1.4,.5,1), opacity .2s; }
+  .slide-ind.sin-transicion { transition: none; }
   .slide-ind { @apply pointer-events-none absolute left-0 top-0 rounded-[1.35rem] bg-gradient-to-br from-brand to-cobalt shadow-[0_10px_22px_-8px_rgba(0,107,255,.75)]; }
   .dock-item { @apply relative z-10 flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.35rem] px-1 text-[11px] font-bold text-slate-500 transition-colors; }
   .dock-on { @apply text-white; }

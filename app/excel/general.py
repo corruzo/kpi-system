@@ -1,386 +1,254 @@
-"""Reporte general en Excel: resumen con gráfico, mediciones, tendencias, plan de mejora y fichas."""
+"""Reporte general en Excel: real contra presupuesto. Blanco y negro, sin logo ni gráficos (los gráficos viven en la aplicación).
 
-from datetime import datetime
+Hojas:
+  Resumen              totales y cumplimiento del presupuesto por área y por indicador.
+  Real vs Presupuesto  una fila por indicador y período: presupuestado, real, diferencia, % y si cumple.
+  Matriz <ejercicio>   por indicador, tres filas (presupuestado / real / diferencia) con los meses del ejercicio en columnas.
+  Plan de mejora       análisis y correcciones de las cargas que no quedaron en verde (ISO 9001, 9.1.3 y 10.2).
+  Indicadores          definición de cada indicador incluido.
+Diferencia, porcentaje y «cumple» son fórmulas vivas de Excel: si alguien corrige un valor, se recalculan.
+"""
+from datetime import date, datetime
 
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, Reference
-from openpyxl.formatting.rule import DataBarRule
-from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
 from ..dominio import calendario
 from ..dominio.ficha_texto import formula_en_palabras
+from ..dominio.presupuesto import comparar
 from .comun import (
-    BORDE,
-    BRAND,
     ESTADO,
-    FUENTE,
-    GRIS,
-    NAVY,
-    SEM,
-    ZEBRA,
+    SEMAFORO,
+    SENTIDO,
     ajustar,
-    celda_semaforo,
+    celda,
     configurar_impresion,
+    encabezado_hoja,
     encabezado_tabla,
     formato_numero,
-    franja_titulo,
+    fuente,
     hora_local,
-    relleno,
-    ubicar_grafico,
 )
-from .sello import colorear_semaforo, formula_semaforo
+
+PCT = "0.0%"
 
 
-def reporte_general(
-    mediciones, indicadores, generado_por: str, filtros: str, por_aprobar: int, logo: bytes | None = None
-) -> Workbook:
-    """mediciones: [Medicion]; indicadores: [Indicador] (los incluidos en el reporte)."""
-    wb = Workbook()
-    ahora = hora_local(datetime.utcnow())
-    sub = f"Reporte de indicadores de gestión · Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por}"
+# ------------------------------------------------------------------ preparación de los datos
+def _filas(indicadores, mediciones, presupuestos: dict, ejercicios: set[int], solo_cargadas: bool, hoy: date) -> list[dict]:
+    """Una fila por (indicador, período): presupuesto guardado, medición (si existe) y su comparación."""
+    por_medicion = {(m.indicador_id, m.periodo): m for m in mediciones}
+    filas = []
+    for ind in indicadores:
+        periodos = {p for (i, p) in presupuestos if i == ind.id} | {p for (i, p) in por_medicion if i == ind.id}
+        for p in periodos:
+            if not calendario.periodo_valido(ind.frecuencia, p):
+                continue
+            anio = calendario.ejercicio_de(ind.frecuencia, p)
+            m = por_medicion.get((ind.id, p))
+            if anio not in ejercicios or (solo_cargadas and m is None):
+                continue
+            ppto = m.presupuesto if m is not None and m.presupuesto is not None else presupuestos.get((ind.id, p))
+            real = m.resultado if m is not None and m.estado != "observado" else None
+            ini, fin = calendario.rango(ind.frecuencia, p)
+            estado = ESTADO[m.estado] if m else ("Sin cargar" if fin < hoy else "Por venir")
+            filas.append({"ind": ind, "periodo": p, "ejercicio": anio, "inicio": ini, "m": m, "presupuesto": ppto,
+                          "real": real, "estado": estado,
+                          "cmp": comparar(real, ppto, ind.sentido) if real is not None and ppto is not None else None})
+    filas.sort(key=lambda f: (f["ejercicio"], f["ind"].codigo, f["inicio"]))
+    return filas
 
-    # ---------- Resumen
-    ws = wb.active
-    ws.title = "Resumen"
-    franja_titulo(ws, "SGC • TRIPOLIVEN — Indicadores de gestión", sub, 7, logo)
-    ws["A4"], ws["B4"] = "Filtros aplicados", filtros or "Ninguno (todos los datos)"
-    ws["A4"].font = Font(name=FUENTE, bold=True, color=GRIS)
-    ws.merge_cells("B4:G4")
-    ws["B4"].alignment = Alignment(wrap_text=True, vertical="center")
-    ultimo = {}
-    for m in sorted(mediciones, key=lambda m: (m.indicador_id, m.periodo)):
-        if m.estado in ("enviado", "aprobado"):
-            ultimo[m.indicador_id] = m
-    conteo = {"verde": 0, "amarillo": 0, "rojo": 0}
-    por_area: dict[str, dict] = {}
-    for i in indicadores:
-        a = por_area.setdefault(i.area.nombre, {"total": 0, "verde": 0, "amarillo": 0, "rojo": 0, "sin": 0})
-        a["total"] += 1
-        m = ultimo.get(i.id)
-        if m:
-            conteo[m.semaforo] += 1
-            a[m.semaforo] += 1
-        else:
-            a["sin"] += 1
-    total = len(indicadores)
-    kpis = [
-        ("Indicadores", total),
-        ("Cumplimiento (verde)", conteo["verde"] / total if total else 0),
-        ("En alerta", conteo["amarillo"]),
-        ("Críticos", conteo["rojo"]),
-        ("Cargas registradas", len(mediciones)),
-        ("Por aprobar", por_aprobar),
-    ]
-    colores = [NAVY, "16A34A", "F59E0B", "DC2626", BRAND, GRIS]
-    for k, ((t, v), col) in enumerate(zip(kpis, colores, strict=False)):
-        r, c = 6 + (k // 3) * 3, 1 + (k % 3) * 2
-        ws.merge_cells(start_row=r, start_column=c, end_row=r, end_column=c + 1)
-        ws.merge_cells(start_row=r + 1, start_column=c, end_row=r + 1, end_column=c + 1)
-        a = ws.cell(r, c, t.upper())
-        a.font = Font(name=FUENTE, size=9, bold=True, color="FFFFFF")
-        a.fill = relleno(col)
-        a.alignment = Alignment(horizontal="center")
-        ws.cell(r, c + 1).fill = relleno(col)
-        b = ws.cell(r + 1, c, v)
-        b.font = Font(name=FUENTE, size=20, bold=True, color=col)
-        b.alignment = Alignment(horizontal="center", vertical="center")
-        b.fill = relleno("FFFFFF")
-        b.border = BORDE
-        ws.cell(r + 1, c + 1).border = BORDE
-        if t.startswith("Cumpl"):
-            b.number_format = "0.0%"
-        ws.row_dimensions[r + 1].height = 34
-    f0 = 13
-    ws.cell(f0 - 1, 1, "Cumplimiento por departamento (última medición de cada indicador)").font = Font(
-        name=FUENTE, bold=True, size=12, color=NAVY
-    )
-    encabezado_tabla(
-        ws,
-        f0,
-        ["Área", "Indicadores", "Cumple", "Alerta", "Crítico", "Sin datos", "% cumplimiento"],
-        [30, 16, 14, 14, 14, 14, 20],
-    )
-    for k, (nombre, a) in enumerate(sorted(por_area.items()), f0 + 1):
-        fila = [
-            nombre,
-            a["total"],
-            a["verde"],
-            a["amarillo"],
-            a["rojo"],
-            a["sin"],
-            f"=IF(B{k}=0,0,C{k}/B{k})",
-        ]
-        for j, v in enumerate(fila, 1):
-            c = ws.cell(k, j, v)
-            c.font = Font(name=FUENTE, size=10, bold=(j == 1))
-            c.border = BORDE
-            c.alignment = Alignment(horizontal="left" if j == 1 else "center")
-            if k % 2:
-                c.fill = relleno(ZEBRA)
-        ws.cell(k, 7).number_format = "0.0%"
-    fin = f0 + len(por_area)
-    if por_area:
-        fila_total = fin + 1
-        ws.cell(fila_total, 1, "Total")
-        for j in range(2, 7):
-            ws.cell(fila_total, j, f"=SUM({get_column_letter(j)}{f0 + 1}:{get_column_letter(j)}{fin})")
-        ws.cell(fila_total, 7, f"=IF(B{fila_total}=0,0,C{fila_total}/B{fila_total})").number_format = "0.0%"
-        for j in range(1, 8):
-            c = ws.cell(fila_total, j)
-            c.font, c.border = Font(name=FUENTE, size=10, bold=True), BORDE
-            c.alignment = Alignment(horizontal="left" if j == 1 else "center")
-            c.fill = relleno("E2E8F0")
-        ws.conditional_formatting.add(
-            f"G{f0 + 1}:G{fin}", DataBarRule(start_type="num", start_value=0, end_type="num", end_value=1, color="16A34A")
-        )
-        ch = BarChart()
-        ch.type, ch.grouping, ch.overlap = "col", "stacked", 100
-        ch.title = "Semáforos por departamento"
-        ch.add_data(Reference(ws, min_col=3, max_col=5, min_row=f0, max_row=fin), titles_from_data=True)
-        ch.set_categories(Reference(ws, min_col=1, min_row=f0 + 1, max_row=fin))
-        for s, col in zip(ch.series, ("16A34A", "F59E0B", "DC2626"), strict=False):
-            s.graphicalProperties.solidFill = col
-            s.graphicalProperties.line.solidFill = col
-        ch.x_axis.delete = ch.y_axis.delete = False  # Excel oculta los ejes si no se indica
-        ch.y_axis.numFmt, ch.y_axis.majorGridlines = "0", None
-        ubicar_grafico(ch, ws, fin + 4, 20, 8.5)
-    configurar_impresion(ws, f0, apaisado=False)
-    ajustar(ws)
 
-    # ---------- Mediciones
-    ws = wb.create_sheet("Mediciones")
-    cols = [
-        "Código",
-        "Indicador",
-        "Área",
-        "Período",
-        "Ejercicio fiscal",
-        "Frecuencia",
-        "Resultado",
-        "Meta",
-        "Límite crítico",
-        "Sentido",
-        "Semáforo",
-        "Estado",
-        "Cargado por",
-        "Fecha de carga",
-        "Revisado por",
-        "Fecha de revisión",
-        "Nota de revisión",
-        "Análisis de resultados",
-        "Correcciones / plan de mejora",
-        "Versión",
-    ]
-    anchos = [10, 38, 20, 16, 12, 12, 14, 12, 14, 12, 12, 13, 24, 17, 24, 17, 34, 44, 44, 9]
-    franja_titulo(ws, "Mediciones registradas", sub, len(cols))
-    encabezado_tabla(ws, 4, cols, anchos)
-    ordenadas = sorted(mediciones, key=lambda m: (m.indicador.codigo, m.periodo))
-    for k, m in enumerate(ordenadas, 5):
-        i = m.indicador
-        dec = m.decimales if m.decimales is not None else (i.decimales if i.decimales is not None else 2)
-        fila = [
-            i.codigo,
-            i.nombre,
-            i.area.nombre,
-            calendario.etiqueta(i.frecuencia, m.periodo),
-            calendario.etiqueta_ejercicio(calendario.ejercicio_de(i.frecuencia, m.periodo)),
-            i.frecuencia.capitalize(),
-            m.resultado,
-            m.meta,
-            m.limite,
-            "Mayor es mejor" if m.sentido == "mayor" else "Menor es mejor",
-            None,
-            ESTADO[m.estado],
-            m.cargado_por.nombre,
-            hora_local(m.cargado_en),
-            m.revisado_por.nombre if m.revisado_por else "",
-            hora_local(m.revisado_en),
-            m.nota_revision,
-            m.analisis,
-            m.plan_mejora,
-            m.version,
-        ]
-        for j, v in enumerate(fila, 1):
-            c = ws.cell(k, j, v)
-            c.font = Font(name=FUENTE, size=10)
-            c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 17, 18, 19))
-            if k % 2:
-                c.fill = relleno(ZEBRA)
-        for j in (7, 8, 9):
-            ws.cell(k, j).number_format = formato_numero(i.unidad, dec)
-        ws.cell(k, 7).font = Font(name=FUENTE, size=10, bold=True)
-        for j in (14, 16):
-            ws.cell(k, j).number_format = "dd/mm/yyyy hh:mm"
-        if m.meta_tope is None and m.limite_tope is None:
-            ws.cell(k, 11).value = formula_semaforo(f"G{k}", f"H{k}", f"I{k}", m.sentido == "mayor")
-            ws.cell(k, 11).alignment = Alignment(horizontal="center", vertical="center")
-        else:                                   # con topes, la regla no cabe en una fórmula simple
-            celda_semaforo(ws.cell(k, 11), m.semaforo)
-        ws.cell(k, 11).border = BORDE
-    colorear_semaforo(ws, f"K5:K{max(5, 4 + len(ordenadas))}")
-    ws.freeze_panes = "C5"
-    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(ordenadas))}"
-    configurar_impresion(ws, 4)
-    ajustar(ws)
+def _formulas_comparacion(fila: int, col_ppto: str, col_real: str, mayor: bool) -> tuple[str, str, str]:
+    """Diferencia, porcentaje y «cumple» como fórmulas de Excel (vacío si falta el presupuesto o el real)."""
+    p, r = f"{col_ppto}{fila}", f"{col_real}{fila}"
+    falta = f'OR({p}="",{r}="")'
+    return (f'=IF({falta},"",{r}-{p})',
+            f'=IF(OR({falta},{p}=0),"",{r}/{p})',
+            f'=IF({falta},"",IF({r}{">=" if mayor else "<="}{p},"Sí","No"))')
 
-    # ---------- Tendencias (matriz indicador × período, por frecuencia)
-    ws = wb.create_sheet("Tendencias")
-    franja_titulo(ws, "Tendencias por indicador", sub, 12)
-    fila = 4
-    ws.column_dimensions["A"].width = 10
-    ws.column_dimensions["B"].width = 38
-    for freq in ("mensual", "bimestral", "trimestral", "cuatrimestral", "semestral", "anual", "eventual"):
-        inds = [i for i in indicadores if i.frecuencia == freq]
-        if not inds:
-            continue
-        validas = [m for m in mediciones if m.indicador.frecuencia == freq and m.estado in ("enviado", "aprobado")]
-        periodos = sorted({m.periodo for m in validas})
-        ws.cell(fila, 1, f"Indicadores {freq}es" if freq != "anual" else "Indicadores anuales").font = Font(
-            name=FUENTE, bold=True, size=12, color=NAVY
-        )
+
+# ------------------------------------------------------------------ hojas
+def _hoja_resumen(ws, empresa, filas, indicadores, subtitulo, por_aprobar, n_cargas):
+    fila0 = encabezado_hoja(ws, empresa, "Indicadores de gestión: real contra presupuesto", subtitulo)
+    con_real = [f for f in filas if f["cmp"]]
+    cumplen = sum(f["cmp"]["cumple"] for f in con_real)
+    totales = [("Indicadores incluidos", len(indicadores)),
+               ("Períodos presupuestados", sum(f["presupuesto"] is not None for f in filas)),
+               ("Períodos con dato real y presupuesto", len(con_real)),
+               ("Períodos que cumplen el presupuesto", cumplen),
+               ("Períodos que no alcanzan el presupuesto", len(con_real) - cumplen),
+               ("Cargas registradas", n_cargas), ("Cargas por aprobar", por_aprobar)]
+    ws.cell(fila0, 1, "TOTALES").font = fuente(True, 11)
+    fila = fila0 + 1
+    for etiqueta, valor in totales:
+        celda(ws, fila, 1, etiqueta, negrita=True)
+        celda(ws, fila, 2, valor, "#,##0", alinear="center")
         fila += 1
-        encabezado_tabla(ws, fila, ["Código", "Indicador"] + [calendario.etiqueta(freq, p) for p in periodos] + ["Meta"])
-        for j in range(3, 3 + len(periodos) + 1):
-            ws.column_dimensions[get_column_letter(j)].width = max(ws.column_dimensions[get_column_letter(j)].width or 0, 15)
-        por = {(m.indicador_id, m.periodo): m for m in validas}
-        for i in sorted(inds, key=lambda x: x.codigo):
-            fila += 1
-            dec = i.decimales if i.decimales is not None else 2
-            ws.cell(fila, 1, i.codigo).font = Font(name=FUENTE, bold=True, size=10)
-            ws.cell(fila, 1).alignment = Alignment(vertical="center")
-            ws.cell(fila, 2, i.nombre).alignment = Alignment(wrap_text=True, vertical="center")
-            ws.cell(fila, 2).font = Font(name=FUENTE, size=10)
-            for j, p in enumerate(periodos, 3):
-                m = por.get((i.id, p))
-                c = ws.cell(fila, j, m.resultado if m else None)
-                c.number_format = formato_numero(i.unidad, dec)
-                c.alignment = Alignment(horizontal="center", vertical="center")
-                if m:
-                    bg, fg, _ = SEM[m.semaforo]
-                    c.fill = relleno(bg)
-                    c.font = Font(name=FUENTE, bold=True, color=fg, size=10)
-            c = ws.cell(fila, 3 + len(periodos), i.meta)
-            c.number_format = formato_numero(i.unidad, dec)
-            c.font = Font(name=FUENTE, italic=True, color=GRIS, size=10)
-            c.alignment = Alignment(horizontal="center", vertical="center")
-            for j in range(1, 4 + len(periodos)):
-                ws.cell(fila, j).border = BORDE
+    celda(ws, fila, 1, "% de cumplimiento del presupuesto", negrita=True)
+    cumplen_ref, total_ref = f"B{fila0 + 4}", f"B{fila0 + 3}"
+    celda(ws, fila, 2, f'=IF({total_ref}=0,"",{cumplen_ref}/{total_ref})', PCT, True, "center")
+
+    fila += 2
+    ws.cell(fila, 1, "CUMPLIMIENTO DEL PRESUPUESTO POR ÁREA").font = fuente(True, 11)
+    fila += 1
+    encabezado_tabla(ws, fila, ["Área", "Indicadores", "Períodos con real", "Cumplen", "No alcanzan", "% cumplimiento"],
+                     [44, 16, 18, 14, 14, 18])
+    areas: dict[str, dict] = {}
+    for i in indicadores:
+        areas.setdefault(i.area.nombre, {"ind": 0, "real": 0, "cumplen": 0})["ind"] += 1
+    for f in con_real:
+        a = areas[f["ind"].area.nombre]
+        a["real"] += 1
+        a["cumplen"] += f["cmp"]["cumple"]
+    for nombre, a in sorted(areas.items()):
+        fila += 1
+        for j, v in enumerate([nombre, a["ind"], a["real"], a["cumplen"], f"=C{fila}-D{fila}", f'=IF(C{fila}=0,"",D{fila}/C{fila})'], 1):
+            celda(ws, fila, j, v, PCT if j == 6 else ("#,##0" if j > 1 else None), j == 1, "left" if j == 1 else "center")
+
+    fila += 2
+    ws.cell(fila, 1, "CUMPLIMIENTO DEL PRESUPUESTO POR INDICADOR").font = fuente(True, 11)
+    fila += 1
+    encabezado_tabla(ws, fila, ["Indicador", "Área", "Períodos presupuestados", "Con real", "Cumplen", "No alcanzan", "% cumplimiento"])
+    ws.column_dimensions["B"].width = 26
+    por_ind: dict[int, dict] = {}
+    for f in filas:
+        d = por_ind.setdefault(f["ind"].id, {"ppto": 0, "real": 0, "cumplen": 0})
+        d["ppto"] += f["presupuesto"] is not None
+        if f["cmp"]:
+            d["real"] += 1
+            d["cumplen"] += f["cmp"]["cumple"]
+    for i in indicadores:
+        d = por_ind.get(i.id, {"ppto": 0, "real": 0, "cumplen": 0})
+        fila += 1
+        vals = [f"{i.codigo} · {i.nombre}", i.area.nombre, d["ppto"], d["real"], d["cumplen"], f"=D{fila}-E{fila}",
+                f'=IF(D{fila}=0,"",E{fila}/D{fila})']
+        for j, v in enumerate(vals, 1):
+            celda(ws, fila, j, v, PCT if j == 7 else ("#,##0" if j > 2 else None), j == 1, "left" if j <= 2 else "center", ajustar_texto=j <= 2)
+    configurar_impresion(ws, 0, empresa=empresa)
+    ajustar(ws)
+
+
+def _hoja_detalle(ws, empresa, filas, subtitulo):
+    fila0 = encabezado_hoja(ws, empresa, "Real vs presupuesto por indicador y período", subtitulo)
+    cols = ["Ejercicio", "Código", "Indicador", "Área", "Unidad", "Sentido", "Período", "Presupuestado", "Real", "Diferencia",
+            "Real / presupuesto", "Cumple presupuesto", "Semáforo", "Estado"]
+    encabezado_tabla(ws, fila0, cols, [12, 11, 44, 24, 10, 17, 24, 16, 14, 14, 14, 14, 12, 14])
+    for k, f in enumerate(filas, fila0 + 1):
+        ind, m = f["ind"], f["m"]
+        fmt = formato_numero(ind.unidad, ind.precision)
+        dif, pct, cumple = _formulas_comparacion(k, "H", "I", ind.sentido == "mayor")
+        valores = [calendario.etiqueta_ejercicio(f["ejercicio"]), ind.codigo, ind.nombre, ind.area.nombre, ind.unidad,
+                   SENTIDO[ind.sentido], calendario.etiqueta(ind.frecuencia, f["periodo"]), f["presupuesto"], f["real"], dif, pct,
+                   cumple, SEMAFORO.get(m.semaforo, "") if m and f["real"] is not None else "", f["estado"]]
+        for j, v in enumerate(valores, 1):
+            c = celda(ws, k, j, v, fmt if j in (8, 9, 10) else (PCT if j == 11 else None),
+                      alinear="left" if j in (3, 4, 6, 7) else "center", ajustar_texto=j == 3)
+            if j == 12 and f["cmp"] and not f["cmp"]["cumple"]:
+                c.font = fuente(True)                    # «No» destaca en negrita (el reporte es solo blanco y negro)
+    ws.freeze_panes = ws.cell(fila0 + 1, 4)
+    ws.auto_filter.ref = f"A{fila0}:{get_column_letter(len(cols))}{max(fila0 + 1, fila0 + len(filas))}"
+    configurar_impresion(ws, fila0, empresa=empresa)
+    ajustar(ws)
+
+
+def _hoja_matriz(ws, empresa, anio, filas, subtitulo):
+    """Meses del ejercicio en columnas; por indicador: presupuestado, real y diferencia."""
+    fila0 = encabezado_hoja(ws, empresa, f"Matriz real vs presupuesto · ejercicio {calendario.etiqueta_ejercicio(anio)}",
+                            [*subtitulo, "Cada período se ubica en el mes en que cierra (un trimestre aparece en su último mes)."])
+    meses = calendario.meses_del_ejercicio()
+    cols = ["Código", "Indicador", "Unidad", "Concepto", *meses, "Períodos con real", "Cumplen"]
+    encabezado_tabla(ws, fila0, cols, [11, 42, 10, 16, *[12] * 12, 12, 12])
+    fila = fila0
+    for ind in sorted({f["ind"] for f in filas}, key=lambda i: i.codigo):
+        propios = [f for f in filas if f["ind"].id == ind.id]
+        fmt = formato_numero(ind.unidad, ind.precision)
+        celdas: dict[int, dict] = {calendario.indice_de_mes(ind.frecuencia, f["periodo"]): f for f in propios}
+        r_ppto, r_real = fila + 1, fila + 2
+        for k, concepto in enumerate(("Presupuestado", "Real", "Diferencia")):
+            r = fila + 1 + k
+            celda(ws, r, 1, ind.codigo)
+            celda(ws, r, 2, ind.nombre if k == 0 else "", ajustar_texto=True)
+            celda(ws, r, 3, ind.unidad, alinear="center")
+            celda(ws, r, 4, concepto, negrita=(k == 1))
+            for mes in range(12):
+                f = celdas.get(mes)
+                col = 5 + mes
+                letra = get_column_letter(col)
+                if k == 0:
+                    v = f["presupuesto"] if f else None
+                elif k == 1:
+                    v = f["real"] if f else None
+                else:
+                    v = f'=IF(OR({letra}{r_ppto}="",{letra}{r_real}=""),"",{letra}{r_real}-{letra}{r_ppto})'
+                celda(ws, r, col, v, fmt, negrita=(k == 1), alinear="center")
+            con_real = [f for f in propios if f["cmp"]]
+            if k == 0:
+                celda(ws, r, 17, len(con_real), "#,##0", alinear="center")
+                celda(ws, r, 18, sum(f["cmp"]["cumple"] for f in con_real), "#,##0", alinear="center")
+            else:
+                celda(ws, r, 17, None)
+                celda(ws, r, 18, None)
         fila += 3
-    ws.freeze_panes = "C4"
-    configurar_impresion(ws, 4)
+    ws.freeze_panes = ws.cell(fila0 + 1, 5)
+    configurar_impresion(ws, fila0, empresa=empresa)
     ajustar(ws)
 
-    # ---------- Plan de mejora (ISO 9001: 9.1.3 y 10.2)
-    ws = wb.create_sheet("Plan de mejora")
-    cols = [
-        "Código",
-        "Indicador",
-        "Área",
-        "Período",
-        "Ejercicio fiscal",
-        "Resultado",
-        "Meta",
-        "Semáforo",
-        "Estado",
-        "Análisis de resultados",
-        "Correcciones / plan de mejora",
-        "Responsable de la carga",
-    ]
-    franja_titulo(ws, "Desviaciones y acciones correctivas (ISO 9001:2015, 9.1.3 y 10.2)", sub, len(cols))
-    encabezado_tabla(ws, 4, cols, [10, 36, 20, 16, 12, 13, 12, 12, 13, 50, 50, 24])
-    desv = [m for m in ordenadas if m.semaforo != "verde"]
-    for k, m in enumerate(sorted(desv, key=lambda m: (m.semaforo != "rojo", m.indicador.codigo, m.periodo)), 5):
-        i = m.indicador
-        dec = m.decimales if m.decimales is not None else 2
-        fila = [
-            i.codigo,
-            i.nombre,
-            i.area.nombre,
-            calendario.etiqueta(i.frecuencia, m.periodo),
-            calendario.etiqueta_ejercicio(calendario.ejercicio_de(i.frecuencia, m.periodo)),
-            m.resultado,
-            m.meta,
-            None,
-            ESTADO[m.estado],
-            m.analisis,
-            m.plan_mejora,
-            m.cargado_por.nombre,
-        ]
-        for j, v in enumerate(fila, 1):
-            c = ws.cell(k, j, v)
-            c.font = Font(name=FUENTE, size=10)
-            c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=j in (2, 10, 11))
-        for j in (6, 7):
-            ws.cell(k, j).number_format = formato_numero(i.unidad, dec)
-        celda_semaforo(ws.cell(k, 8), m.semaforo)
-    ws.freeze_panes = "C5"
-    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(desv))}"
-    configurar_impresion(ws, 4)
+
+def _hoja_plan(ws, empresa, filas, subtitulo):
+    fila0 = encabezado_hoja(ws, empresa, "Plan de mejora: cargas fuera de meta (ISO 9001:2015, 9.1.3 y 10.2)", subtitulo)
+    cols = ["Ejercicio", "Código", "Indicador", "Período", "Presupuestado", "Real", "Semáforo", "Resultados del análisis",
+            "Correcciones / plan de mejora", "Estado"]
+    encabezado_tabla(ws, fila0, cols, [12, 11, 36, 24, 16, 14, 12, 50, 50, 14])
+    fuera = [f for f in filas if f["m"] and f["real"] is not None and f["m"].semaforo != "verde"]
+    for k, f in enumerate(fuera, fila0 + 1):
+        ind, m = f["ind"], f["m"]
+        fmt = formato_numero(ind.unidad, ind.precision)
+        valores = [calendario.etiqueta_ejercicio(f["ejercicio"]), ind.codigo, ind.nombre, calendario.etiqueta(ind.frecuencia, f["periodo"]),
+                   f["presupuesto"], f["real"], SEMAFORO[m.semaforo], m.analisis, m.plan_mejora, f["estado"]]
+        for j, v in enumerate(valores, 1):
+            celda(ws, k, j, v, fmt if j in (5, 6) else None, alinear="center" if j in (1, 2, 5, 6, 7, 10) else "left",
+                  ajustar_texto=j in (3, 4, 8, 9))
+    if not fuera:
+        ws.cell(fila0 + 1, 1, "No hay cargas fuera de meta en este reporte.").font = fuente(cursiva=True)
+    configurar_impresion(ws, fila0, empresa=empresa)
     ajustar(ws)
 
-    # ---------- Fichas técnicas
-    ws = wb.create_sheet("Fichas técnicas")
-    cols = [
-        "Código",
-        "Indicador",
-        "Área",
-        "Seguimiento / proceso",
-        "Líder de proceso",
-        "Resp. medición",
-        "Objetivo",
-        "Fuente de datos",
-        "Unidad",
-        "Frecuencia",
-        "Sentido",
-        "Meta (verde)",
-        "Límite crítico",
-        "Variables",
-        "Constantes",
-        "Fórmula",
-        "Fórmula (en palabras)",
-        "Método / notas",
-        "Estado",
-    ]
-    franja_titulo(ws, "Fichas técnicas de los indicadores", sub, len(cols))
-    encabezado_tabla(ws, 4, cols, [10, 36, 20, 34, 22, 22, 40, 28, 10, 13, 15, 12, 13, 40, 28, 34, 46, 40, 11])
-    for k, i in enumerate(sorted(indicadores, key=lambda x: x.codigo), 5):
-        consts = i.constantes or []
-        fila = [
-            i.codigo,
-            i.nombre,
-            i.area.nombre,
-            i.ref_nombre or "",
-            i.lider or "",
-            i.resp_medicion or "",
-            i.objetivo,
-            i.fuente or "",
-            i.unidad,
-            i.frecuencia.capitalize(),
-            "Mayor es mejor" if i.sentido == "mayor" else "Menor es mejor",
-            i.meta,
-            i.limite,
-            "\n".join(f"• {v['etiqueta']} ({v['clave']})" for v in i.variables),
-            "\n".join(f"• {c['etiqueta']} = {c['valor']}" for c in consts),
-            i.formula,
-            formula_en_palabras(i.formula, i.variables, consts),
-            i.notas or "",
-            "Activo" if i.activo else "Archivado",
-        ]
-        for j, v in enumerate(fila, 1):
-            c = ws.cell(k, j, v)
-            c.font = Font(name="Consolas" if j == 16 else FUENTE, size=10)
-            c.border = BORDE
-            c.alignment = Alignment(vertical="center", wrap_text=True)
-            if k % 2:
-                c.fill = relleno(ZEBRA)
-    ws.freeze_panes = "C5"
-    ws.auto_filter.ref = f"A4:{get_column_letter(len(cols))}{max(5, 4 + len(indicadores))}"
-    configurar_impresion(ws, 4)
+
+def _hoja_indicadores(ws, empresa, indicadores, subtitulo):
+    fila0 = encabezado_hoja(ws, empresa, "Indicadores incluidos", subtitulo)
+    cols = ["Código", "Nombre", "Área", "Unidad", "Frecuencia", "Sentido", "Fórmula", "Meta (verde)", "Límite crítico", "Activo"]
+    encabezado_tabla(ws, fila0, cols, [11, 40, 24, 10, 14, 17, 50, 14, 14, 9])
+    for k, i in enumerate(indicadores, fila0 + 1):
+        fmt = formato_numero(i.unidad, i.precision)
+        valores = [i.codigo, i.nombre, i.area.nombre, i.unidad, i.frecuencia.capitalize(), SENTIDO[i.sentido],
+                   formula_en_palabras(i.formula, i.variables, i.constantes or []), i.meta, i.limite, "Sí" if i.activo else "No"]
+        for j, v in enumerate(valores, 1):
+            celda(ws, k, j, v, fmt if j in (8, 9) else None, alinear="left" if j in (2, 3, 6, 7) else "center",
+                  ajustar_texto=j in (2, 7))
+    configurar_impresion(ws, fila0, empresa=empresa)
     ajustar(ws)
+
+
+# ------------------------------------------------------------------ libro
+def reporte_general(empresa: str, mediciones, indicadores, presupuestos: dict, ejercicios: list[int], generado_por: str,
+                    filtros: str, por_aprobar: int, solo_cargadas: bool = False, hoy: date | None = None) -> Workbook:
+    """mediciones: [Medicion]; indicadores: [Indicador] incluidos; presupuestos: {(indicador_id, período): valor};
+    ejercicios: años fiscales que abarca el reporte."""
+    hoy = hoy or date.today()
+    wb = Workbook()
+    wb.properties.creator = empresa
+    wb.properties.title = "Real contra presupuesto"
+    ahora = hora_local(datetime.utcnow())
+    sub = [f"Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por}", f"Filtros: {filtros or 'ninguno (todos los datos)'}"]
+    filas = _filas(indicadores, mediciones, presupuestos, set(ejercicios), solo_cargadas, hoy)
+
+    _hoja_resumen(wb.active, empresa, filas, indicadores, sub, por_aprobar, len(mediciones))
+    wb.active.title = "Resumen"
+    _hoja_detalle(wb.create_sheet("Real vs Presupuesto"), empresa, filas, sub)
+    for anio in sorted(ejercicios):
+        propias = [f for f in filas if f["ejercicio"] == anio]
+        if propias:
+            _hoja_matriz(wb.create_sheet(f"Matriz {calendario.etiqueta_ejercicio(anio)}"), empresa, anio, propias, sub)
+    _hoja_plan(wb.create_sheet("Plan de mejora"), empresa, filas, sub)
+    _hoja_indicadores(wb.create_sheet("Indicadores"), empresa, indicadores, sub)
     return wb
-
-
-# ------------------------------------------------------------------ bitácora

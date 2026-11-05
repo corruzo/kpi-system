@@ -24,6 +24,6 @@ SIGT.modulos.reportes = () => ({
     },
     descargarReporte() {
       const q = new URLSearchParams(); for (const [k, v] of Object.entries(this.rep)) if (v) q.set(k, v);
-      return this.descargar('/api/reportes/general.xlsx?' + q, 'reporte_sgc_tripoliven.xlsx');
+      return this.descargar('/api/reportes/general.xlsx?' + q, 'real_vs_presupuesto.xlsx');
     },
 });

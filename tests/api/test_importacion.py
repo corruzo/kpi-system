@@ -41,4 +41,4 @@ def test_importar_fichas_historicas_y_reemplazar_el_excel(client):
     x = client.get("/api/reportes/fichas.xlsx?ejercicio=2026")
     assert x.status_code == 200
     libro = load_workbook(BytesIO(x.content))
-    assert len(libro.sheetnames) >= 5 and libro[libro.sheetnames[0]]["D1"].value == "FICHA TÉCNICA DE INDICADOR DE GESTIÓN"
+    assert len(libro.sheetnames) >= 5 and libro[libro.sheetnames[0]]["A2"].value == "FICHA TÉCNICA DE INDICADOR DE GESTIÓN"

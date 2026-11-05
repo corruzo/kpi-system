@@ -1,6 +1,8 @@
 // Sistema de diseño: ver DESIGN.md (tinta navy sobre mármol frío, un solo azul de acción, sombras teñidas de azul).
 // La escala «slate» se redefine con los grises azulados de la guía: toda la interfaz hereda la paleta.
 module.exports = {
+  // Los estilos «hover:» solo se aplican en dispositivos con puntero real: en pantallas táctiles no quedan «pegados» tras tocar.
+  future: { hoverOnlyWhenSupported: true },
   content: ['./app/static/*.html', './app/static/*.js', './app/static/js/*.js', './app/static/parciales/**/*.html'],
   theme: {
     extend: {

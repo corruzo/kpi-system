@@ -35,25 +35,6 @@ def _alto_filas(ws, r1, r2):
     return sum(ws.row_dimensions[r].height or 15 for r in range(r1, r2 + 1))
 
 
-def test_ningun_grafico_cubre_celdas_con_datos(libros):
-    for nombre, ws in _hojas(libros):
-        for g in ws._charts:
-            ancla = g.anchor._from
-            fila0, col0 = ancla.row + 1, ancla.col + 1
-            alto_pt, ancho_cm = g.height / 0.0352778, g.width
-            fila, acumulado = fila0, 0.0
-            while acumulado < alto_pt:
-                acumulado += ws.row_dimensions[fila].height or 15
-                fila += 1
-            col, acumulado = col0, 0.0
-            while acumulado < ancho_cm:
-                acumulado += ((ws.column_dimensions[get_column_letter(col)].width or 8.43) * 7 + 5) / 37.8
-                col += 1
-            cubiertas = [c.coordinate for r in ws.iter_rows(min_row=fila0, max_row=fila - 1, min_col=col0, max_col=col - 1)
-                         for c in r if c.value not in (None, "")]
-            assert not cubiertas, f"{nombre}: el gráfico cubre {cubiertas[:5]}"
-
-
 def test_las_filas_con_texto_ajustado_tienen_la_altura_necesaria(libros):
     for nombre, ws in _hojas(libros):
         combinadas = {(rg.min_row, rg.min_col): rg for rg in ws.merged_cells.ranges}
@@ -84,7 +65,26 @@ def test_el_texto_sin_ajuste_cabe_en_su_columna(libros):
                 assert max(len(t) for t in c.value.split("\n")) <= math.ceil(ancho * 1.25), f"{nombre}!{c.coordinate}: «{c.value[:40]}»"
 
 
-def test_la_ficha_reserva_un_espacio_propio_para_el_logo_o_el_nombre(libros):
+def test_los_reportes_son_en_blanco_y_negro_sin_logo_ni_graficos(libros):
+    colores_permitidos = {"00000000", "FF000000", "FFFFFFFF", "00FFFFFF", None, ""}
+    for nombre, ws in _hojas(libros):
+        assert not ws._charts and not ws._images, f"{nombre}: lleva gráfico o imagen"
+        for fila in ws.iter_rows():
+            for c in fila:
+                if c.value in (None, "") and not c.fill.fill_type:
+                    continue
+                relleno = c.fill.start_color.rgb if c.fill.fill_type else None
+                letra = c.font.color.rgb if c.font and c.font.color is not None and isinstance(c.font.color.rgb, str) else None
+                assert relleno in colores_permitidos and letra in colores_permitidos, f"{nombre}!{c.coordinate}: {relleno}/{letra}"
+
+
+def test_cada_hoja_empieza_con_el_nombre_de_la_empresa(libros, client):
+    empresa = client.get("/api/parametros").json()["empresa"]
+    for nombre, ws in _hojas(libros):
+        assert ws["A1"].value == empresa, nombre
+
+
+def test_la_ficha_compara_real_y_presupuesto(libros):
     ws = libros["fichas"].worksheets[0]
-    assert ws["D1"].value == "FICHA TÉCNICA DE INDICADOR DE GESTIÓN"
-    assert any(str(rg) in ("A1:C2", "B1:C2") for rg in ws.merged_cells.ranges)
+    textos = [c.value for fila in ws.iter_rows() for c in fila if isinstance(c.value, str)]
+    assert "REAL VS PRESUPUESTO" in textos and "Presupuestado" in textos and "Cumple presupuesto" in textos

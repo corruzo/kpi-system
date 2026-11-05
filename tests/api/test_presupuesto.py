@@ -156,3 +156,35 @@ def test_con_presupuestos_no_se_cambia_el_mes_de_inicio_del_ejercicio(client):
     r = client.put("/api/parametros", json={"empresa": p["empresa"], "ejercicio_inicio": otro})
     assert r.status_code == 409   # (según el estado de la base, el motivo puede ser un cierre previo o los presupuestos)
     assert client.get("/api/parametros").json()["ejercicio_inicio"] == p["ejercicio_inicio"]
+
+
+def test_el_reporte_general_compara_real_con_presupuesto(client):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+    esc = preparar(client)
+    crear_periodo(client, vigente())
+    ind = esc["indicador"]["id"]
+    entrar(client, "admin", CLAVE_ADMIN)
+    client.put(f"/api/ejercicios/{vigente()}/presupuesto/{ind}", json={"anual": 1.5, "reparto": "repetir"})
+    entrar(client, esc["jefe"])
+    periodo = periodo_actual(client, ind)
+    assert client.post("/api/mediciones", json={**carga(esc, periodo, dias=30, tickets=10), "analisis": "Retraso del proveedor",
+                                                "plan_mejora": "Segundo proveedor"}).status_code == 201
+    entrar(client, "admin", CLAVE_ADMIN)
+    r = client.get(f"/api/reportes/general.xlsx?anio={vigente()}&area_id={esc['area']}")
+    assert r.status_code == 200 and "real_vs_presupuesto" in r.headers["content-disposition"]
+    libro = load_workbook(BytesIO(r.content))
+    ws = libro["Real vs Presupuesto"]
+    cabecera = next(f for f in ws.iter_rows() if f[0].value == "Ejercicio")
+    col = {c.value: c.column for c in cabecera}
+    filas = [f for f in ws.iter_rows(min_row=cabecera[0].row + 1) if f[col["Código"] - 1].value == esc["indicador"]["codigo"]]
+    assert len(filas) == 12                                          # los 12 meses presupuestados, cargado o no
+    cargada = next(f for f in filas if f[col["Real"] - 1].value is not None)
+    assert cargada[col["Presupuestado"] - 1].value == 1.5 and cargada[col["Real"] - 1].value == 3
+    assert cargada[col["Diferencia"] - 1].value.startswith("=IF(") and "Sí" in cargada[col["Cumple presupuesto"] - 1].value
+    assert sum(f[col["Real"] - 1].value is None for f in filas) == 11
+    matriz = next(n for n in libro.sheetnames if n.startswith("Matriz "))
+    celdas = [c.value for fila in libro[matriz].iter_rows() for c in fila]
+    assert "Presupuestado" in celdas and "Real" in celdas and "Diferencia" in celdas and 3 in celdas and 1.5 in celdas
+    assert "Plan de mejora" in libro.sheetnames and any(c.value == "Retraso del proveedor" for fila in libro["Plan de mejora"].iter_rows() for c in fila)

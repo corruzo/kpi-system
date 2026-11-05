@@ -76,7 +76,10 @@ Acceso a todo el sistema: fichas, áreas y usuarios; carga de datos en cualquier
 Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, eliminar (con cargas se archiva), claves de variables generadas automáticamente, reordenar variables, validación de fórmula con aviso de variables sin usar y probador con resultado y semáforo en vivo. Con cargas registradas no se puede cambiar la frecuencia ni las claves de las variables; los cambios de meta o fórmula quedan en la bitácora y no alteran el histórico.
 
 ## Reportes en Excel
-`GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (indicadores clave, cumplimiento por departamento y gráfico), *Mediciones*, *Tendencias* (matriz con semáforos), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) y *Fichas técnicas*. Filtros por año, área y estado; el jefe de área solo obtiene su área. Cada descarga queda en la bitácora. El administrador también puede descargar la bitácora (`/api/reportes/bitacora.xlsx`).
+Todos los libros son **en blanco y negro, sin logo ni gráficos**; cada hoja empieza solo con el nombre de la empresa de Parámetros (`app/excel/comun.py` define el estilo).
+- `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento del presupuesto por área e indicador), *Real vs Presupuesto* (una fila por indicador y período: presupuestado, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el jefe de área solo obtiene su área.
+- `GET /api/reportes/fichas.xlsx`: una hoja por indicador en el formato de la ficha, con la sección «Real vs presupuesto».
+- `GET /api/reportes/bitacora.xlsx` (solo administrador). Cada descarga queda en la bitácora.
 
 ## Un ejercicio fiscal a la vez
 
@@ -91,7 +94,7 @@ El ejercicio elegido en la cabecera gobierna **todas** las pantallas de datos, d
 
 ## Formato de los Excel y reinicio de fábrica
 
-- Todos los libros pasan por `excel/comun.ajustar()`: filas y columnas se dimensionan según su contenido (texto largo, celdas combinadas, fórmula en varias líneas), el logo y los gráficos tienen espacio propio y `tests/api/test_excel_formato.py` comprueba que nada se superponga ni se recorte. Al agregar una hoja nueva, termínela con `ajustar(ws)`.
+- Todos los libros pasan por `excel/comun.ajustar()`: filas y columnas se dimensionan según su contenido (texto largo, celdas combinadas, fórmula en varias líneas), `tests/api/test_excel_formato.py` comprueba que nada se recorte y que todo sea blanco y negro, sin logo ni gráficos. Al agregar una hoja nueva, termínela con `ajustar(ws)`.
 - **Organización → Zona de peligro → Borrar todos los datos** deja el sistema como recién instalado: elimina indicadores, cargas, áreas, usuarios, listas, parámetros, logo y bitácora. Pide escribir «BORRAR TODO» y la contraseña del administrador, y conserva únicamente esa cuenta para poder volver a entrar. No deja rastro en la bitácora (también queda vacía).
 
 ## Reportes protegidos y verificables
@@ -114,9 +117,9 @@ Al arrancar, `app/servicios/arranque.py` agrega automáticamente las columnas nu
 El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicador de gestión» (formato NC-16-7):
 - **Ficha completa:** seguimiento (proceso / objetivo organizacional / proveedor), proceso y su objetivo, sigla, gerencia, departamento, líder de proceso, responsables de medición/registro/análisis, fuente, meta («96 Mín.», «3 Máx.»), semáforo con franjas Mín./Máx., fórmula documentada con su leyenda de símbolos y notas. Vista en pantalla (**Ver ficha**), imprimible y exportable.
 - **Ejercicio fiscal** configurable (p. ej. octubre–septiembre) y frecuencias **mensual, bimestral, trimestral, cuatrimestral, semestral, anual y eventual**; los períodos se alinean al ejercicio (trimestres que cierran en Dic./Mar./Jun./Sep.).
-- **Resultados por período** con cálculo automático, análisis de resultados y correcciones / oportunidades de mejora por período, gráfico de valores con mínimo y máximo.
+- **Resultados por período** con cálculo automático, análisis de resultados y correcciones / oportunidades de mejora por período, y la tabla «Real vs presupuesto» de cada período.
 - **Listas de apoyo** (gerencias, procesos con su objetivo, objetivos organizacionales, cargos) administrables en Organización.
-- **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño y gráfico.
+- **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño (en blanco y negro) y la comparación real vs presupuesto.
 - **Importación de años anteriores** (`Importar`): lee el Excel de fichas (una hoja por indicador), traduce la fórmula, propone indicadores y mediciones, muestra una vista previa editable y los carga como aprobados, con registro en la bitácora. Si el ejercicio fiscal del archivo difiere del configurado, avisa antes de importar.
 
 ## Flujo anual: período fiscal → presupuesto → carga mensual
@@ -150,4 +153,4 @@ Estado del ejercicio (avance, carga al día), indicadores clave con comparativo 
 
 ## Guía de bienvenida y logo
 - La primera vez que cada usuario inicia sesión se muestra una **guía paso a paso** según su rol (qué hace cada botón y sección); se puede omitir y repetir desde el menú del perfil («Ver guía de uso»).
-- **Logo de la empresa** (Organización → Parámetros): se sube desde el navegador, se valida y se guarda en la base de datos; aparece en el ingreso, la cabecera, la ficha técnica y los reportes Excel.
+- **Logo de la empresa** (Organización → Parámetros): se sube desde el navegador, se valida y se guarda en la base de datos; aparece en el ingreso y en la cabecera de la aplicación (los reportes Excel llevan solo el nombre de la empresa).
