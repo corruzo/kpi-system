@@ -1,23 +1,45 @@
 <!-- ===================== LOGIN ===================== -->
 <template x-if="!user && ready">
-  <main class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-    <div class="relative w-full max-w-md fade-in">
-      <!-- acentos decorativos detrás de la tarjeta (solo atmósfera, ver DESIGN.md) -->
-      <div class="pointer-events-none absolute -left-12 top-40 h-52 w-52 rounded-full bg-magenta/30 blur-3xl" aria-hidden="true"></div>
-      <div class="pointer-events-none absolute -right-12 bottom-6 h-60 w-60 rounded-full bg-cyan/25 blur-3xl" aria-hidden="true"></div>
-      <div class="mb-8 text-center">
-        <img x-show="marca.logo_url" :src="marca.logo_url" alt="Logo" class="mx-auto h-16 max-w-[220px] object-contain">
-        <svg x-show="!marca.logo_url" class="mx-auto h-14 w-14" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#0b3558"/><path d="M8 22V12m5 10V15m5 7V9m5 13V13" stroke="#006bff" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
-        <h1 class="page-title mt-5">SGC • TRIPOLIVEN</h1>
-        <p class="mt-2 text-slate-600"><span x-text="marca.empresa || 'Tripoliven, C.A.'"></span> · Sistema de Gestión de la Calidad</p>
+  <main data-vista="login" class="min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr] lg:gap-0 lg:p-4">
+    <!-- portada: qué hace el sistema (en móvil es una franja compacta arriba) -->
+    <section class="hero !rounded-t-none !rounded-b-[2.25rem] px-6 pb-12 pt-7 sm:px-10 sm:pt-10 lg:!rounded-[2rem] lg:p-12 lg:pb-12">
+      <div class="flex h-full flex-col justify-between gap-6 sm:gap-10">
+        <div class="flex items-center gap-3">
+          <img x-show="marca.logo_url" :src="marca.logo_url" alt="Logo" class="h-12 max-w-[200px] rounded-xl bg-white/90 object-contain p-1.5">
+          <svg x-show="!marca.logo_url" class="h-12 w-12 shrink-0" viewBox="0 0 32 32"><rect width="32" height="32" rx="10" fill="#fff" fill-opacity=".16"/><path d="M8 22V12m5 10V15m5 7V9m5 13V13" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
+          <div class="leading-tight"><div class="text-lg font-extrabold" x-text="marca.empresa || 'Tripoliven, C.A.'"></div><div class="text-xs font-semibold text-white/70">Sistema de Gestión de la Calidad</div></div>
+        </div>
+        <div>
+          <p class="eyebrow !text-white/70">ISO 9001:2015</p>
+          <h1 class="mt-2 !text-[1.55rem] sm:!text-[2.2rem]">Lo real contra lo presupuestado, mes a mes.</h1>
+          <p class="mt-3 hidden max-w-md text-sm sm:block sm:text-base">Cargue sus indicadores, compárelos con el presupuesto del año y deje todo registrado para auditoría.</p>
+          <ul class="mt-6 hidden gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-1">
+            <template x-for="p in [['Período fiscal y presupuesto','Cada año se abre y se presupuesta indicador por indicador.'],['Carga mensual comparada','El jefe de área ve al instante si cumple lo presupuestado.'],['Trazabilidad inalterable','Cada acción queda en una bitácora con huellas SHA-256.']]" :key="p[0]">
+              <li class="hero-stat flex items-start gap-3"><span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-extrabold">✓</span><span><span class="block text-sm font-bold" x-text="p[0]"></span><span class="block text-xs text-white/70" x-text="p[1]"></span></span></li>
+            </template>
+          </ul>
+        </div>
       </div>
-      <form class="card relative space-y-4 !rounded-3xl p-6 sm:p-8" @submit.prevent="login()">
-        <div><label class="lbl" for="u">Usuario</label><input id="u" class="inp" x-model="loginForm.username" autocomplete="username" autocapitalize="none" autofocus required></div>
-        <div><label class="lbl" for="p">Contraseña</label><input id="p" class="inp" type="password" x-model="loginForm.password" autocomplete="current-password" required></div>
-        <p class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" x-show="loginError" x-text="loginError" role="alert"></p>
-        <button class="btn btn-p w-full" :disabled="busy" x-text="busy ? 'Ingresando…' : 'Continuar'"></button>
-      </form>
-      <p class="mt-6 text-center text-xs text-slate-500">Acceso exclusivo para personal autorizado. Cada acción queda registrada en la bitácora de trazabilidad.</p>
-    </div>
+    </section>
+
+    <!-- formulario -->
+    <section class="-mt-8 flex items-center justify-center px-4 pb-10 sm:px-8 lg:mt-0 lg:p-12">
+      <div class="w-full max-w-md">
+        <form class="card relative space-y-5 p-6 sm:p-8" @submit.prevent="login()" novalidate>
+          <div><h2 class="text-2xl font-extrabold tracking-tight">Ingrese a su cuenta</h2><p class="mt-1 text-sm text-slate-500">Use el usuario y la contraseña que le entregó el administrador.</p></div>
+          <div><label class="lbl" for="u">Usuario</label>
+            <div class="relative"><svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0"/></svg>
+              <input id="u" class="inp !pl-12" x-model.trim="loginForm.username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="40" autofocus required :aria-invalid="!!loginError"></div></div>
+          <div><label class="lbl" for="p">Contraseña</label>
+            <div class="relative"><svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11V8a6 6 0 1112 0v3M5 11h14v10H5z"/></svg>
+              <input id="p" class="inp !pl-12 !pr-14" :type="verClave ? 'text' : 'password'" x-model="loginForm.password" autocomplete="current-password" maxlength="128" required :aria-invalid="!!loginError">
+              <button type="button" class="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-slate-500" @click="verClave=!verClave" :aria-label="verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'" :aria-pressed="verClave">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path x-show="!verClave" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z"/><path x-show="verClave" d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M9.9 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4M6.1 6.1A17 17 0 002 12s3.5 7 10 7a10 10 0 004.1-.9"/></svg></button></div></div>
+          <p class="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" x-show="loginError" x-text="loginError" role="alert" aria-live="assertive"></p>
+          <button class="btn btn-p btn-lg" :disabled="busy || !loginForm.username || !loginForm.password"><span x-text="busy ? 'Ingresando…' : 'Ingresar'"></span><span class="btn-flecha" aria-hidden="true">→</span></button>
+        </form>
+        <p class="mt-6 px-2 text-center text-xs text-slate-500">Acceso exclusivo para personal autorizado. Cada acción queda registrada en la bitácora de trazabilidad.</p>
+      </div>
+    </section>
   </main>
 </template>

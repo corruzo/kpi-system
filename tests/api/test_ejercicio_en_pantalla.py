@@ -1,6 +1,6 @@
 """Cada pantalla trabaja con UN ejercicio fiscal: los períodos y pendientes de otros ejercicios no se mezclan."""
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import datetime
 
 from conftest import entrar
 
@@ -28,7 +28,7 @@ def _antiguo(indicador_id: int):
 def test_los_periodos_ofrecidos_son_solo_los_del_ejercicio_pedido(client, escenario):
     ind = escenario["indicador"]["id"]
     entrar(client, escenario["jefe"])
-    vigente = calendario.ejercicio_de_fecha(date.today())
+    vigente = calendario.ejercicio_de_fecha(calendario.hoy())
     for anio in (vigente, vigente - 1):
         r = client.get(f"/api/indicadores/{ind}/periodos?ejercicio={anio}").json()
         assert r["ejercicio"] == anio
@@ -43,10 +43,10 @@ def test_no_se_ofrecen_periodos_futuros_y_solo_uno_es_el_actual(client, escenari
     entrar(client, escenario["jefe"])
     r = client.get(f"/api/indicadores/{ind}/periodos").json()
     codigos = [p["periodo"] for p in r["periodos"]]
-    assert all(not calendario.es_futuro("mensual", c, date.today()) for c in codigos)
-    assert [p["periodo"] for p in r["periodos"] if p["actual"]] == [calendario.periodo_actual("mensual", date.today())] or \
-        calendario.ejercicio_de_fecha(date.today()) != r["ejercicio"]
-    futuro = client.get(f"/api/indicadores/{ind}/periodos?ejercicio={calendario.ejercicio_de_fecha(date.today()) + 1}").json()
+    assert all(not calendario.es_futuro("mensual", c, calendario.hoy()) for c in codigos)
+    assert [p["periodo"] for p in r["periodos"] if p["actual"]] == [calendario.periodo_actual("mensual", calendario.hoy())] or \
+        calendario.ejercicio_de_fecha(calendario.hoy()) != r["ejercicio"]
+    futuro = client.get(f"/api/indicadores/{ind}/periodos?ejercicio={calendario.ejercicio_de_fecha(calendario.hoy()) + 1}").json()
     assert futuro["periodos"] == []
 
 
@@ -54,7 +54,7 @@ def test_los_pendientes_se_separan_por_ejercicio(client, escenario):
     ind = escenario["indicador"]["id"]
     with _antiguo(ind):
         entrar(client, escenario["jefe"])
-        hoy, vigente = date.today(), calendario.ejercicio_de_fecha(date.today())
+        hoy, vigente = calendario.hoy(), calendario.ejercicio_de_fecha(calendario.hoy())
         todos = calendario.periodos_pendientes("mensual", hoy, {})
         for anio in (vigente, vigente - 1):
             fila = next(i for i in client.get(f"/api/indicadores?ejercicio={anio}").json() if i["id"] == ind)
@@ -67,7 +67,7 @@ def test_los_pendientes_se_separan_por_ejercicio(client, escenario):
 def test_cada_carga_informa_su_ejercicio(client, escenario):
     ind = escenario["indicador"]["id"]
     entrar(client, escenario["jefe"])
-    periodo = calendario.periodo_actual("mensual", date.today())
+    periodo = calendario.periodo_actual("mensual", calendario.hoy())
     client.post("/api/mediciones", json={"indicador_id": ind, "periodo": periodo, "valores": {"dias": 1, "tickets": 1}})
     m = next(m for m in client.get("/api/mediciones").json() if m["indicador_id"] == ind)
     assert m["ejercicio"] == calendario.ejercicio_de("mensual", periodo)

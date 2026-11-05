@@ -1,5 +1,4 @@
 """Cargas de indicadores: cálculo, envío, revisión del gerente/auditor, reapertura y notas de auditoría."""
-from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -52,7 +51,7 @@ def calcular(db: Session, u: Usuario, indicador_id: int, valores: dict, periodo:
 
 # ---------------------------------------------------------------- envío de una carga
 def _exigir_periodo_cargable(ind: Indicador, periodo: str) -> None:
-    if not calendario.periodo_valido(ind.frecuencia, periodo) or calendario.es_futuro(ind.frecuencia, periodo, date.today()):
+    if not calendario.periodo_valido(ind.frecuencia, periodo) or calendario.es_futuro(ind.frecuencia, periodo, calendario.hoy()):
         raise Invalido("Período no válido para la frecuencia del indicador.")
 
 
@@ -107,7 +106,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
 def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, area_id=None, periodo=None,
            semaforo_=None, ejercicio=None, desde=0, limite=100) -> list[Medicion]:
     q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
-         .offset(max(desde, 0)).limit(min(limite, 500)))
+         .offset(max(desde, 0)).limit(max(1, min(limite, 500))))
     if u.rol == "jefe":
         q = q.where(Indicador.area_id == u.area_id)
     elif area_id:

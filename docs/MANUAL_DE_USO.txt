@@ -740,6 +740,16 @@ PASO 5.  CARGA MENSUAL
         (SIGT_DATABASE_URL, SIGT_SECRET). El mensaje indica el motivo.
    Un Excel pide contraseña
         El administrador activó el bloqueo de reportes.
+   "Error interno del sistema. Informe este código al administrador: A1B2C3D4"
+        Falló algo inesperado. Anote el código y entréguelo al responsable técnico: está en el registro
+        del servidor con el detalle. Ningún dato se guarda a medias (cada operación es todo o nada).
+   "No hay conexión con el servidor" / "El servidor tardó demasiado en responder"
+        Revise la conexión a internet e intente de nuevo; lo que no se confirmó con un aviso verde no
+        se guardó.
+   "La operación choca con datos que ya existen o están en uso" (409)
+        Dos personas hicieron lo mismo a la vez (por ejemplo, crear la misma área). Actualice la pantalla.
+   "La base de datos no responde en este momento" (503)
+        Problema temporal de conexión con la base; reintente en unos segundos.
 
 
 ====================================================================================================

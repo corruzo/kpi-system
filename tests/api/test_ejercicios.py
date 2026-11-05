@@ -1,4 +1,3 @@
-from datetime import date
 
 from conftest import crear_area, crear_indicador, crear_usuario, entrar
 
@@ -8,7 +7,7 @@ from app.dominio import calendario
 def test_ejercicio_vigente_no_se_cierra_antes_de_terminar(client):
     entrar(client, "admin", "clave-admin-123")
     vigente = client.get("/api/ejercicios").json()["vigente"]
-    assert vigente == calendario.ejercicio_de_fecha(date.today())
+    assert vigente == calendario.ejercicio_de_fecha(calendario.hoy())
     assert client.post(f"/api/ejercicios/{vigente}/cerrar", json={}).status_code == 422
 
 
@@ -16,7 +15,7 @@ def test_cierre_bloquea_cargas_y_la_reapertura_las_permite(client):
     area = crear_area(client)
     ind = crear_indicador(client, area, formula="ok / total * 100", sentido="mayor", meta=98, limite=95, unidad="%",
                           variables=[{"clave": "ok", "etiqueta": "Conformes"}, {"clave": "total", "etiqueta": "Analizados"}])
-    anio = calendario.ejercicio_de_fecha(date.today()) - 1
+    anio = calendario.ejercicio_de_fecha(calendario.hoy()) - 1
     periodo = calendario.codigo("mensual", calendario.limites(anio)[0])
     cuerpo = {"indicador_id": ind["id"], "periodo": periodo, "valores": {"ok": 99, "total": 100}}
     entrar(client, "admin", "clave-admin-123")

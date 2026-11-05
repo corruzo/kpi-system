@@ -2,7 +2,6 @@
 del ejercicio fiscal. Mantiene sincronizado el calendario fiscal del proceso con el valor guardado."""
 import os
 import time
-from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -54,7 +53,7 @@ def crear_faltantes(db: Session) -> None:
 def resumen(db: Session) -> dict:
     """Lo que la interfaz necesita saber de la configuración."""
     p = leer(db)
-    hoy = date.today()
+    hoy = calendario.hoy()
     vigente = calendario.ejercicio_de_fecha(hoy)
     return {"empresa": p.get("empresa", ""), "gerencia_emisora": p.get("gerencia_emisora", ""),
             "codigo_formato": p.get("codigo_formato", ""), "ejercicio_inicio": calendario.inicio_mes(),

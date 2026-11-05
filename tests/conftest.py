@@ -72,11 +72,10 @@ def crear_periodo(c, anio: int) -> None:
 
 def presupuestar(c, indicador: dict, valor: float | None = None, anio: int | None = None) -> None:
     """Pasos 1 y 3: crea los períodos fiscales que toquen y presupuesta el indicador (por defecto, su meta, repetida)."""
-    from datetime import date
 
     from app.dominio import calendario
     entrar(c, "admin", CLAVE_ADMIN)
-    vigente = calendario.ejercicio_de_fecha(date.today())
+    vigente = calendario.ejercicio_de_fecha(calendario.hoy())
     for a in ([anio] if anio else [vigente, vigente - 1]):
         crear_periodo(c, a)
         if indicador["frecuencia"] == "eventual":
@@ -107,9 +106,8 @@ def escenario(client):
 
 def periodo_actual(c, indicador_id: int, posicion: int = 0) -> str:
     """Código de un período cargable del ejercicio vigente (0 = el actual, 1 = el anterior…) o, si no alcanza, de uno anterior."""
-    from datetime import date
 
     from app.dominio import calendario
     frecuencia = c.get("/api/indicadores").json()
     frecuencia = next(i["frecuencia"] for i in frecuencia if i["id"] == indicador_id)
-    return calendario.periodos_recientes(frecuencia, date.today(), posicion + 1)[posicion]
+    return calendario.periodos_recientes(frecuencia, calendario.hoy(), posicion + 1)[posicion]

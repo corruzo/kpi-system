@@ -1,5 +1,4 @@
 """Importación de fichas históricas en Excel: vista previa (no guarda nada) y confirmación (todo o nada)."""
-from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -62,7 +61,7 @@ def _resolver_area(db: Session, admin: Usuario, nombre: str, areas: dict, nuevas
 def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind, archivo: str) -> list[str]:
     periodos = []
     for med in datos_ind.mediciones:
-        if not calendario.periodo_valido(ind.frecuencia, med.periodo) or calendario.es_futuro(ind.frecuencia, med.periodo, date.today()):
+        if not calendario.periodo_valido(ind.frecuencia, med.periodo) or calendario.es_futuro(ind.frecuencia, med.periodo, calendario.hoy()):
             raise Invalido(f"{ind.codigo}: período «{med.periodo}» no válido para la frecuencia.")
         if med.periodo in periodos:
             raise Invalido(f"{ind.codigo}: período {med.periodo} repetido.")

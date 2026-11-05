@@ -74,8 +74,9 @@ def resumen(db: Session, anio: int) -> dict:
 
 
 # ---------------------------------------------------------------- escritura
-def guardar(db: Session, u: Usuario, anio: int, indicador_id: int, valores: dict[str, float]) -> dict:
-    """Guarda (crea o cambia) el presupuesto de un indicador. `valores`: {período: valor}."""
+def guardar(db: Session, u: Usuario, anio: int, indicador_id: int, valores: dict[str, float], confirmar: bool = True) -> dict:
+    """Guarda (crea o cambia) el presupuesto de un indicador. `valores`: {período: valor}.
+    `confirmar=False` deja la transacción abierta para que quien llama confirme una sola vez (todo o nada)."""
     ejercicios.exigir_creado(db, anio)
     ejercicios.exigir_abierto(db, anio)
     ind = db.get(Indicador, indicador_id)
@@ -109,7 +110,8 @@ def guardar(db: Session, u: Usuario, anio: int, indicador_id: int, valores: dict
     if cambios:
         auditoria.registrar(db, u, "PRESUPUESTO_GUARDADO", "presupuesto", ind.id,
                             {"ejercicio": calendario.etiqueta_ejercicio(anio), "cambios": cambios}, ind)
-    db.commit()
+    if confirmar:
+        db.commit()
     return {"guardados": len(cambios)}
 
 
@@ -141,8 +143,9 @@ def copiar_de(db: Session, u: Usuario, anio: int, origen: int) -> dict:
         valores = [anteriores.get((ind.id, p)) for p in fuente]
         if any(v is None for v in valores):
             continue
-        guardar(db, u, anio, ind.id, dict(zip(destino, valores, strict=True)))
+        guardar(db, u, anio, ind.id, dict(zip(destino, valores, strict=True)), confirmar=False)
         copiados += 1
+    db.commit()      # una sola transacción: o se copian todos los indicadores o ninguno
     return {"indicadores": copiados}
 
 

@@ -137,7 +137,7 @@ def _fila_indicador(ind: Indicador, mediciones: list[Medicion], anio: int, hoy: 
 
 def foto(db: Session, anio: int, area_id: int | None = None, hoy: date | None = None) -> dict:
     """Estado de todos los indicadores en el ejercicio: {resumen, por_area, filas}."""
-    hoy = hoy or date.today()
+    hoy = hoy or calendario.hoy()
     q = select(Indicador).order_by(Indicador.codigo)
     if area_id:
         q = q.where(Indicador.area_id == area_id)
@@ -188,7 +188,7 @@ def resultados(db: Session, anio: int, hoy: date) -> dict:
 
 def verificar(db: Session, anio: int, hoy: date | None = None) -> dict:
     """Lista de comprobación previa al cierre: qué falta revisar, corregir o cargar."""
-    hoy = hoy or date.today()
+    hoy = hoy or calendario.hoy()
     desc = descripcion(db, anio, hoy)
     f = foto(db, anio, None, hoy)
     pendientes = [{"codigo": m.indicador.codigo, "indicador": m.indicador.nombre, "area": m.indicador.area.nombre,
@@ -206,7 +206,7 @@ def verificar(db: Session, anio: int, hoy: date | None = None) -> dict:
 
 
 def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, aceptar_faltantes: bool, hoy: date | None = None) -> None:
-    hoy = hoy or date.today()
+    hoy = hoy or calendario.hoy()
     exigir_creado(db, anio)
     v = verificar(db, anio, hoy)
     if v["descripcion"]["estado"] == "cerrado":

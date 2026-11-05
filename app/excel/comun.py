@@ -25,6 +25,11 @@ def hora_local(dt):
     return (dt.replace(tzinfo=UTC) + timedelta(hours=-4)).replace(tzinfo=None) if dt else None
 
 
+def ahora_local() -> datetime:
+    """Fecha y hora actuales en Venezuela (naive), para los encabezados de los reportes."""
+    return hora_local(datetime.now(UTC).replace(tzinfo=None))
+
+
 def formato_numero(unidad: str, dec: int) -> str:
     base = "#,##0" + ("." + "0" * dec if dec else "")
     return {"%": base + '"%"', "USD": '"$"' + base, "días": base + '" d"', "TM": base + '" TM"'}.get(

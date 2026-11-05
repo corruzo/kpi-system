@@ -1,5 +1,4 @@
 """Ejercicios fiscales (listado, verificación, cierre y reapertura) y panel de análisis."""
-from datetime import date
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ from ...errores import Prohibido
 from ...models import Usuario
 from ...servicios import ejercicios, panel
 from .. import serializadores as ser
-from ..deps import escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, AnioRuta, IdConsulta, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["ejercicios fiscales"])
 
@@ -20,7 +19,7 @@ def listar(detalle: bool = False, db: Session = Depends(get_db), u: Usuario = De
     """Ejercicios conocidos. Con `detalle` (gerente/admin): resultados de cada uno."""
     if detalle and u.rol == "jefe":
         raise Prohibido("No tiene permisos para esta acción.")
-    hoy, salida = date.today(), []
+    hoy, salida = calendario.hoy(), []
     for anio in ejercicios.anios_conocidos(db, hoy):
         item = ser.ejercicio(ejercicios.descripcion(db, anio, hoy))
         if detalle:
@@ -33,11 +32,11 @@ def listar(detalle: bool = False, db: Session = Depends(get_db), u: Usuario = De
 def crear(datos: schemas.EjercicioIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
     """Paso 1 del flujo anual: crea el período fiscal (hay que crearlo antes de presupuestar o cargar datos)."""
     ejercicios.crear(db, u, datos.anio, datos.nota)
-    return ser.ejercicio(ejercicios.descripcion(db, datos.anio, date.today()))
+    return ser.ejercicio(ejercicios.descripcion(db, datos.anio, calendario.hoy()))
 
 
 @router.get("/ejercicios/{anio}/verificacion")
-def verificar(anio: int, db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+def verificar(anio: AnioRuta, db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
     """Lista de comprobación previa al cierre."""
     v = ejercicios.verificar(db, anio)
     return {**ser.ejercicio(v["descripcion"]), "terminado": v["terminado"], "pendientes": v["pendientes"],
@@ -46,25 +45,25 @@ def verificar(anio: int, db: Session = Depends(get_db), _=Depends(requiere("gere
 
 
 @router.post("/ejercicios/{anio}/cerrar")
-def cerrar(anio: int, datos: schemas.CierreIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+def cerrar(anio: AnioRuta, datos: schemas.CierreIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
            _=Depends(escritura)):
     """Cierra el ejercicio: queda de solo lectura y se guarda una foto de sus resultados."""
     ejercicios.cerrar(db, u, anio, datos.nota, datos.aceptar_faltantes)
-    return ser.ejercicio(ejercicios.descripcion(db, anio, date.today()))
+    return ser.ejercicio(ejercicios.descripcion(db, anio, calendario.hoy()))
 
 
 @router.post("/ejercicios/{anio}/reabrir")
-def reabrir(anio: int, datos: schemas.ReaperturaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
+def reabrir(anio: AnioRuta, datos: schemas.ReaperturaIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")),
             _=Depends(escritura)):
     ejercicios.reabrir(db, u, anio, datos.nota)
-    return ser.ejercicio(ejercicios.descripcion(db, anio, date.today()))
+    return ser.ejercicio(ejercicios.descripcion(db, anio, calendario.hoy()))
 
 
 @router.get("/dashboard")
-def tablero(area_id: int | None = None, ejercicio: int | None = None, db: Session = Depends(get_db),
+def tablero(area_id: IdConsulta = None, ejercicio: AnioConsulta = None, db: Session = Depends(get_db),
             _=Depends(requiere("gerente", "admin"))):
     """Panel de análisis de un ejercicio (por defecto el vigente), con comparativo contra el anterior."""
-    anio = ejercicio or calendario.ejercicio_de_fecha(date.today())
+    anio = ejercicio or calendario.ejercicio_de_fecha(calendario.hoy())
     p = panel.construir(db, anio, area_id)
     foto = p["foto"]
     return {"resumen": foto["resumen"], "por_area": foto["por_area"],

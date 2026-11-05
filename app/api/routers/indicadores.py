@@ -1,5 +1,4 @@
 """Indicadores: fichas técnicas (consulta, alta, edición, baja), períodos de carga, ficha por ejercicio y fórmulas."""
-from datetime import date
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -9,14 +8,14 @@ from ...dominio import calendario
 from ...models import Usuario
 from ...servicios import indicadores, parametros
 from .. import serializadores as ser
-from ..deps import escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, IdRuta, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["indicadores"])
 solo_admin = requiere("admin")
 
 
 @router.get("/indicadores")
-def listar(ejercicio: int | None = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+def listar(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Indicadores con sus períodos pendientes del ejercicio pedido (y cuántos quedan en otros ejercicios)."""
     return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u, ejercicio)]
 
@@ -27,22 +26,22 @@ def crear(datos: schemas.IndicadorIn, db: Session = Depends(get_db), u: Usuario 
 
 
 @router.put("/indicadores/{indicador_id}")
-def editar(indicador_id: int, datos: schemas.IndicadorIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+def editar(indicador_id: IdRuta, datos: schemas.IndicadorIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
            _=Depends(escritura)):
     return ser.indicador(indicadores.editar(db, u, indicador_id, datos))
 
 
 @router.delete("/indicadores/{indicador_id}")
-def eliminar(indicador_id: int, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def eliminar(indicador_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     return {"ok": True, "archivado": indicadores.eliminar(db, u, indicador_id)}
 
 
 @router.get("/indicadores/{indicador_id}/periodos")
-def periodos(indicador_id: int, ejercicio: int | None = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+def periodos(indicador_id: IdRuta, ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Períodos cargables de un ejercicio fiscal (por defecto el vigente), del más reciente al más antiguo."""
     d = indicadores.periodos_de_carga(db, u, indicador_id, ejercicio)
     f = d["indicador"].frecuencia
-    actual = calendario.periodo_actual(f, date.today())
+    actual = calendario.periodo_actual(f, calendario.hoy())
     return {"sugerido": d["pendientes"][0] if d["pendientes"] else None, "ejercicio": d["ejercicio"],
             "pendientes_otros": [{"ejercicio": a, "etiqueta": calendario.etiqueta_ejercicio(a), "n": n}
                                  for a, n in sorted(d["pendientes_otros"].items())],
@@ -56,7 +55,7 @@ def periodos(indicador_id: int, ejercicio: int | None = None, db: Session = Depe
 
 
 @router.get("/indicadores/{indicador_id}/ficha")
-def ficha(indicador_id: int, ejercicio: int | None = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+def ficha(indicador_id: IdRuta, ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Ficha técnica con el contenido de la ficha en papel: definición, responsables, resultados y análisis del ejercicio."""
     ind = indicadores.obtener_visible(db, u, indicador_id)
     anio, disponibles, periodos_ = indicadores.contexto_ficha(db, ind, ejercicio)

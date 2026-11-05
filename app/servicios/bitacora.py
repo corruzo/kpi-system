@@ -10,11 +10,12 @@ def codigos_de_indicadores(db: Session) -> dict[int, str]:
 
 
 def listar(db: Session, *, accion=None, indicador_id=None, usuario=None, desde=0, limite=100) -> list[Bitacora]:
-    q = select(Bitacora).order_by(Bitacora.id.desc()).offset(max(desde, 0)).limit(min(limite, 500))
+    q = select(Bitacora).order_by(Bitacora.id.desc()).offset(max(desde, 0)).limit(max(1, min(limite, 500)))
     if accion:
         q = q.where(Bitacora.accion == accion)
     if indicador_id:
         q = q.where(Bitacora.indicador_id == indicador_id)
     if usuario:
-        q = q.where(Bitacora.usuario_nombre.ilike(f"%{usuario}%"))
+        patron = usuario.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")   # «%» y «_» se buscan literalmente
+        q = q.where(Bitacora.usuario_nombre.ilike(f"%{patron}%", escape="\\"))
     return list(db.scalars(q))

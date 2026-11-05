@@ -7,7 +7,7 @@ from ...errores import NoEncontrado
 from ...models import Usuario
 from ...servicios import marca, organizacion, parametros, reinicio
 from .. import serializadores as ser
-from ..deps import escritura, get_db, requiere, usuario_actual
+from ..deps import IdRuta, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["organización"])
 solo_admin = requiere("admin")
@@ -25,13 +25,13 @@ def crear_area(datos: schemas.AreaIn, db: Session = Depends(get_db), u: Usuario 
 
 
 @router.put("/areas/{area_id}")
-def editar_area(area_id: int, datos: schemas.AreaIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+def editar_area(area_id: IdRuta, datos: schemas.AreaIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
                 _=Depends(escritura)):
     return ser.area(organizacion.editar_area(db, u, area_id, datos.nombre))
 
 
 @router.delete("/areas/{area_id}")
-def eliminar_area(area_id: int, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def eliminar_area(area_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     organizacion.eliminar_area(db, u, area_id)
     return {"ok": True}
 
@@ -48,7 +48,7 @@ def crear_usuario(datos: schemas.UsuarioIn, db: Session = Depends(get_db), u: Us
 
 
 @router.put("/usuarios/{usuario_id}")
-def editar_usuario(usuario_id: int, datos: schemas.UsuarioEdit, db: Session = Depends(get_db),
+def editar_usuario(usuario_id: IdRuta, datos: schemas.UsuarioEdit, db: Session = Depends(get_db),
                    u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     return ser.usuario(organizacion.editar_usuario(db, u, usuario_id, datos))
 
@@ -66,13 +66,13 @@ def crear_catalogo(datos: schemas.CatalogoIn, db: Session = Depends(get_db), u: 
 
 
 @router.put("/catalogos/{elemento_id}")
-def editar_catalogo(elemento_id: int, datos: schemas.CatalogoIn, db: Session = Depends(get_db),
+def editar_catalogo(elemento_id: IdRuta, datos: schemas.CatalogoIn, db: Session = Depends(get_db),
                     u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     return ser.catalogo(organizacion.editar_catalogo(db, u, elemento_id, datos))
 
 
 @router.delete("/catalogos/{elemento_id}")
-def eliminar_catalogo(elemento_id: int, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def eliminar_catalogo(elemento_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     organizacion.eliminar_catalogo(db, u, elemento_id)
     return {"ok": True}
 

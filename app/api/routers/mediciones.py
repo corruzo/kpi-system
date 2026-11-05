@@ -6,7 +6,7 @@ from ... import schemas
 from ...models import Usuario
 from ...servicios import mediciones
 from .. import serializadores as ser
-from ..deps import escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["mediciones"])
 quien_carga = requiere("jefe", "admin")
@@ -25,27 +25,27 @@ def cargar(datos: schemas.CargaIn, db: Session = Depends(get_db), u: Usuario = D
 
 
 @router.get("/mediciones")
-def listar(estado: str | None = None, indicador_id: int | None = None, area_id: int | None = None,
-           periodo: str | None = None, semaforo: str | None = None, ejercicio: int | None = None,
-           desde: int = 0, limite: int = 100, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+def listar(estado: str | None = None, indicador_id: IdConsulta = None, area_id: IdConsulta = None,
+           periodo: str | None = None, semaforo: str | None = None, ejercicio: AnioConsulta = None,
+           desde: Desde = 0, limite: Limite = 100, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     return [ser.medicion(m) for m in mediciones.listar(
         db, u, estado=estado, indicador_id=indicador_id, area_id=area_id, periodo=periodo, semaforo_=semaforo,
         ejercicio=ejercicio, desde=desde, limite=limite)]
 
 
 @router.post("/mediciones/{medicion_id}/revision")
-def revisar(medicion_id: int, datos: schemas.RevisionIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
+def revisar(medicion_id: IdRuta, datos: schemas.RevisionIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
             _=Depends(escritura)):
     return ser.medicion(mediciones.revisar(db, u, medicion_id, datos.accion, datos.nota))
 
 
 @router.post("/mediciones/{medicion_id}/reabrir")
-def reabrir(medicion_id: int, datos: schemas.RevisionIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
+def reabrir(medicion_id: IdRuta, datos: schemas.RevisionIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
             _=Depends(escritura)):
     return ser.medicion(mediciones.reabrir(db, u, medicion_id, datos.nota))
 
 
 @router.post("/mediciones/{medicion_id}/notas", status_code=201)
-def agregar_nota(medicion_id: int, datos: schemas.NotaIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
+def agregar_nota(medicion_id: IdRuta, datos: schemas.NotaIn, db: Session = Depends(get_db), u: Usuario = Depends(quien_revisa),
                  _=Depends(escritura)):
     return ser.medicion(mediciones.agregar_nota(db, u, medicion_id, datos.texto))

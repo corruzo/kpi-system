@@ -1,10 +1,11 @@
 """Reportes en Excel (.xlsx)."""
 from fastapi import APIRouter, Depends, File, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from ...models import Usuario
 from ...servicios import reportes
-from ..deps import get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, IdConsulta, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api/reportes", tags=["reportes"])
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -15,14 +16,14 @@ def _descarga(datos: bytes, nombre: str) -> Response:
 
 
 @router.get("/general.xlsx")
-def general(anio: int | None = None, area_id: int | None = None, estado: str | None = None,
+def general(anio: AnioConsulta = None, area_id: IdConsulta = None, estado: str | None = None,
             db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Resumen, mediciones, tendencias, plan de mejora y fichas. El jefe solo obtiene su área."""
     return _descarga(*reportes.general(db, u, anio, area_id, estado))
 
 
 @router.get("/fichas.xlsx")
-def fichas(ejercicio: int | None = None, area_id: int | None = None, indicador_id: int | None = None,
+def fichas(ejercicio: AnioConsulta = None, area_id: IdConsulta = None, indicador_id: IdConsulta = None,
            db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Una hoja por indicador con el formato de la ficha técnica del SGC."""
     return _descarga(*reportes.fichas(db, u, ejercicio, area_id, indicador_id))
@@ -31,7 +32,8 @@ def fichas(ejercicio: int | None = None, area_id: int | None = None, indicador_i
 @router.post("/verificar")
 async def verificar(archivo: UploadFile = File(...), db: Session = Depends(get_db), _: Usuario = Depends(requiere("admin", "gerente"))):
     """Comprueba que un Excel descargado del SGC • TRIPOLIVEN conserva exactamente lo que el sistema emitió."""
-    return reportes.verificar(db, await archivo.read(reportes.MAX_BYTES_VERIFICAR + 1))
+    contenido = await archivo.read(reportes.MAX_BYTES_VERIFICAR + 1)
+    return await run_in_threadpool(reportes.verificar, db, contenido)   # openpyxl y la base no deben bloquear el servidor
 
 
 @router.get("/bitacora.xlsx")

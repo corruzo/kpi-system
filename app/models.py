@@ -1,7 +1,20 @@
 """Modelo de datos del SGC • TRIPOLIVEN."""
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    event,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -27,6 +40,7 @@ class Parametro(Base):
 class Ejercicio(Base):
     """Ejercicio fiscal cerrado (o reabierto). Los ejercicios sin fila se consideran abiertos."""
     __tablename__ = "ejercicios"
+    __table_args__ = (CheckConstraint("estado IN ('abierto', 'cerrado')", name="ck_ejercicios_estado"),)
     anio: Mapped[int] = mapped_column(Integer, primary_key=True)             # año en que termina
     estado: Mapped[str] = mapped_column(String(10), default="cerrado")      # cerrado | abierto
     cerrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
@@ -77,26 +91,32 @@ class Catalogo(Base):
 
 class Usuario(Base):
     __tablename__ = "usuarios"
+    __table_args__ = (CheckConstraint("rol IN ('jefe', 'gerente', 'admin')", name="ck_usuarios_rol"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
     nombre: Mapped[str] = mapped_column(String(120))
     rol: Mapped[str] = mapped_column(String(20))  # jefe | gerente | admin
-    area_id: Mapped[int | None] = mapped_column(ForeignKey("areas.id"))
+    area_id: Mapped[int | None] = mapped_column(ForeignKey("areas.id"), index=True)
     password_hash: Mapped[str] = mapped_column(String(200))
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     sesion_v: Mapped[int] = mapped_column(Integer, default=0)  # sube al cambiar la clave: invalida sesiones
     tour_visto: Mapped[bool | None] = mapped_column(Boolean, default=False)  # guía de bienvenida ya vista/omitida
-    area: Mapped[Area | None] = relationship()
+    area: Mapped[Area | None] = relationship(lazy="joined")   # se muestra siempre junto al usuario: un solo SELECT
 
 
 class Indicador(Base):
     """Ficha técnica del indicador."""
     __tablename__ = "indicadores"
+    __table_args__ = (
+        CheckConstraint("sentido IN ('mayor', 'menor')", name="ck_indicadores_sentido"),
+        CheckConstraint("frecuencia IN ('mensual', 'bimestral', 'trimestral', 'cuatrimestral', 'semestral', 'anual', 'eventual')",
+                        name="ck_indicadores_frecuencia"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     codigo: Mapped[str] = mapped_column(String(20), unique=True)
     nombre: Mapped[str] = mapped_column(String(150))
     objetivo: Mapped[str] = mapped_column(Text, default="")
-    area_id: Mapped[int] = mapped_column(ForeignKey("areas.id"))
+    area_id: Mapped[int] = mapped_column(ForeignKey("areas.id"), index=True)
     unidad: Mapped[str] = mapped_column(String(20))        # %, días, TM, USD, cantidad
     frecuencia: Mapped[str] = mapped_column(String(20))    # mensual | trimestral | semestral
     sentido: Mapped[str] = mapped_column(String(10))       # mayor | menor  (mayor/menor es mejor)
@@ -123,7 +143,7 @@ class Indicador(Base):
     resp_analisis: Mapped[str | None] = mapped_column(String(150), default="")
     meta_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
     limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
-    area: Mapped[Area] = relationship()
+    area: Mapped[Area] = relationship(lazy="joined")
 
     @property
     def precision(self) -> int:
@@ -134,7 +154,12 @@ class Indicador(Base):
 class Medicion(Base):
     """Carga de un indicador para un período. Guarda una foto de la ficha vigente al cargar."""
     __tablename__ = "mediciones"
-    __table_args__ = (UniqueConstraint("indicador_id", "periodo"),)
+    __table_args__ = (
+        UniqueConstraint("indicador_id", "periodo"),
+        CheckConstraint("estado IN ('enviado', 'aprobado', 'observado')", name="ck_mediciones_estado"),
+        CheckConstraint("semaforo IN ('verde', 'amarillo', 'rojo')", name="ck_mediciones_semaforo"),
+        CheckConstraint("sentido IN ('mayor', 'menor')", name="ck_mediciones_sentido"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     indicador_id: Mapped[int] = mapped_column(ForeignKey("indicadores.id"))
     periodo: Mapped[str] = mapped_column(String(10))
@@ -144,12 +169,12 @@ class Medicion(Base):
     meta: Mapped[float] = mapped_column(Float)
     limite: Mapped[float] = mapped_column(Float)
     sentido: Mapped[str] = mapped_column(String(10))
-    estado: Mapped[str] = mapped_column(String(12))        # enviado | aprobado | observado
+    estado: Mapped[str] = mapped_column(String(12), index=True)   # enviado | aprobado | observado
     analisis: Mapped[str] = mapped_column(Text, default="")
     plan_mejora: Mapped[str] = mapped_column(Text, default="")
     version: Mapped[int] = mapped_column(Integer, default=1)
     cargado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"))
-    cargado_en: Mapped[datetime] = mapped_column(DateTime)
+    cargado_en: Mapped[datetime] = mapped_column(DateTime, index=True)
     revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     revisado_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_revision: Mapped[str] = mapped_column(Text, default="")
@@ -160,12 +185,14 @@ class Medicion(Base):
     meta_tope: Mapped[float | None] = mapped_column(Float)
     limite_tope: Mapped[float | None] = mapped_column(Float)
     presupuesto: Mapped[float | None] = mapped_column(Float)  # lo presupuestado para el período, copiado al cargar
-    ejercicio: Mapped[int | None] = mapped_column(Integer)   # año en que termina el ejercicio fiscal del período
-    indicador: Mapped[Indicador] = relationship()
-    cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id])
-    revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id])
+    ejercicio: Mapped[int | None] = mapped_column(Integer, index=True)   # año en que termina el ejercicio fiscal del período
+    # Toda carga se muestra con su indicador, quién la cargó y revisó y sus notas: se traen en la misma consulta (o en una
+    # sola adicional para las notas) en vez de una consulta por fila (problema N+1: 500 cargas = 2.000 consultas).
+    indicador: Mapped[Indicador] = relationship(lazy="joined")
+    cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id], lazy="joined")
+    revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id], lazy="joined")
     notas: Mapped[list["NotaAuditoria"]] = relationship(
-        back_populates="medicion", order_by="NotaAuditoria.id")
+        back_populates="medicion", order_by="NotaAuditoria.id", lazy="selectin")
 
     @property
     def precision(self) -> int:
@@ -184,12 +211,12 @@ class Medicion(Base):
 class NotaAuditoria(Base):
     __tablename__ = "notas_auditoria"
     id: Mapped[int] = mapped_column(primary_key=True)
-    medicion_id: Mapped[int] = mapped_column(ForeignKey("mediciones.id"))
+    medicion_id: Mapped[int] = mapped_column(ForeignKey("mediciones.id"), index=True)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"))
     texto: Mapped[str] = mapped_column(Text)
     fecha: Mapped[datetime] = mapped_column(DateTime, default=ahora)
     medicion: Mapped[Medicion] = relationship(back_populates="notas")
-    usuario: Mapped[Usuario] = relationship()
+    usuario: Mapped[Usuario] = relationship(lazy="joined")
 
 
 class Bitacora(Base):
@@ -200,10 +227,10 @@ class Bitacora(Base):
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
     usuario_nombre: Mapped[str] = mapped_column(String(120))
     rol: Mapped[str] = mapped_column(String(20))
-    accion: Mapped[str] = mapped_column(String(40))
+    accion: Mapped[str] = mapped_column(String(40), index=True)
     entidad: Mapped[str] = mapped_column(String(30))
     entidad_id: Mapped[int | None] = mapped_column(Integer)
-    indicador_id: Mapped[int | None] = mapped_column(Integer)
+    indicador_id: Mapped[int | None] = mapped_column(Integer, index=True)
     area_id: Mapped[int | None] = mapped_column(Integer)
     detalle: Mapped[dict] = mapped_column(JSON)
     prev_hash: Mapped[str] = mapped_column(String(64))

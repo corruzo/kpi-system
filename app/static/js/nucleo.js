@@ -5,10 +5,15 @@ SIGT.modulos.nucleo = () => ({
 
     // ------------------------------------------------------------ arranque
     async init() {
+      // Cualquier error no controlado se avisa al usuario (y se deja en la consola) en lugar de fallar en silencio.
+      addEventListener('unhandledrejection', ev => { ev.preventDefault(); console.error(ev.reason); if (!ev.reason?.avisado) this.avisar('Ocurrió un error inesperado. Si continúa, recargue la página.', true); });
       try { this.marca = await (await fetch('/api/publico')).json(); } catch { }
-      try { this.user = await this.api('/api/me', {}, true); await this.abrirSesion(); }
-      catch { this.user = null; }
+      try { this.user = await this.api('/api/me', {}, true); } catch { this.user = null; }
+      if (this.user) {      // con sesión válida, un fallo al cargar los datos NO debe parecer un cierre de sesión
+        try { await this.abrirSesion(); } catch (e) { if (!e.avisado) this.avisar('No se pudieron cargar todos los datos. Recargue la página.', true); }
+      }
       this.ready = true;
+      this.$nextTick(() => { if (!this.user) SIGT_ANIM.pantalla(document.querySelector('[data-vista="login"]')); });
     },
     // Tras ingresar: cada módulo carga sus datos (ganchos «ingreso»), se abre la vista inicial del rol y se avisa a «listo».
     async abrirSesion() {
@@ -18,19 +23,25 @@ SIGT.modulos.nucleo = () => ({
     },
 
     // ------------------------------------------------------------ comunicación
+    // Toda llamada a la API pasa por aquí: siempre termina en datos válidos o en un Error con un mensaje claro en español
+    // (sin conexión, tiempo agotado, respuesta que no es JSON, error del servidor…), ya mostrado al usuario salvo `silencioso`.
     async api(url, opt = {}, silencioso = false) {
       const o = { credentials: 'same-origin', ...opt };
       if (o.body && typeof o.body !== 'string' && !(o.body instanceof FormData)) { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
-      const r = await fetch(url, o);
+      const falla = (msg, estado) => { if (!silencioso) this.avisar(msg, true); return Object.assign(new Error(msg), { avisado: true, estado }); };
+      const control = new AbortController(), plazo = setTimeout(() => control.abort(), 60000);
+      let r;
+      try { r = await fetch(url, { ...o, signal: control.signal }); }
+      catch (e) { throw falla(e.name === 'AbortError' ? 'El servidor tardó demasiado en responder. Intente de nuevo.' : 'No hay conexión con el servidor. Revise su internet e intente de nuevo.'); }
+      finally { clearTimeout(plazo); }
       if (!r.ok) {
         let d = {}; try { d = await r.json(); } catch { }
-        let msg = d.detail || 'Error inesperado.';
+        let msg = d.detail || (r.status >= 500 ? `El servidor tuvo un problema (código ${r.status}). Intente de nuevo en unos segundos.` : 'Error inesperado.');
         if (Array.isArray(msg)) msg = msg.map(e => e.msg).join('; ');
-        if (r.status === 401 && this.user) { this.user = null; this.avisar('Su sesión expiró.', true); }
-        else if (!silencioso) this.avisar(msg, true);
-        throw new Error(msg);
+        if (r.status === 401 && this.user) { this.user = null; this.avisar('Su sesión expiró.', true); throw Object.assign(new Error(msg), { avisado: true, estado: 401 }); }
+        throw falla(msg, r.status);
       }
-      return r.json();
+      try { return await r.json(); } catch { throw falla('La respuesta del servidor no es válida. Recargue la página.', r.status); }
     },
     avisar(msg, error = false) {
       this.toast = { msg, error }; clearTimeout(this._toastT);

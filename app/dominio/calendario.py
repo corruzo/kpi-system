@@ -8,7 +8,7 @@ cuatrimestral «2026-C1» y semestral «2026-S1» (el número cuenta desde el in
 El mes de inicio se fija con configurar() a partir de los parámetros del sistema.
 """
 import re
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
          "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -27,6 +27,14 @@ HISTORIAL = {"mensual": 24, "bimestral": 12, "trimestral": 12, "cuatrimestral": 
              "anual": 5, "eventual": 24}
 
 _inicio = 1  # mes de inicio del ejercicio fiscal
+UTC_MENOS_4 = timedelta(hours=-4)   # Venezuela, sin horario de verano
+
+
+def hoy() -> date:
+    """Fecha de hoy en la empresa (UTC−4). `date.today()` usaría la hora del servidor (UTC en Vercel) y, entre las 8 p. m. y la
+    medianoche, cambiaría de día antes que la empresa: períodos «futuros», pendientes y cierres saldrían corridos."""
+    return (datetime.now(UTC) + UTC_MENOS_4).date()
+
 
 
 # ------------------------------------------------------------------ configuración

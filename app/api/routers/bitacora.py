@@ -4,14 +4,14 @@ from sqlalchemy.orm import Session
 
 from ...servicios import auditoria, bitacora
 from .. import serializadores as ser
-from ..deps import get_db, requiere
+from ..deps import Desde, IdConsulta, Limite, get_db, requiere
 
 router = APIRouter(prefix="/api/bitacora", tags=["bitácora"], dependencies=[Depends(requiere("admin"))])
 
 
 @router.get("")
-def listar(accion: str | None = None, indicador_id: int | None = None, usuario: str | None = None,
-           desde: int = 0, limite: int = 100, db: Session = Depends(get_db)):
+def listar(accion: str | None = None, indicador_id: IdConsulta = None, usuario: str | None = None,
+           desde: Desde = 0, limite: Limite = 100, db: Session = Depends(get_db)):
     codigos = bitacora.codigos_de_indicadores(db)
     return [ser.bitacora(b, codigos.get(b.indicador_id))
             for b in bitacora.listar(db, accion=accion, indicador_id=indicador_id, usuario=usuario, desde=desde, limite=limite)]

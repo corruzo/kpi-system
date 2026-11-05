@@ -1,12 +1,14 @@
 /* Sesión: ingreso, salida, perfil y cambio de contraseña. */
 SIGT.modulos.sesion = () => ({
-    user: null, loginForm: { username: '', password: '' }, loginError: '',
+    user: null, loginForm: { username: '', password: '' }, loginError: '', verClave: false,
     modalClave: false, clave: { actual: '', nueva: '', repetir: '' },
 
     async login() {
       this.busy = true; this.loginError = '';
-      try { this.user = await this.api('/api/login', { method: 'POST', body: this.loginForm }, true); this.loginForm.password = ''; await this.abrirSesion(); }
-      catch (e) { this.loginError = e.message; }
+      try { this.user = await this.api('/api/login', { method: 'POST', body: this.loginForm }, true); }
+      catch (e) { this.loginError = e.message; this.busy = false; return; }
+      this.loginForm.password = ''; this.verClave = false;
+      try { await this.abrirSesion(); } catch (e) { if (!e.avisado) this.avisar('No se pudieron cargar todos los datos. Recargue la página.', true); }
       this.busy = false;
     },
     async logout() {

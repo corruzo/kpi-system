@@ -1,6 +1,5 @@
 """Reportes en Excel: consulta los datos según el rol y los filtros, y los entrega a los generadores de `excel/`."""
 import secrets
-from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,15 +16,15 @@ MAX_BYTES_VERIFICAR = 10_000_000
 
 
 def _nombre_archivo(empresa: str, prefijo: str) -> str:
-    return f"{comun.slug(empresa)}_{prefijo}_{date.today():%Y%m%d}.xlsx"
+    return f"{comun.slug(empresa)}_{prefijo}_{calendario.hoy():%Y%m%d}.xlsx"
 
 
 def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: dict) -> tuple[bytes, str]:
     """Último paso de todo reporte: lo numera y firma, lo bloquea con la contraseña de Parámetros (si está activa),
     deja constancia en la bitácora y devuelve el archivo."""
-    numero = f"R-{date.today():%Y%m%d}-{secrets.token_hex(3).upper()}"
+    numero = f"R-{calendario.hoy():%Y%m%d}-{secrets.token_hex(3).upper()}"
     empresa = parametros.datos_para_reportes(db)["empresa"]
-    huella = sello.sellar(libro, numero, tipo, u.nombre, comun.hora_local(datetime.utcnow()), empresa)
+    huella = sello.sellar(libro, numero, tipo, u.nombre, comun.ahora_local(), empresa)
     clave = parametros.clave_de_reportes(db)
     if clave:
         sello.proteger(libro, clave)

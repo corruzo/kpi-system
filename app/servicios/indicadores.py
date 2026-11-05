@@ -1,5 +1,4 @@
 """Fichas técnicas de indicadores: consulta según el rol, alta, edición, archivado y ficha por ejercicio."""
-from datetime import date
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -21,8 +20,12 @@ def obtener_visible(db: Session, u: Usuario, indicador_id: int) -> Indicador:
     return ind
 
 
-def estados_por_periodo(db: Session, indicador_id: int) -> dict[str, str]:
-    return dict(db.execute(select(Medicion.periodo, Medicion.estado).where(Medicion.indicador_id == indicador_id)).all())
+def estados_de_todos(db: Session) -> dict[int, dict[str, str]]:
+    """{indicador_id: {período: estado}} de todas las cargas, en una sola consulta."""
+    por_indicador: dict[int, dict[str, str]] = {}
+    for indicador_id, periodo, estado in db.execute(select(Medicion.indicador_id, Medicion.periodo, Medicion.estado)):
+        por_indicador.setdefault(indicador_id, {})[periodo] = estado
+    return por_indicador
 
 
 def _dividir_pendientes(ind: Indicador, pendientes: list[str], ejercicio: int) -> tuple[list[str], dict[int, int]]:
@@ -45,11 +48,11 @@ def listar(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[
     if u.rol != "admin":
         q = q.where(Indicador.activo.is_(True))
     cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).group_by(Medicion.indicador_id)).all())
-    hoy = date.today()
+    hoy = calendario.hoy()
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
-    filas = []
+    filas, estados = [], estados_de_todos(db)
     for i in db.scalars(q):
-        pendientes = calendario.periodos_pendientes(i.frecuencia, hoy, estados_por_periodo(db, i.id), i.creado_en.date())
+        pendientes = calendario.periodos_pendientes(i.frecuencia, hoy, estados.get(i.id, {}), i.creado_en.date())
         filas.append((i, cargas.get(i.id, 0), *_dividir_pendientes(i, pendientes, anio)))
     return filas
 
@@ -58,7 +61,7 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
     """Períodos de UN ejercicio fiscal ofrecidos al cargar un indicador (sin `ejercicio`, el vigente), con su carga
     existente y si el ejercicio está cerrado. Los pendientes de otros ejercicios se informan aparte."""
     ind = obtener_visible(db, u, indicador_id)
-    hoy = date.today()
+    hoy = calendario.hoy()
     medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id))}
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
     todos = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
@@ -72,7 +75,7 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
 
 def contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
     """(año del ejercicio mostrado, ejercicios disponibles, períodos del ejercicio con su medición)."""
-    hoy, f = date.today(), ind.frecuencia
+    hoy, f = calendario.hoy(), ind.frecuencia
     medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind.id))}
     vigente = calendario.ejercicio_de(f, calendario.periodo_actual(f, hoy))
     con_datos = sorted({calendario.ejercicio_de(f, p) for p in medidas}, reverse=True)

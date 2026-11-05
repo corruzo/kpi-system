@@ -1,7 +1,6 @@
 """Ficha técnica de indicador en Excel (una hoja por indicador), con el formato del SGC y la comparación de lo real
 contra lo presupuestado. Blanco y negro, sin logo y sin gráficos."""
 import re
-from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -13,10 +12,10 @@ from ..dominio.formula_excel import a_excel
 from .comun import (
     BORDE,
     SEMAFORO,
+    ahora_local,
     ajustar,
     formato_numero,
     fuente,
-    hora_local,
     relleno_negro,
 )
 from .general import _formulas_comparacion
@@ -79,7 +78,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
     empresa = params.get("empresa", "")
     wb.properties.creator = empresa
     usados: set[str] = set()
-    ahora = hora_local(datetime.utcnow())
+    ahora = ahora_local()
     for ind, y, periodos in fichas:
         ws = wb.create_sheet(_nombre_hoja(ind, usados))
         ws.sheet_view.showGridLines = False

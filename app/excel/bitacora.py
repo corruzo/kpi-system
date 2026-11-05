@@ -1,10 +1,9 @@
 """Bitácora del sistema en Excel (solo administrador). Blanco y negro, sin logo."""
-from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
-from .comun import ajustar, celda, configurar_impresion, encabezado_hoja, encabezado_tabla, hora_local
+from .comun import ahora_local, ajustar, celda, configurar_impresion, encabezado_hoja, encabezado_tabla, hora_local
 
 
 def reporte_bitacora(empresa: str, registros, codigos: dict, generado_por: str, verificacion: dict) -> Workbook:
@@ -12,7 +11,7 @@ def reporte_bitacora(empresa: str, registros, codigos: dict, generado_por: str, 
     wb.properties.creator = empresa
     ws = wb.active
     ws.title = "Bitácora"
-    ahora = hora_local(datetime.utcnow())
+    ahora = ahora_local()
     estado = "íntegra" if verificacion["ok"] else f"ALTERADA (registro #{verificacion['primer_error_id']})"
     fila0 = encabezado_hoja(ws, empresa, "Bitácora de trazabilidad del sistema", [
         f"Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por}",

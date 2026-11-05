@@ -10,6 +10,9 @@ Rol = Literal["jefe", "gerente", "admin"]
 Frecuencia = Literal[tuple(FRECUENCIAS)]
 CLAVE_RX = r"^[a-z][a-z0-9_]{0,39}$"
 Numero = Annotated[float, Field(allow_inf_nan=False)]   # rechaza NaN e Infinity (no son datos válidos)
+ID_MAX = 2**31 - 1   # mayor entero de una columna INTEGER de PostgreSQL
+MAX_CLAVES = 40      # tope de variables/constantes/valores que acepta un cálculo (una ficha admite 12 + 12)
+MAX_TEXTO = 4000     # análisis y plan de mejora de una carga
 
 
 # ---------------------------------------------------------------- sesión
@@ -36,14 +39,14 @@ class UsuarioIn(BaseModel):
     username: str = Field(pattern=r"^[a-z0-9._-]{3,40}$")
     nombre: str = Field(min_length=3, max_length=120)
     rol: Rol
-    area_id: int | None = None
+    area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
     password: str = Field(min_length=10, max_length=128)
 
 
 class UsuarioEdit(BaseModel):
     nombre: str = Field(min_length=3, max_length=120)
     rol: Rol
-    area_id: int | None = None
+    area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
     activo: bool = True
     password: str | None = Field(default=None, min_length=10, max_length=128)
 
@@ -93,7 +96,7 @@ class IndicadorIn(BaseModel):
     codigo: str = Field(min_length=2, max_length=20)
     nombre: str = Field(min_length=3, max_length=150)
     objetivo: str = Field(default="", max_length=1000)
-    area_id: int
+    area_id: int = Field(ge=1, le=ID_MAX)
     unidad: str = Field(min_length=1, max_length=12)
     frecuencia: Frecuencia
     sentido: Literal["mayor", "menor"]
@@ -130,15 +133,15 @@ class IndicadorIn(BaseModel):
 
 
 class FormulaIn(BaseModel):
-    formula: str
-    claves: list[str]                   # variables + constantes disponibles
-    variables: list[str] | None = None  # solo las variables (para avisar de las que no se usan)
+    formula: str = Field(max_length=formulas.MAX_LARGO * 2)
+    claves: list[str] = Field(max_length=MAX_CLAVES)                   # variables + constantes disponibles
+    variables: list[str] | None = Field(default=None, max_length=MAX_CLAVES)  # solo las variables (para avisar de las no usadas)
 
 
 class ProbarIn(BaseModel):
-    formula: str
-    valores: dict[str, Numero]
-    constantes: dict[str, Numero] = {}
+    formula: str = Field(max_length=formulas.MAX_LARGO * 2)
+    valores: dict[str, Numero] = Field(max_length=MAX_CLAVES)
+    constantes: dict[str, Numero] = Field(default_factory=dict, max_length=MAX_CLAVES)
     decimales: int = Field(default=2, ge=0, le=6)
     meta: Numero
     limite: Numero
@@ -149,20 +152,20 @@ class ProbarIn(BaseModel):
 
 # ---------------------------------------------------------------- mediciones
 class CalcIn(BaseModel):
-    indicador_id: int
-    valores: dict[str, Numero | None]
+    indicador_id: int = Field(ge=1, le=ID_MAX)
+    valores: dict[str, Numero | None] = Field(max_length=MAX_CLAVES)
     periodo: str | None = None      # opcional: con él el cálculo en vivo incluye la comparación con el presupuesto
 
 
 class CargaIn(CalcIn):
-    periodo: str
-    analisis: str = ""
-    plan_mejora: str = ""
+    periodo: str = Field(max_length=10)
+    analisis: str = Field(default="", max_length=MAX_TEXTO)
+    plan_mejora: str = Field(default="", max_length=MAX_TEXTO)
 
 
 class RevisionIn(BaseModel):
     accion: Literal["aprobar", "observar"]
-    nota: str = ""
+    nota: str = Field(default="", max_length=2000)
 
 
 class NotaIn(BaseModel):
@@ -178,7 +181,7 @@ class EjercicioIn(BaseModel):
 # ---------------------------------------------------------------- presupuesto
 class PresupuestoIn(BaseModel):
     """O bien `valores` (período → valor), o bien `anual` con su `reparto` (igual | repetir)."""
-    valores: dict[str, Numero] | None = None
+    valores: dict[str, Numero] | None = Field(default=None, max_length=24)   # un ejercicio tiene a lo sumo 12 períodos
     anual: Numero | None = None
     reparto: Literal["igual", "repetir"] = "igual"
 
@@ -205,7 +208,7 @@ class ImpMedicion(BaseModel):
 
 
 class ImpIndicador(IndicadorIn):
-    area_id: int = 0                      # se asigna al resolver el área por nombre
+    area_id: int = Field(default=0, ge=0, le=ID_MAX)   # se asigna al resolver el área por nombre
     area: str = Field(min_length=2, max_length=80)
     hoja: str = ""
     mediciones: list[ImpMedicion] = Field(default_factory=list, max_length=400)

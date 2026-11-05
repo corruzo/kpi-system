@@ -26,6 +26,7 @@ def _clave() -> bytes:
     f = DATA_DIR / ".secret"
     if not f.exists():
         f.write_text(secrets.token_hex(32))
+        f.chmod(0o600)          # solo el propietario puede leer la clave de firma
     return f.read_text().strip().encode()
 
 

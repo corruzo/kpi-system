@@ -1,5 +1,7 @@
 """Dependencias de FastAPI: sesión de base de datos, usuario autenticado, permisos por rol y bloqueo de escritura."""
-from fastapi import Depends, Request
+from typing import Annotated
+
+from fastapi import Depends, Path, Query, Request
 from sqlalchemy.orm import Session
 
 from .. import security
@@ -9,7 +11,18 @@ from ..errores import NoAutenticado, Prohibido
 from ..models import Usuario
 from ..servicios.concurrencia import bloquear_escritura, candado_escritura
 
-__all__ = ["escritura", "get_db", "origen_cliente", "requiere", "usuario_actual"]
+# Parámetros numéricos con rango válido: un id gigante o un año imposible se rechaza con 422 en vez de llegar a la base de datos
+# (PostgreSQL: «integer out of range») o a las fechas (año 0).
+ID_MAX = 2**31 - 1
+IdRuta = Annotated[int, Path(ge=1, le=ID_MAX)]
+AnioRuta = Annotated[int, Path(ge=2000, le=2100)]
+IdConsulta = Annotated[int | None, Query(ge=1, le=ID_MAX)]
+AnioConsulta = Annotated[int | None, Query(ge=2000, le=2100)]
+Desde = Annotated[int, Query(ge=0, le=10_000_000)]
+Limite = Annotated[int, Query(ge=1, le=500)]
+
+__all__ = ["AnioConsulta", "AnioRuta", "Desde", "IdConsulta", "IdRuta", "Limite", "escritura", "get_db", "origen_cliente",
+           "requiere", "usuario_actual"]
 
 
 def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:

@@ -35,7 +35,7 @@ def _avance_del_tiempo(inicio: date, fin: date, hoy: date) -> float:
 
 
 def construir(db: Session, anio: int, area_id: int | None = None, hoy: date | None = None) -> dict:
-    hoy = hoy or date.today()
+    hoy = hoy or calendario.hoy()
     desc = ejercicios.descripcion(db, anio, hoy)
     actual = ejercicios.foto(db, anio, area_id, hoy)
     anterior = ejercicios.foto(db, anio - 1, area_id, hoy)

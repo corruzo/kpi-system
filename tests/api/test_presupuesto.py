@@ -1,5 +1,4 @@
 """Flujo anual: período fiscal → presupuesto → carga mensual comparada con lo presupuestado."""
-from datetime import date
 
 from conftest import CLAVE_ADMIN, crear_area, crear_indicador, crear_periodo, crear_usuario, entrar, periodo_actual
 
@@ -7,7 +6,7 @@ from app.dominio import calendario
 
 
 def vigente() -> int:
-    return calendario.ejercicio_de_fecha(date.today())
+    return calendario.ejercicio_de_fecha(calendario.hoy())
 
 
 def preparar(client, **cambios):

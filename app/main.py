@@ -4,6 +4,7 @@ Ensamblado de la aplicación: arranque diferido, cabeceras de seguridad, traducc
 routers de la API y archivos estáticos. La lógica vive en `servicios/` y `dominio/`.
 """
 import logging
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
+from sqlalchemy.exc import DataError, DBAPIError, IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from . import csrf
@@ -86,13 +88,47 @@ async def responder_entrada_invalida(_, e: RequestValidationError):
     return JSONResponse({"detail": errores}, status_code=422)
 
 
+# ---------------------------------------------------------------- errores inesperados: siempre una respuesta JSON clara
+@app.exception_handler(IntegrityError)
+async def responder_conflicto_de_datos(_, e: IntegrityError):
+    """Dos peticiones simultáneas que chocan con una restricción única o de llave foránea: es un conflicto, no un fallo."""
+    log.warning("Restricción de base de datos: %s", str(getattr(e, "orig", e)).splitlines()[0][:200])
+    return JSONResponse({"detail": "La operación choca con datos que ya existen o están en uso. Actualice la pantalla e intente de nuevo."},
+                        status_code=409)
+
+
+@app.exception_handler(DataError)
+@app.exception_handler(OverflowError)
+async def responder_valor_fuera_de_rango(_, e: Exception):
+    log.warning("Valor fuera de rango: %s", type(e).__name__)
+    return JSONResponse({"detail": "Algún valor enviado está fuera del rango permitido."}, status_code=422)
+
+
+@app.exception_handler(OperationalError)
+@app.exception_handler(DBAPIError)
+async def responder_base_no_disponible(_, e: DBAPIError):
+    log.error("Base de datos no disponible: %s", str(getattr(e, "orig", e)).splitlines()[0][:200])
+    return JSONResponse({"detail": "La base de datos no responde en este momento. Intente de nuevo en unos segundos."}, status_code=503)
+
+
+@app.exception_handler(Exception)
+async def responder_error_interno(request: Request, e: Exception):
+    """Último recurso: se registra con un código y el usuario recibe ese código (nunca el detalle técnico)."""
+    codigo = secrets.token_hex(4).upper()
+    log.error("Error interno %s en %s %s", codigo, request.method, request.url.path, exc_info=e)
+    return JSONResponse({"detail": f"Error interno del sistema. Informe este código al administrador: {codigo}."}, status_code=500)
+
+
 for router in ROUTERS:
     app.include_router(router)
 
 
 @app.get("/healthz", include_in_schema=False)
 def salud(db: Session = Depends(get_db)):
-    db.execute(select(1))
+    try:
+        db.execute(select(1))
+    except DBAPIError:
+        return JSONResponse({"ok": False}, status_code=503)   # el balanceador debe retirar esta instancia
     return {"ok": True}
 
 

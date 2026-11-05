@@ -75,6 +75,13 @@ Acceso a todo el sistema: fichas, áreas y usuarios; carga de datos en cualquier
 ## Gestión de indicadores
 Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, eliminar (con cargas se archiva), claves de variables generadas automáticamente, reordenar variables, validación de fórmula con aviso de variables sin usar y probador con resultado y semáforo en vivo. Con cargas registradas no se puede cambiar la frecuencia ni las claves de las variables; los cambios de meta o fórmula quedan en la bitácora y no alteran el histórico.
 
+## Robustez y calidad del código
+- **Errores:** toda excepción termina en JSON claro (`app/main.py`): restricción única/llave foránea → 409, valor fuera de rango → 422, base caída → 503 y cualquier otra → 500 con un **código** que se registra en el log con su traza (el usuario nunca ve detalles técnicos). `/healthz` responde 503 si la base no contesta. La interfaz (`nucleo.api`) convierte falta de conexión, tiempo agotado y respuestas no válidas en avisos en español, y avisa de cualquier error no controlado.
+- **Entradas:** ids, años y paginación se validan con rangos (`api/deps.py`: `IdRuta`, `AnioRuta`, `Limite`…); textos y diccionarios tienen tope de tamaño (`schemas.py`). La búsqueda por usuario en la bitácora trata `%` y `_` como texto.
+- **Base de datos (migración `0005`):** índices en llaves foráneas y columnas de filtro/orden, y restricciones `CHECK` en rol, sentido, frecuencia, estados y semáforo (si una base trae datos que no las cumplen, esa restricción se omite con un aviso en vez de tumbar el despliegue). Las relaciones que siempre se muestran juntas se cargan con la misma consulta (`lazy="joined"`/`selectin`) para evitar el problema N+1; las copias de presupuesto se confirman en una sola transacción.
+- **Fechas:** `calendario.hoy()` usa la hora de Venezuela (UTC−4); `date.today()` usaría la del servidor (UTC en Vercel) y correría períodos y cierres entre las 8 p. m. y la medianoche.
+- Las pruebas de `tests/api/test_robustez.py` fijan estos comportamientos.
+
 ## Reportes en Excel
 Todos los libros son **en blanco y negro, sin logo ni gráficos**; cada hoja empieza solo con el nombre de la empresa de Parámetros (`app/excel/comun.py` define el estilo).
 - `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento del presupuesto por área e indicador), *Real vs Presupuesto* (una fila por indicador y período: presupuestado, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el jefe de área solo obtiene su área.

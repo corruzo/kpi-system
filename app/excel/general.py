@@ -8,7 +8,7 @@ Hojas:
   Indicadores          definición de cada indicador incluido.
 Diferencia, porcentaje y «cumple» son fórmulas vivas de Excel: si alguien corrige un valor, se recalculan.
 """
-from datetime import date, datetime
+from datetime import date
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -20,6 +20,7 @@ from .comun import (
     ESTADO,
     SEMAFORO,
     SENTIDO,
+    ahora_local,
     ajustar,
     celda,
     configurar_impresion,
@@ -27,7 +28,6 @@ from .comun import (
     encabezado_tabla,
     formato_numero,
     fuente,
-    hora_local,
 )
 
 PCT = "0.0%"
@@ -234,11 +234,11 @@ def reporte_general(empresa: str, mediciones, indicadores, presupuestos: dict, e
                     filtros: str, por_aprobar: int, solo_cargadas: bool = False, hoy: date | None = None) -> Workbook:
     """mediciones: [Medicion]; indicadores: [Indicador] incluidos; presupuestos: {(indicador_id, período): valor};
     ejercicios: años fiscales que abarca el reporte."""
-    hoy = hoy or date.today()
+    hoy = hoy or calendario.hoy()
     wb = Workbook()
     wb.properties.creator = empresa
     wb.properties.title = "Real contra presupuesto"
-    ahora = hora_local(datetime.utcnow())
+    ahora = ahora_local()
     sub = [f"Generado el {ahora:%d/%m/%Y %H:%M} por {generado_por}", f"Filtros: {filtros or 'ninguno (todos los datos)'}"]
     filas = _filas(indicadores, mediciones, presupuestos, set(ejercicios), solo_cargadas, hoy)
 

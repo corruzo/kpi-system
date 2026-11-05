@@ -6,6 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from ..models import Bitacora, ahora
+from .concurrencia import ID_BLOQUEO_ESCRITURA
 
 GENESIS = "0" * 64
 
@@ -25,7 +26,7 @@ def registrar(db: Session, usuario, accion: str, entidad: str, entidad_id=None,
               detalle: dict | None = None, indicador=None, fecha=None) -> Bitacora:
     """Agrega un registro a la bitácora dentro de la transacción actual (el llamador hace commit)."""
     if db.get_bind().dialect.name == "postgresql":  # serializa la cadena entre procesos
-        db.execute(text("SELECT pg_advisory_xact_lock(727001)"))
+        db.execute(text(f"SELECT pg_advisory_xact_lock({ID_BLOQUEO_ESCRITURA})"))
     anterior = db.scalar(select(Bitacora.hash).order_by(Bitacora.id.desc()).limit(1)) or GENESIS
     b = Bitacora(
         fecha=fecha or ahora(),
@@ -46,7 +47,7 @@ def registrar(db: Session, usuario, accion: str, entidad: str, entidad_id=None,
 def verificar(db: Session) -> dict:
     """Recorre la cadena completa: {ok, total, primer_error_id}."""
     anterior, total = GENESIS, 0
-    for b in db.scalars(select(Bitacora).order_by(Bitacora.id)):
+    for b in db.scalars(select(Bitacora).order_by(Bitacora.id).execution_options(yield_per=1000)):   # sin cargar toda la tabla en memoria
         total += 1
         if b.prev_hash != anterior or b.hash != _hash(anterior, _contenido(b)):
             return {"ok": False, "total": total, "primer_error_id": b.id}
