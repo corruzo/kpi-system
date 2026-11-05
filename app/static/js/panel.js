@@ -36,6 +36,7 @@ SIGT.modulos.panel = () => ({
           data: {
             labels: s.map(p => p.etiqueta), datasets: [
               { label: 'Resultado', data: s.map(p => p.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: s.map(p => SEM[p.semaforo]), pointRadius: 6, pointBorderColor: '#fff', borderWidth: 2.5, tension: .25 },
+              { label: 'Presupuesto', data: s.map(p => p.presupuesto), borderColor: '#e55cff', backgroundColor: '#e55cff', pointStyle: 'rectRot', pointRadius: 5, borderWidth: 2, tension: .25, spanGaps: true },
               { label: 'Meta', data: s.map(p => p.meta), borderColor: NAVY, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
               { label: 'Límite crítico', data: s.map(p => p.limite), borderColor: SEM.rojo, borderDash: [2, 4], pointRadius: 0, borderWidth: 1.5 }]
           },

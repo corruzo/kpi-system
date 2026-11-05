@@ -1,7 +1,7 @@
 """Fichas técnicas de indicadores: consulta según el rol, alta, edición, archivado y ficha por ejercicio."""
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, semaforo
@@ -170,6 +170,8 @@ def editar(db: Session, admin: Usuario, indicador_id: int, datos) -> Indicador:
     nuevos = campos_de_ficha(datos)
     cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items()
                if getattr(ind, k) != v and not (not getattr(ind, k) and not v)}
+    if "frecuencia" in cambios:   # sus períodos cambian: el presupuesto por período ya no corresponde y debe ingresarse de nuevo
+        db.execute(delete(Presupuesto).where(Presupuesto.indicador_id == ind.id))
     for k, v in nuevos.items():
         setattr(ind, k, v)
     if cambios:
@@ -189,6 +191,7 @@ def eliminar(db: Session, admin: Usuario, indicador_id: int) -> bool:
         db.commit()
         return True
     auditoria.registrar(db, admin, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
+    db.execute(delete(Presupuesto).where(Presupuesto.indicador_id == ind.id))   # sin cargas: su presupuesto se va con él
     db.delete(ind)
     db.commit()
     return False

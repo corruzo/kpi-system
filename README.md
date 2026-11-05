@@ -119,10 +119,24 @@ El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicado
 - **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño y gráfico.
 - **Importación de años anteriores** (`Importar`): lee el Excel de fichas (una hoja por indicador), traduce la fórmula, propone indicadores y mediciones, muestra una vista previa editable y los carga como aprobados, con registro en la bitácora. Si el ejercicio fiscal del archivo difiere del configurado, avisa antes de importar.
 
+## Flujo anual: período fiscal → presupuesto → carga mensual
+
+El sistema se usa siempre en este orden (la pantalla **Puesta en marcha** del administrador lo muestra con el estado de cada paso):
+
+1. **Organización y equipo** (áreas y usuarios) → 2. **Indicadores** → 3. **Crear el período fiscal** (`POST /api/ejercicios`) → 4. **Presupuestar** cada indicador (`PUT /api/ejercicios/{anio}/presupuesto/{indicador_id}`) → 5. **Carga mensual** del dato real, que se compara con el presupuesto del período.
+
+- El presupuesto se guarda por período de la frecuencia del indicador (`presupuestos`); se ingresa período a período o con un valor anual repartido (`igual` / `repetir`, `app/dominio/presupuesto.py`). Los indicadores `eventual` no se presupuestan.
+- Sin período fiscal creado no se presupuesta ni se carga; sin presupuesto de un período no se carga ese período (un reenvío de una carga devuelta conserva el presupuesto con que nació).
+- Cada carga copia su presupuesto (`mediciones.presupuesto`) y la API devuelve `vs_presupuesto` (`desviacion`, `porcentaje`, `cumple`). Un período con dato real ya no admite cambiar su presupuesto. Todo queda en la bitácora (`EJERCICIO_CREADO`, `PRESUPUESTO_GUARDADO`).
+- `GET /api/puesta-en-marcha` (administrador) informa el estado de los cinco pasos. La migración `0004` deja como períodos creados los años que ya tenían cargas.
+
 ## Manual de usuario
-[`docs/MANUAL_DE_USUARIO.md`](docs/MANUAL_DE_USUARIO.md): guía detallada, pantalla por pantalla y botón por botón, para jefes de área, gerentes / auditores y administradores. Si cambia la interfaz, actualícelo.
+[`docs/MANUAL_DE_USO.txt`](docs/MANUAL_DE_USO.txt): manual completo, paso a paso (instalación, puesta en marcha, operación mensual, auditoría, modificar y eliminar). Si cambia el funcionamiento o la interfaz, actualícelo.
 
 ## Diseño de la interfaz
+
+El aspecto «dinámico» (portadas con degradado, mosaicos con icono, botones grandes, barra inferior con indicador deslizante) vive en `src/input.css` (`.hero`, `.tile`, `.paso`, `.btn-lg`, `.dock`…) y las animaciones en `app/static/js/animaciones.js`, que usa **Motion** (la librería vanilla de Framer Motion, `app/static/vendor/motion.js`, actualizable con `npm run build:motion`). Respeta «reducir movimiento».
+
 Estilo sobrio y cálido inspirado en Claude.com: fondo crema, títulos en tipografía serif, tarjetas y controles muy redondeados, botones en forma de píldora, cabecera translúcida con navegación en cápsula (escritorio) y barra flotante inferior con menú «Más» (móvil), hojas modales que suben desde abajo en el teléfono y respeto de «reducir movimiento». Conserva los azules corporativos (#0f172a y #0284c7) como acentos. Los estilos se compilan con `npm run build:css` (fuente en `src/input.css` y `tailwind.config.js`).
 
 ## Ejercicios fiscales (organización por año de gestión)

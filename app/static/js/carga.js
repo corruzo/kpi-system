@@ -23,8 +23,13 @@ SIGT.modulos.carga = () => ({
     get gruposPeriodos() {
       const g = []; for (const p of this.periodosInd) { let x = g.find(y => y.etiqueta === p.ejercicio); if (!x) g.push(x = { etiqueta: p.ejercicio, periodos: [] }); x.periodos.push(p); } return g;
     },
+    get periodoSel() { return this.periodosInd.find(p => p.periodo === this.f.periodo) || null; },
+    // Presupuesto del período elegido (el que quedó guardado en la carga, si ya existe)
+    get presupuestoSel() { return this.medActual && this.medActual.presupuesto !== null && this.medActual.presupuesto !== undefined ? this.medActual.presupuesto : (this.periodoSel?.presupuesto ?? null); },
+    get sinPresupuesto() { return !!this.ind && this.ind.frecuencia !== 'eventual' && !this.medActual && this.periodoSel && this.periodoSel.presupuesto === null; },
+    get periodoSinCrear() { return !!this.periodoSel && this.periodoSel.creado === false; },
     get periodoCerrado() { return !!this.periodosInd.find(p => p.periodo === this.f.periodo)?.cerrado; },
-    get bloqueado() { return this.periodoCerrado || (!!this.medActual && this.medActual.estado !== 'observado'); },
+    get bloqueado() { return this.periodoCerrado || this.sinPresupuesto || this.periodoSinCrear || (!!this.medActual && this.medActual.estado !== 'observado'); },
     get indicadoresCarga() { return this.indicadores.filter(i => i.activo); },
     pendientesTotal() { return this.indicadoresCarga.reduce((n, i) => n + (i.pendientes?.length || 0), 0); },
     listaPendientes() { return this.indicadoresCarga.flatMap(i => (i.pendientes || []).map(p => ({ ind: i, ...p }))); },
@@ -51,7 +56,7 @@ SIGT.modulos.carga = () => ({
       const m = this.medActual;
       this.f.valores = m ? { ...m.valores } : {};
       this.f.analisis = m?.analisis || ''; this.f.plan_mejora = m?.plan_mejora || ''; this.f.tocado = false;
-      this.calc = m && m.estado !== 'observado' ? { ok: true, resultado: m.resultado, semaforo: m.semaforo, requiere_analisis: m.semaforo !== 'verde' } : null;
+      this.calc = m && m.estado !== 'observado' ? { ok: true, resultado: m.resultado, semaforo: m.semaforo, requiere_analisis: m.semaforo !== 'verde', vs_presupuesto: m.vs_presupuesto } : null;
       if (m?.estado === 'observado') this.calcular();
     },
     async calcular() {
@@ -63,7 +68,7 @@ SIGT.modulos.carga = () => ({
       }
       if (!completo) { this.calc = null; return; }
       const n = ++this._seq;
-      try { const r = await this.api('/api/calcular', { method: 'POST', body: { indicador_id: this.ind.id, valores: vals } }, true); if (n === this._seq) this.calc = r; }
+      try { const r = await this.api('/api/calcular', { method: 'POST', body: { indicador_id: this.ind.id, periodo: this.f.periodo, valores: vals } }, true); if (n === this._seq) this.calc = r; }
       catch { }
     },
     analisisOk() { return this.f.analisis.trim().length >= 10 && this.f.plan_mejora.trim().length >= 10; },

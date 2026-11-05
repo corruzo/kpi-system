@@ -1,5 +1,5 @@
     <!-- ============ BITÁCORA (solo administrador) ============ -->
-    <section x-show="view==='bitacora' && user.rol==='admin'" class="space-y-4">
+    <section data-vista="bitacora" x-show="view==='bitacora' && user.rol==='admin'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div><h1 class="page-title">Bitácora del sistema</h1><p class="text-sm text-slate-600">Visible únicamente para el Administrador SGC. Registro de solo inserción con cadena de hashes SHA-256.</p></div>
         <div class="flex gap-2"><button class="btn btn-s" @click="verificarBitacora()">Verificar integridad</button><button class="btn btn-s" :disabled="busy" @click="descargar('/api/reportes/bitacora.xlsx','bitacora_sigt.xlsx')">Descargar Excel</button></div>

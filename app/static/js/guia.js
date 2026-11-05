@@ -30,26 +30,27 @@ SIGT.modulos.guia = () => ({
         nav('bandeja', 'Bandeja de aprobación', 'Las cargas enviadas por los jefes esperan aquí su aprobación o devolución con observaciones.'),
         nav('historial', 'Todas las cargas', 'Historial completo con filtros. Desde aquí puede agregar notas de auditoría o reabrir una carga aprobada con un error.'),
         nav('reportes', 'Reportes', 'Informe general en Excel y fichas técnicas en el formato del SGC.'),
-        nav('ejercicios', 'Ejercicios fiscales', 'Consulte el estado de cada ejercicio y sus resultados finales.'), ej, info, menu, fin];
+        nav('presupuesto', 'Período y presupuesto', 'Consulte y ajuste el presupuesto de cada indicador por período.'),
+        nav('ejercicios', 'Cierre de años', 'Consulte el estado de cada ejercicio y sus resultados finales.'), ej, info, menu, fin];
       return [ini,
-        { sel: '[data-tour="fichas-nuevo"]', t: 'Crear indicadores', d: 'Aquí define cada indicador: proceso, responsables, fórmula, metas y semáforo. Los botones «i» y la guía de fórmulas le ayudan.' },
-        nav('inicio', 'Inicio', 'Su punto de partida: muestra lo que tiene pendiente y da acceso directo a cada sección.'),
-        nav('fichas', 'Indicadores', 'Fichas técnicas: cree, edite, duplique, archive y vea cada indicador.'),
-        nav('panel', 'Panel de análisis', 'Resumen del ejercicio, mapa de calor, atención requerida y comparativo con el año anterior.'),
+        { sel: '[data-tour="marcha"]', t: 'Los 5 pasos para arrancar', d: 'Esta es la guía del administrador: 1) organización y equipo, 2) indicadores, 3) período fiscal, 4) presupuesto, 5) carga mensual. Cada paso muestra si ya está listo y el botón para hacerlo. Siga el orden.' },
+        nav('org', 'Organización y equipo', 'Cree las áreas de la empresa y los usuarios: un jefe por área (carga datos) y un gerente / auditor (aprueba). Aquí también están los parámetros y el logo.'),
+        nav('fichas', 'Indicadores', 'Defina qué se mide en cada área: fórmula, frecuencia y semáforo.'),
+        nav('presupuesto', 'Período y presupuesto', 'Cree el período fiscal del año y presupueste cada indicador, por período o con un valor anual repartido.'),
+        nav('carga', 'Cargar datos', 'Cada mes los jefes cargan su dato real; el sistema lo compara con lo presupuestado. Como administrador también puede cargar por ellos.'),
         nav('bandeja', 'Bandeja de aprobación', 'Cargas pendientes de revisión.'),
-        nav('carga', 'Cargar datos', 'Como administrador puede cargar datos de cualquier área.'),
         nav('historial', 'Todas las cargas', 'Historial con filtros, notas de auditoría y reapertura de cargas.'),
+        nav('panel', 'Panel de análisis', 'Resultados, presupuesto contra real, tendencias y comparativo con el año anterior.'),
         nav('reportes', 'Reportes', 'Excel del informe general y de las fichas técnicas.'),
-        nav('ejercicios', 'Ejercicios fiscales', 'Cierre cada ejercicio cuando termine: queda archivado en solo lectura y el siguiente empieza limpio.'),
-        nav('org', 'Organización', 'Áreas, usuarios, listas de apoyo y parámetros: ejercicio fiscal y logo de la empresa.'),
-        nav('importar', 'Importar', 'Traiga al sistema las fichas de años anteriores desde Excel.'),
+        nav('ejercicios', 'Cierre de años', 'Al terminar el año, verifíquelo y ciérrelo: queda archivado en solo lectura.'),
+        nav('importar', 'Importar', 'Traiga las fichas de años anteriores desde Excel.'),
         nav('bitacora', 'Bitácora', 'Registro inalterable de todo lo que ocurre en el sistema. Solo usted puede verlo.'), ej, info, menu, fin];
     },
     visible(sel) { return [...document.querySelectorAll(sel)].find(e => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'); },
     async iniciarTour() {
       if (this.tour.on) return;
       this.menu = false; this.mas = false;
-      const inicial = { jefe: 'carga', gerente: 'panel', admin: 'fichas' }[this.user.rol];   // vista donde están los elementos explicados
+      const inicial = { jefe: 'carga', gerente: 'panel', admin: 'inicio' }[this.user.rol];   // vista donde están los elementos explicados
       if (this.view !== inicial) await this.go(inicial);
       this.tour = { on: true, i: -1, pasos: this.pasosBase(), hole: null, pop: { top: 0, left: 0, w: 340 } };
       await this.pasoTour(1);

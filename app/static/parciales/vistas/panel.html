@@ -1,5 +1,5 @@
     <!-- ============ PANEL ============ -->
-    <section x-show="view==='panel'" class="space-y-4">
+    <section data-vista="panel" x-show="view==='panel'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div><h1 class="page-title">Panel de análisis</h1><p class="text-sm text-slate-600">Ejercicio fiscal <b x-text="ejActual.etiqueta"></b>: resultados según la última medición de cada indicador.</p></div>
         <select class="inp !w-full sm:!w-auto" x-model="panelArea" @change="cargarPanel()" aria-label="Filtrar por área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
@@ -64,13 +64,14 @@
 
           <div class="card overflow-hidden"><div class="card-h"><h2>Indicadores</h2><span class="text-xs text-slate-500">Toque uno para abrir su ficha</span></div>
             <div class="hidden overflow-x-auto md:block">
-              <table class="w-full"><thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Último período</th><th class="th">Resultado</th><th class="th">Tendencia</th><th class="th">Meta</th><th class="th">Semáforo</th></tr></thead>
+              <table class="w-full"><thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Último período</th><th class="th">Resultado</th><th class="th">Tendencia</th><th class="th">Meta</th><th class="th">Vs. presupuesto</th><th class="th">Semáforo</th></tr></thead>
                 <tbody><template x-for="i in dash.indicadores" :key="i.id">
                   <tr class="cursor-pointer transition hover:bg-slate-50" @click="verFicha(i.id)">
                     <td class="td whitespace-nowrap font-semibold" x-text="i.codigo"></td><td class="td" x-text="i.nombre"></td><td class="td" x-text="i.area"></td>
                     <td class="td"><span x-text="i.ultimo ? i.ultimo.etiqueta : '—'"></span><span x-show="i.faltantes.length" class="ml-1 text-xs text-amber-700" x-text="'(' + i.faltantes.length + ' sin cargar)'"></span></td>
                     <td class="td text-base font-bold" x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'"></td>
                     <td class="td font-medium" :class="tendClase(i.tendencia)" x-text="tendTxt(i.tendencia)"></td><td class="td" x-text="umbralTxt(i)"></td>
+                    <td class="td whitespace-nowrap text-xs font-bold" :class="i.vs_presupuesto.con_presupuesto && i.vs_presupuesto.cumplen === i.vs_presupuesto.con_presupuesto ? 'text-green-700' : 'text-slate-600'" x-text="i.vs_presupuesto.con_presupuesto ? i.vs_presupuesto.cumplen + ' de ' + i.vs_presupuesto.con_presupuesto + ' cumplen' : '—'"></td>
                     <td class="td"><span x-show="i.ultimo" class="chip border-transparent text-white" :class="semBg(i.ultimo && i.ultimo.semaforo)" x-text="semTxt(i.ultimo && i.ultimo.semaforo)"></span></td>
                   </tr></template></tbody></table>
             </div>

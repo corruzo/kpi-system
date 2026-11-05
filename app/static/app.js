@@ -12,6 +12,7 @@ const ORDEN_DE_MODULOS = [
   'ayuda',         // botones «i»
   'parametros',    // empresa, ejercicio fiscal, logo
   'ejercicios',    // ejercicio fiscal activo (condiciona casi todo lo demás)
+  'presupuesto',   // período fiscal y presupuesto anual por indicador
   'indicadores',   // fichas técnicas
   'inicio',        // pantalla de bienvenida y tareas pendientes
   'carga',         // carga de datos

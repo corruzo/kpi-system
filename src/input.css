@@ -18,51 +18,92 @@
 }
 
 @layer components {
+  /* ===== Sistema visual «dinámico»: tarjetas amplias, botones grandes, mosaicos con icono y movimiento (Motion) ===== */
   /* ---- tipografía */
-  .page-title { @apply text-[1.75rem] font-bold leading-[1.21] text-slate-900 sm:text-[2.375rem]; }
-  .card-h h2, .card-h h3, .sec-h h3 { @apply text-xl font-semibold leading-snug; }
+  .page-title { @apply text-[1.75rem] font-extrabold leading-[1.15] tracking-tight text-slate-900 sm:text-[2.25rem]; }
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[.14em] text-slate-500; }
+  .card-h h2, .card-h h3, .sec-h h3 { @apply text-xl font-bold leading-snug; }
 
-  /* ---- superficies: lienzo → tarjeta blanca con borde hairline y sombra azulada */
-  .card { @apply rounded-2xl border border-slate-200 bg-white shadow-soft; }
-  .card-h { @apply flex items-center justify-between gap-3 px-5 pb-1 pt-4 sm:px-6; }
-  .card-b { @apply p-5 sm:p-6; }
-  .sheet { @apply flex flex-col rounded-t-3xl border border-slate-200 bg-white shadow-float sm:rounded-3xl; }
+  /* ---- superficies */
+  .card { @apply rounded-3xl border border-slate-200/80 bg-white shadow-soft; }
+  .card-h { @apply flex items-center justify-between gap-3 px-5 pb-1 pt-5 sm:px-7; }
+  .card-b { @apply p-5 sm:p-7; }
+  .sheet { @apply flex flex-col rounded-t-[2rem] border border-slate-200 bg-white shadow-float sm:rounded-[2rem]; animation: sheetIn .38s cubic-bezier(.34,1.45,.5,1); }
   .sheet .card-h { @apply border-b border-slate-100 pb-4; }
-  .sec { @apply rounded-2xl border border-slate-200 bg-white; }
-  .sec-h { @apply flex items-start gap-3 rounded-t-2xl border-b border-slate-200 bg-slate-50 px-4 py-3; }
-  .sec-n { @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white; }
+  .sec { @apply rounded-3xl border border-slate-200 bg-white; }
+  .sec-h { @apply flex items-start gap-3 rounded-t-3xl border-b border-slate-200 bg-slate-50 px-5 py-3.5; }
+  .sec-n { @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white; }
 
-  /* ---- formularios: relleno Pebble, borde Hairline, 8 px */
-  .inp { @apply min-h-[46px] w-full rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-base text-slate-900 placeholder-slate-400 transition focus:border-brand focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:bg-slate-100 disabled:text-slate-400; }
+  /* ---- portada de cada pantalla: degradado navy → azul con destellos */
+  .hero { @apply relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-ink via-cobalt to-brand p-6 text-white shadow-float sm:p-8; }
+  .hero::before { content: ''; @apply pointer-events-none absolute -right-10 -top-16 -z-10 h-56 w-56 rounded-full bg-cyan/40 blur-3xl; }
+  .hero::after { content: ''; @apply pointer-events-none absolute -bottom-20 left-1/3 -z-10 h-52 w-52 rounded-full bg-magenta/25 blur-3xl; }
+  .hero h1 { @apply text-[1.9rem] font-extrabold leading-[1.1] tracking-tight sm:text-[2.6rem]; }
+  .hero p { @apply text-white/80; }
+  .hero-ico { @apply flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.4rem] bg-white/15 text-white ring-1 ring-white/25 backdrop-blur; }
+  .hero-stat { @apply rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15 backdrop-blur; }
+
+  /* ---- mosaicos con icono (accesos, pasos, secciones) */
+  .tile { @apply flex w-full flex-col items-start gap-3 rounded-3xl border border-slate-200/80 bg-white p-5 text-left shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-float focus-visible:-translate-y-1; }
+  .tile-ico { @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-light text-brand; }
+  .tile-t { @apply text-[15px] font-bold leading-tight text-slate-900; }
+  .tile-d { @apply text-[13px] leading-snug text-slate-500; }
+
+  /* ---- pasos numerados de la puesta en marcha */
+  .paso { @apply relative flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-soft sm:flex-row sm:items-center sm:p-6; }
+  .paso-n { @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-extrabold text-slate-500; }
+  .paso-hecho { @apply border-green-200 bg-green-50/60; }
+  .paso-hecho .paso-n { @apply bg-green-600 text-white; }
+  .paso-ahora { @apply border-brand/40 shadow-float ring-4 ring-brand/10; }
+  .paso-ahora .paso-n { @apply bg-gradient-to-br from-brand to-cobalt text-white; }
+  .paso-espera { @apply opacity-70; }
+
+  /* ---- formularios: campos amplios */
+  .inp { @apply min-h-[52px] w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-base text-slate-900 placeholder-slate-400 transition focus:border-brand focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:bg-slate-100 disabled:text-slate-400; }
   select.inp { @apply cursor-pointer; }
-  .lbl { @apply mb-1.5 block text-xs font-semibold tracking-wide text-slate-600; }
+  .lbl { @apply mb-1.5 block text-xs font-bold tracking-wide text-slate-600; }
 
-  /* ---- botones: 8 px, peso 600; azul = acción principal, blanco con hairline = secundaria */
-  .btn { @apply inline-flex min-h-[46px] items-center justify-center gap-2 rounded-lg border border-transparent px-5 py-2 text-[15px] font-semibold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100; }
-  .btn-sm { @apply min-h-[36px] px-3.5 py-1 text-[13px]; }
-  .btn-p { @apply bg-brand text-white hover:bg-brand-dark; }
+  /* ---- botones grandes: azul con degradado = acción principal */
+  .btn { @apply inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-transparent px-6 py-2.5 text-base font-bold transition duration-200 disabled:cursor-not-allowed disabled:opacity-45; }
+  .btn-sm { @apply min-h-[40px] rounded-xl px-4 py-1.5 text-sm; }
+  .btn-lg { @apply min-h-[60px] w-full justify-between rounded-[1.4rem] px-7 text-lg; }
+  .btn-p { @apply bg-gradient-to-r from-brand to-cobalt text-white shadow-[0_10px_24px_-8px_rgba(0,107,255,.65)] hover:brightness-110; }
   .btn-s { @apply border-slate-200 bg-white text-slate-900 hover:bg-slate-100; }
   .btn-d { @apply border-red-200 bg-white text-red-700 hover:bg-red-50; }
+  .btn-claro { @apply bg-white text-ink shadow-soft hover:bg-brand-light; }
+  .btn-flecha { @apply flex h-9 w-9 items-center justify-center rounded-full bg-white/20; }
 
   /* ---- etiquetas, ayuda */
-  .chip { @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold; }
   .info { @apply relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-brand/40 bg-brand-light text-[11px] font-semibold normal-case tracking-normal text-brand transition hover:bg-brand hover:text-white; }
   .info::before { content: ''; @apply absolute -inset-2; }
-  .ayuda { @apply mt-2 rounded-xl border border-brand/20 bg-brand-light px-4 py-3 text-sm normal-case leading-relaxed tracking-normal text-slate-700; }
+  .ayuda { @apply mt-2 rounded-2xl border border-brand/20 bg-brand-light px-4 py-3 text-sm normal-case leading-relaxed tracking-normal text-slate-700; }
 
   /* ---- tablas */
-  .th { @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs font-semibold tracking-wide text-slate-600; }
+  .th { @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs font-bold tracking-wide text-slate-600; }
   .td { @apply border-b border-slate-100 px-4 py-3.5 align-top text-sm; }
   tbody tr:last-child .td { @apply border-b-0; }
 
   /* ---- navegación */
-  .pill-nav { @apply flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1; scrollbar-width: none; }
+  .nav-grupo { @apply px-3 pb-1 pt-4 text-[11px] font-bold uppercase tracking-[.14em] text-slate-400; }
+  .nav-item { @apply flex min-h-[48px] w-full items-center gap-3 rounded-2xl px-3.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900; }
+  .nav-on { @apply bg-gradient-to-r from-brand to-cobalt text-white shadow-[0_10px_22px_-10px_rgba(0,107,255,.7)] hover:bg-transparent hover:text-white; }
+  .pill-nav { @apply relative flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1.5; scrollbar-width: none; }
   .pill-nav::-webkit-scrollbar { display: none; }
-  .pill { @apply flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900; }
+  .pill { @apply relative z-10 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:text-slate-900; }
   .pill-on { @apply bg-white text-brand shadow-soft; }
   .pill-on svg { @apply text-brand; }
-  .dock { @apply fixed inset-x-3 bottom-3 z-30 rounded-2xl border border-slate-200 bg-white/90 p-1.5 shadow-float backdrop-blur-xl; padding-bottom: max(.375rem, env(safe-area-inset-bottom)); }
+  .dock { @apply fixed inset-x-3 bottom-3 z-30 rounded-[1.9rem] border border-slate-200/80 bg-white/95 p-2 shadow-float backdrop-blur-xl; padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+  .slide-ind { @apply pointer-events-none absolute left-0 top-0 rounded-[1.35rem] bg-gradient-to-br from-brand to-cobalt shadow-[0_10px_22px_-8px_rgba(0,107,255,.75)]; }
+  .dock-item { @apply relative z-10 flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.35rem] px-1 text-[11px] font-bold text-slate-500 transition-colors; }
+  .dock-on { @apply text-white; }
+
+  /* ---- barra de progreso y campos de presupuesto */
+  .barra { @apply h-3 overflow-hidden rounded-full bg-slate-100; }
+  .barra > i { @apply block h-full rounded-full bg-gradient-to-r from-brand to-cyan transition-[width] duration-700 ease-out; }
 }
+
+@keyframes sheetIn { from { opacity: 0; transform: translateY(28px) scale(.97); } to { opacity: 1; transform: none; } }
 
 @layer utilities {
   .safe-b { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }

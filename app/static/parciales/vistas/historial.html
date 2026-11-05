@@ -1,5 +1,5 @@
     <!-- ============ HISTORIAL ============ -->
-    <section x-show="view==='historial'" class="space-y-4">
+    <section data-vista="historial" x-show="view==='historial'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div><h1 class="text-2xl font-bold" x-text="user.rol==='jefe' ? 'Mis cargas' : 'Todas las cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones del ejercicio <b x-text="histTodos ? 'de todos los años' : ejActual.etiqueta"></b>.</p></div>
         <button class="btn btn-s" x-show="user.rol!=='jefe'" :disabled="busy" @click="descargarReporte()">Descargar Excel</button>
@@ -23,7 +23,7 @@
                 <span class="block text-xs text-slate-500" x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span>
                 <span class="block truncate font-semibold" x-text="m.indicador"></span>
               </span>
-              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
+              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="block text-[11px] font-semibold" x-show="m.vs_presupuesto" :class="m.vs_presupuesto && m.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700'" x-text="m.vs_presupuesto ? 'Ppto. ' + fmt(m.presupuesto, m.unidad, m.decimales) + ' · ' + (m.vs_presupuesto.cumple ? 'cumple' : 'no alcanza') : ''"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
             </button>
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>

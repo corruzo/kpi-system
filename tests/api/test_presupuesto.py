@@ -130,3 +130,29 @@ def test_puesta_en_marcha_informa_cada_paso(client):
     assert [p["id"] for p in r["pasos"]] == ["org", "fichas", "periodo", "presupuesto", "carga"]
     entrar(client, crear_usuario(client, "gerente"))
     assert client.get("/api/puesta-en-marcha").status_code == 403
+
+
+def test_eliminar_un_indicador_sin_cargas_borra_su_presupuesto_y_cambiar_frecuencia_lo_reinicia(client):
+    esc = preparar(client)
+    crear_periodo(client, vigente())
+    ind = esc["indicador"]
+    entrar(client, "admin", CLAVE_ADMIN)
+    client.put(f"/api/ejercicios/{vigente()}/presupuesto/{ind['id']}", json={"anual": 2, "reparto": "repetir"})
+    ficha = {**ind, "frecuencia": "trimestral"}
+    assert client.put(f"/api/indicadores/{ind['id']}", json=ficha).status_code == 200
+    fila = next(i for i in client.get(f"/api/ejercicios/{vigente()}/presupuesto").json()["indicadores"] if i["indicador_id"] == ind["id"])
+    assert fila["con_valor"] == 0 and len(fila["periodos"]) == 4          # el presupuesto mensual anterior ya no aplica
+    client.put(f"/api/ejercicios/{vigente()}/presupuesto/{ind['id']}", json={"anual": 2, "reparto": "repetir"})
+    assert client.delete(f"/api/indicadores/{ind['id']}").json()["archivado"] is False   # sin cargas: se elimina de verdad
+
+
+def test_con_presupuestos_no_se_cambia_el_mes_de_inicio_del_ejercicio(client):
+    esc = preparar(client)
+    crear_periodo(client, vigente())
+    entrar(client, "admin", CLAVE_ADMIN)
+    client.put(f"/api/ejercicios/{vigente()}/presupuesto/{esc['indicador']['id']}", json={"anual": 2, "reparto": "repetir"})
+    p = client.get("/api/parametros").json()
+    otro = 1 if p["ejercicio_inicio"] != 1 else 7
+    r = client.put("/api/parametros", json={"empresa": p["empresa"], "ejercicio_inicio": otro})
+    assert r.status_code == 409   # (según el estado de la base, el motivo puede ser un cierre previo o los presupuestos)
+    assert client.get("/api/parametros").json()["ejercicio_inicio"] == p["ejercicio_inicio"]

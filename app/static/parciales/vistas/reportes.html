@@ -1,5 +1,5 @@
     <!-- ============ REPORTES ============ -->
-    <section x-show="view==='reportes'" class="mx-auto max-w-3xl space-y-4">
+    <section data-vista="reportes" x-show="view==='reportes'" class="mx-auto max-w-3xl space-y-4">
       <div><h1 class="page-title">Reportes</h1><p class="text-sm text-slate-600" x-text="user.rol==='jefe' ? 'Descargue en Excel las cargas y fichas de su área.' : 'Descargue en Excel el informe de gestión con formato listo para presentar o imprimir.'"></p></div>
       <div class="card"><div class="card-h"><h2 class="font-semibold">Informe de indicadores de gestión</h2><span class="chip border-green-300 bg-green-50 text-green-800">Excel .xlsx</span></div>
         <div class="card-b space-y-4">
@@ -14,7 +14,7 @@
         </div></div>
     </section>
 
-    <section x-show="view==='reportes'" class="mx-auto max-w-3xl space-y-4" style="margin-top:-0.5rem">
+    <section data-vista="reportes" x-show="view==='reportes'" class="mx-auto max-w-3xl space-y-4" style="margin-top:-0.5rem">
       <div class="card"><div class="card-h"><h2 class="font-semibold">Fichas técnicas (formato SGC)</h2><span class="chip border-green-300 bg-green-50 text-green-800">Excel .xlsx</span></div>
         <div class="card-b space-y-4">
           <p class="text-sm text-slate-700">Una hoja por indicador con el mismo diseño de la ficha en papel: definición, semáforo, responsables, resultados por período del ejercicio fiscal, gráfico y análisis. Usa el <b>ejercicio fiscal</b> elegido arriba (o el vigente).</p>

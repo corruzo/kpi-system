@@ -8,6 +8,8 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230f172a'/><path d='M7 22V10m6 12V14m6 8V8m6 14V12' stroke='%2338bdf8' stroke-width='3' stroke-linecap='round'/></svg>">
   <link rel="stylesheet" href="/static/tailwind.css">
   <script defer src="/static/vendor/chart.umd.js"></script>
+  <script defer src="/static/vendor/motion.js"></script>
+  <script defer src="/static/js/animaciones.js"></script>
   <script defer src="/static/js/constantes.js"></script>
   <script defer src="/static/js/textos.js"></script>
   <script defer src="/static/js/nucleo.js"></script>
@@ -16,6 +18,7 @@
   <script defer src="/static/js/ayuda.js"></script>
   <script defer src="/static/js/parametros.js"></script>
   <script defer src="/static/js/ejercicios.js"></script>
+  <script defer src="/static/js/presupuesto.js"></script>
   <script defer src="/static/js/indicadores.js"></script>
   <script defer src="/static/js/inicio.js"></script>
   <script defer src="/static/js/carga.js"></script>
@@ -47,7 +50,7 @@
 <template x-if="user">
 <div class="min-h-screen">
   <!--#incluir parciales/barra_lateral.html-->
-  <div class="lg:pl-64">
+  <div class="lg:pl-72">
   <!--#incluir parciales/cabecera.html-->
 
   <main class="mx-auto max-w-6xl px-4 pb-36 pt-6 sm:px-6 md:pb-14 md:pt-8 lg:px-8">
@@ -62,6 +65,8 @@
     <!--#incluir parciales/vistas/bandeja.html-->
 
     <!--#incluir parciales/vistas/panel.html-->
+
+    <!--#incluir parciales/vistas/presupuesto.html-->
 
     <!--#incluir parciales/vistas/ejercicios.html-->
 

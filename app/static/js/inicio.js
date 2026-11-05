@@ -1,18 +1,37 @@
 /* Inicio: pantalla de bienvenida con lo que hay que hacer ahora y accesos directos a cada sección del rol. */
 SIGT.modulos.inicio = () => ({
-    resumenInicio: null,
+    resumenInicio: null, marcha: null,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
       entrar: { inicio() { return this.cargarInicio(); } },
-      salida() { this.resumenInicio = null; },
+      salida() { this.resumenInicio = null; this.marcha = null; },
     },
 
+    // Guía del administrador: los cinco pasos, en orden, con su estado (hecho / ahora / espera)
+    get pasosMarcha() {
+      if (!this.marcha) return [];
+      const txt = {
+        org: { t: 'Organización y equipo', d: 'Registre las áreas de la empresa y a las personas: un jefe por área (carga datos) y un gerente / auditor (aprueba).', b: 'Crear áreas y usuarios', ir: () => this.go('org') },
+        fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia (mensual, trimestral…) y su semáforo.', b: 'Crear indicadores', ir: () => this.go('fichas') },
+        periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se puede presupuestar ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
+        presupuesto: { t: 'Presupuesto del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar presupuesto', ir: () => this.go('presupuesto') },
+        carga: { t: 'Carga mensual de datos', d: 'Cada mes el jefe de área ingresa su dato real; el sistema lo compara con lo presupuestado y el gerente lo aprueba.', b: 'Ver cargas', ir: () => this.go('carga') },
+      };
+      let ahora = true;
+      return this.marcha.pasos.map((p, i) => {
+        const estado = p.hecho ? 'hecho' : ahora ? 'ahora' : 'espera';
+        if (!p.hecho) ahora = false;
+        return { ...p, n: i + 1, estado, ...txt[p.id] };
+      });
+    },
+    get marchaCompleta() { return this.marcha && this.marcha.pasos.every(p => p.hecho); },
     get esRevisor() { return ['gerente', 'admin'].includes(this.user.rol); },
     saludo() { const h = new Date().getHours(); return (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + this.user.nombre.split(' (')[0].split(' ')[0]; },
     // Resumen del ejercicio (solo gerencia/administración: el jefe no accede al panel analítico)
     async cargarInicio() {
       if (!this.esRevisor) return;
+      if (this.user.rol === 'admin') { try { this.marcha = await this.api('/api/puesta-en-marcha', {}, true); } catch { this.marcha = null; } }
       const q = this.ejSel ? '?ejercicio=' + this.ejSel : '';
       try { this.resumenInicio = (await this.api('/api/dashboard' + q, {}, true)).resumen; } catch { this.resumenInicio = null; }
     },
@@ -37,10 +56,10 @@ SIGT.modulos.inicio = () => ({
     irATarea(t) { return t.ejercicio ? this.irAEjercicio(t.ejercicio) : this.go(t.id); },
     accesos() { return this.nav().filter(n => n.id !== 'inicio'); },
     descripcionAcceso(id) {
-      return { carga: 'Registre los datos del período y obtenga el semáforo al instante.', historial: 'Consulte el estado de cada carga y sus observaciones.',
+      return { presupuesto: 'Cree el año fiscal y presupueste cada indicador.', carga: 'Registre los datos del período y obtenga el semáforo al instante.', historial: 'Consulte el estado de cada carga y sus observaciones.',
         reportes: 'Descargue informes y fichas técnicas en Excel.', panel: 'Resultados, tendencias y mapa de calor del ejercicio.',
-        bandeja: 'Apruebe o devuelva las cargas enviadas.', ejercicios: 'Estado, cierre y archivo de cada año fiscal.',
-        fichas: 'Cree y mantenga las fichas técnicas de los indicadores.', org: 'Áreas, usuarios, listas y parámetros del sistema.',
+        bandeja: 'Apruebe o devuelva las cargas enviadas.', ejercicios: 'Verifique, cierre y archive cada año fiscal.',
+        fichas: 'Cree y mantenga las fichas técnicas de los indicadores.', org: 'Áreas, usuarios, listas y parámetros.',
         importar: 'Traiga las fichas de años anteriores desde Excel.', bitacora: 'Registro inalterable de todo lo que ocurre.' }[id] || '';
     },
 });

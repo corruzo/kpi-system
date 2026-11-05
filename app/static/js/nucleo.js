@@ -51,30 +51,44 @@ SIGT.modulos.nucleo = () => ({
     // ------------------------------------------------------------ navegación
     // Menú por rol: fuente única de las secciones, su orden y sus insignias.
     nav() {
-      const r = this.user.rol, ver = (id, label, corto, badge) => ({ id, label, corto, ...(badge ? { badge } : {}) });
+      const r = this.user.rol, ver = (id, label, corto, badge) => ({ id, label, corto, grupo: GRUPOS_NAV[id], ...(badge ? { badge } : {}) });
       const secciones = {
-        inicio: ver('inicio', 'Inicio', 'Inicio'),
-        carga: ver('carga', r === 'admin' ? 'Cargar datos' : 'Carga rápida', 'Cargar', this.pendientesTotal()),
+        inicio: ver('inicio', r === 'admin' ? 'Puesta en marcha' : 'Inicio', 'Inicio'),
+        carga: ver('carga', r === 'admin' ? 'Cargar datos' : 'Carga del mes', 'Cargar', this.pendientesTotal()),
         historial: ver('historial', r === 'jefe' ? 'Mis cargas' : 'Todas las cargas', r === 'jefe' ? 'Historial' : 'Cargas'),
         reportes: ver('reportes', 'Reportes', 'Reportes'),
         panel: ver('panel', 'Panel de análisis', 'Panel'),
         bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaTotal.length),
-        ejercicios: ver('ejercicios', 'Ejercicios fiscales', 'Ejercicios'),
+        ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
+        presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presupuesto'),
         fichas: ver('fichas', 'Indicadores', 'Fichas'),
-        org: ver('org', 'Organización', 'Equipo'),
+        org: ver('org', 'Organización y equipo', 'Equipo'),
         importar: ver('importar', 'Importar', 'Importar'),
         bitacora: ver('bitacora', 'Bitácora', 'Bitácora'),
       };
       return MENU_POR_ROL[r].map(id => secciones[id]);
     },
+    // Menú agrupado (barra lateral): [{grupo, items}] respetando el orden del flujo
+    navGrupos() {
+      const g = [];
+      for (const n of this.nav()) { let x = g.find(y => y.grupo === (n.grupo || '')); if (!x) g.push(x = { grupo: n.grupo || '', items: [] }); x.items.push(n); }
+      return g;
+    },
     // En móvil: 4 accesos + «Más» cuando hay más de 5 secciones
     navMovil() { const n = this.nav(); return n.length > 5 ? [...n.slice(0, 4), { id: '_mas', label: 'Más', corto: 'Más', badge: n.slice(4).reduce((a, x) => a + (x.badge || 0), 0) || '' }] : n; },
     navMas() { return this.nav().slice(4); },
+    navMasGrupos() {
+      const g = [];
+      for (const n of this.navMas()) { let x = g.find(y => y.grupo === (n.grupo || '')); if (!x) g.push(x = { grupo: n.grupo || '', items: [] }); x.items.push(n); }
+      return g;
+    },
+    dockActivo(n) { return n.id === '_mas' ? (this.masActivo || this.mas) : (this.view === n.id && !this.mas); },
     get masActivo() { return this.navMas().some(n => n.id === this.view); },
     async go(vista) {
       this.view = vista; this.menu = false; this.mas = false;
       window.scrollTo({ top: 0 });
-      this.$nextTick(() => document.querySelector('.pill-on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }));   // el menú largo se desplaza hasta la sección activa
+      this.$nextTick(() => { document.querySelector('.pill-on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }); SIGT_ANIM.indicadores(); });   // el menú largo se desplaza hasta la sección activa
       for (const cargar of this.ganchos.entrar[vista] || []) await cargar.call(this);
+      this.$nextTick(() => SIGT_ANIM.pantalla(document.querySelector(`[data-vista="${vista}"]`)));
     },
 });

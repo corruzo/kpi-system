@@ -1,6 +1,6 @@
 /* Ejercicios fiscales: selector global, listado, verificación, cierre y reapertura. */
 SIGT.modulos.ejercicios = () => ({
-    ejLista: [], ejSel: null, ejVigente: null, ejVista: [],
+    ejLista: [], ejTodos: [], ejSel: null, ejVigente: null, ejVista: [],
     cierre: { abierto: false, e: null, v: null, nota: '', aceptar: false },
     reap: { abierto: false, e: null, nota: '' },
 
@@ -11,12 +11,15 @@ SIGT.modulos.ejercicios = () => ({
     },
 
     async cargarEjercicios() {
-      const r = await this.api('/api/ejercicios'); this.ejLista = r.ejercicios; this.ejVigente = r.vigente;
+      const r = await this.api('/api/ejercicios'); this.aplicarEjercicios(r.ejercicios); this.ejVigente = r.vigente;
       let g = null; try { g = Number(localStorage.getItem('sigt_ej')); } catch { }
-      this.ejSel = this.ejLista.some(e => e.anio === g) ? g : r.vigente;
+      const creado = a => this.ejLista.some(e => e.anio === a);
+      this.ejSel = creado(g) ? g : creado(r.vigente) ? r.vigente : (this.ejLista[0]?.anio ?? r.vigente);
     },
+    // El selector de la cabecera solo ofrece períodos fiscales ya creados; «ejTodos» incluye los que faltan por crear.
+    aplicarEjercicios(lista) { this.ejTodos = lista; this.ejLista = lista.filter(e => e.creado); },
     get ejercicios() { return this.ejLista.map(e => ({ valor: e.anio, etiqueta: e.etiqueta })); },
-    get ejActual() { return this.ejLista.find(e => e.anio === this.ejSel) || {}; },
+    get ejActual() { return this.ejTodos.find(e => e.anio === this.ejSel) || { etiqueta: String(this.ejSel || ''), estado: 'vigente', creado: false }; },
     estadoEj: e => ({ vigente: 'Vigente', terminado: 'Terminado · por cerrar', cerrado: 'Cerrado', futuro: 'Próximo' }[e] || e),
     claseEj: e => ({ vigente: 'border-green-300 bg-green-50 text-green-800', terminado: 'border-amber-300 bg-amber-50 text-amber-800', cerrado: 'border-slate-300 bg-slate-100 text-slate-700', futuro: 'border-brand/30 bg-brand-light text-cobalt' }[e] || ''),
     // El ejercicio elegido gobierna TODAS las pantallas de datos: cada módulo recarga lo suyo (gancho «ejercicio»)
@@ -31,7 +34,7 @@ SIGT.modulos.ejercicios = () => ({
     volverAlVigente() { this.ejSel = this.ejVigente; return this.cambiarEjercicio(); },
     // ¿La pantalla muestra datos de un ejercicio distinto al vigente? (para el aviso de contexto)
     get viendoOtroEjercicio() { return this.ejVigente && this.ejSel !== this.ejVigente && !['ejercicios', 'org', 'importar', 'bitacora', 'fichas'].includes(this.view); },
-    async cargarEjerciciosVista() { const r = await this.api('/api/ejercicios?detalle=1'); this.ejVista = r.ejercicios; this.ejLista = r.ejercicios; },
+    async cargarEjerciciosVista() { const r = await this.api('/api/ejercicios?detalle=1'); this.ejVista = r.ejercicios.filter(e => e.creado); this.aplicarEjercicios(r.ejercicios); },
     get ejTerminados() { return this.ejLista.filter(e => e.estado === 'terminado'); },
     get anchoAmplio() { return window.innerWidth >= 640; },
     get ejPorCerrar() { return this.ejVista.filter(e => e.estado === 'terminado'); },

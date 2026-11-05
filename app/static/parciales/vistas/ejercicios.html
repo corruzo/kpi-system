@@ -1,12 +1,13 @@
     <!-- ============ EJERCICIOS FISCALES ============ -->
-    <section x-show="view==='ejercicios'" class="space-y-4">
-      <div><h1 class="page-title">Ejercicios fiscales</h1><p class="text-sm text-slate-600">Cada ejercicio mantiene sus registros separados. Al terminar se verifica, se cierra y queda archivado en solo lectura.</p></div>
+    <section data-vista="ejercicios" x-show="view==='ejercicios'" class="space-y-4">
+      <div><h1 class="page-title">Cierre de años</h1><p class="text-sm text-slate-600">Cada ejercicio mantiene sus registros separados. Al terminar se verifica, se cierra y queda archivado en solo lectura. Los años se crean y presupuestan en <b>Período y presupuesto</b>.</p></div>
       <div class="card border-amber-300 bg-amber-50" x-show="user.rol==='admin' && ejPorCerrar.length"><div class="card-b flex flex-wrap items-center justify-between gap-3 text-sm text-amber-900">
         <span>El ejercicio <b x-text="ejPorCerrar[0] && ejPorCerrar[0].etiqueta"></b> ya terminó y sigue abierto. Verifíquelo y ciérrelo para archivarlo.</span>
         <button class="btn btn-p btn-sm" @click="abrirCierre(ejPorCerrar[0])">Revisar y cerrar</button></div></div>
-      <div class="card"><div class="card-h"><h2>Ciclo de vida de un ejercicio</h2></div>
-        <ol class="grid grid-cols-1 gap-3 p-5 pt-3 text-sm sm:grid-cols-4 sm:p-6 sm:pt-3">
-          <li class="rounded-2xl bg-green-50 p-4"><div class="font-medium text-green-900">1 · Vigente</div><p class="mt-1 text-xs text-green-800">Los jefes cargan mes a mes y el gerente aprueba.</p></li>
+      <div class="card"><div class="card-h"><h2>Ciclo de vida de un año fiscal</h2></div>
+        <ol class="grid grid-cols-1 gap-3 p-5 pt-3 text-sm sm:grid-cols-5 sm:p-6 sm:pt-3">
+          <li class="rounded-2xl bg-slate-100 p-4"><div class="font-medium text-slate-800">0 · Creado y presupuestado</div><p class="mt-1 text-xs text-slate-600">El administrador crea el período y presupuesta cada indicador.</p></li>
+          <li class="rounded-2xl bg-green-50 p-4"><div class="font-medium text-green-900">1 · Vigente</div><p class="mt-1 text-xs text-green-800">Los jefes cargan mes a mes (se compara con el presupuesto) y el gerente aprueba.</p></li>
           <li class="rounded-2xl bg-amber-50 p-4"><div class="font-medium text-amber-900">2 · Terminado</div><p class="mt-1 text-xs text-amber-800">Pasó su último día: se completan cargas pendientes y se resuelven devoluciones.</p></li>
           <li class="rounded-2xl bg-brand-light p-4"><div class="font-medium text-cobalt">3 · Verificación</div><p class="mt-1 text-xs text-cobalt">El sistema comprueba que no queden cargas en revisión y avisa de períodos sin cargar.</p></li>
           <li class="rounded-2xl bg-slate-100 p-4"><div class="font-medium text-slate-800">4 · Cerrado</div><p class="mt-1 text-xs text-slate-600">Queda archivado en solo lectura con una foto de sus resultados. El siguiente ya está en curso.</p></li>

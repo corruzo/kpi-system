@@ -31,6 +31,7 @@ SIGT.modulos.ficha_tecnica = () => ({
       const i = d.indicador, ps = d.periodos.filter(p => p.medicion && p.medicion.estado !== 'observado'), mayor = i.sentido === 'mayor';
       const linea = (l, v, col) => ({ label: l, data: ps.map(() => v), borderColor: col, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 });
       const ds = [{ label: 'Indicador', data: ps.map(p => p.medicion.resultado), borderColor: BRAND, backgroundColor: BRAND, pointBackgroundColor: ps.map(p => SEM[p.medicion.semaforo]), pointRadius: 6, borderWidth: 2, tension: 0 }];
+      if (ps.some(p => p.presupuesto !== null && p.presupuesto !== undefined)) ds.push({ label: 'Presupuesto', data: ps.map(p => p.presupuesto), borderColor: '#e55cff', backgroundColor: '#e55cff', pointStyle: 'rectRot', pointRadius: 5, borderWidth: 2, tension: 0, spanGaps: true });
       const mn = mayor ? i.meta : i.meta_tope, mx = mayor ? i.meta_tope : i.meta;
       if (mn !== null && mn !== undefined) ds.push(linea('Mín.', mn, SEM.verde)); if (mx !== null && mx !== undefined) ds.push(linea('Máx.', mx, SEM.rojo));
       new Chart(c, { type: 'line', data: { labels: ps.map(p => p.corta), datasets: ds }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });

@@ -1,7 +1,10 @@
     <!-- ============ ORGANIZACIÓN ============ -->
-    <section x-show="view==='org'" class="space-y-4">
-      <div><h1 class="page-title">Organización</h1><p class="text-sm text-slate-600">Áreas de la empresa y usuarios con acceso al sistema.</p></div>
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-5">
+    <section data-vista="org" x-show="view==='org'" class="space-y-4">
+      <div><p class="eyebrow">Paso 1 de la puesta en marcha</p><h1 class="page-title">Organización y equipo</h1><p class="text-sm text-slate-600">Primero las áreas, después las personas. Los parámetros y las listas de apoyo se configuran una sola vez.</p></div>
+      <div class="pill-nav !flex-wrap sm:!flex-nowrap" role="tablist">
+        <template x-for="t in [['equipo','1 · Áreas y usuarios'],['empresa','Empresa y logo'],['listas','Listas de apoyo'],['avanzado','Avanzado']]" :key="t[0]"><button class="pill flex-1 justify-center" :class="orgTab===t[0] && 'pill-on'" role="tab" :aria-selected="orgTab===t[0]" @click="orgTab=t[0]" x-text="t[1]"></button></template>
+      </div>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-5" x-show="orgTab==='equipo'">
         <div class="card lg:col-span-2 self-start">
           <div class="card-h"><h2 class="font-semibold">Áreas</h2><span class="text-xs text-slate-500" x-text="areas.length"></span></div>
           <div class="card-b space-y-3">
@@ -30,7 +33,7 @@
       </div>
     
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="card min-w-0 lg:col-span-2"><div class="card-h"><h2>Logo de la empresa</h2><button type="button" class="info" @click="toggleAyuda('logo')" aria-label="Ayuda: logo">i</button></div>
+        <div class="card min-w-0 lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2>Logo de la empresa</h2><button type="button" class="info" @click="toggleAyuda('logo')" aria-label="Ayuda: logo">i</button></div>
           <div class="card-b flex flex-wrap items-center gap-5">
             <div class="flex h-24 w-full max-w-[12rem] shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-2"><img x-show="logoUrl" :src="logoUrl" alt="Logo actual" class="max-h-20 max-w-full object-contain"><span x-show="!logoUrl" class="text-xs text-slate-400">Sin logo</span></div>
             <div class="min-w-0 flex-1 basis-56 space-y-2">
@@ -38,7 +41,7 @@
               <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
               <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
             </div></div></div>
-        <div class="card self-start"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
           <form class="card-b space-y-3" @submit.prevent="guardarParametros()">
             <div><label class="lbl">Empresa</label><input class="inp" x-model="parForm.empresa" required maxlength="120"></div>
             <div><label class="lbl">Gerencia emisora de las fichas</label><input class="inp" x-model="parForm.gerencia_emisora" maxlength="150"></div>
@@ -53,7 +56,7 @@
             <p class="text-xs text-slate-500">Ejercicio vigente: <b x-text="params.ejercicio_actual"></b></p>
             <button class="btn btn-p" :disabled="busy">Guardar parámetros</button>
           </form></div>
-        <div class="card self-start"><div class="card-h"><h2 class="font-semibold">Listas de apoyo de la ficha</h2></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='listas'"><div class="card-h"><h2 class="font-semibold">Listas de apoyo de la ficha</h2></div>
           <div class="card-b space-y-3">
             <div class="flex flex-wrap gap-1"><template x-for="t in [['proceso','Procesos'],['objetivo','Objetivos'],['gerencia','Gerencias'],['cargo','Cargos']]" :key="t[0]"><button class="btn btn-sm" :class="catTab===t[0] ? 'btn-p' : 'btn-s'" @click="catTab=t[0]; catForm={id:null,valor:'',detalle:''}" x-text="t[1] + ' (' + lista(t[0]).length + ')'"></button></template></div>
             <form class="space-y-2" @submit.prevent="guardarCat()"><input class="inp" x-model="catForm.valor" required minlength="2" :placeholder="catForm.id ? 'Editar elemento' : 'Nuevo elemento'">
@@ -63,7 +66,7 @@
               <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
             <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
           </div></div>
-        <div class="card self-start border-red-200 md:col-span-2" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
+        <div class="card self-start border-red-200 lg:col-span-2" x-show="orgTab==='avanzado'" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
           <div class="card-b flex flex-wrap items-center justify-between gap-3">
             <p class="min-w-[16rem] flex-1 text-sm text-slate-700">Borra <b>todos</b> los datos del sistema: indicadores, cargas, áreas, usuarios, listas, parámetros, logo y la <b>bitácora</b>. Solo se conserva su cuenta de administrador para que pueda volver a entrar. <b>No se puede deshacer.</b></p>
             <button class="btn btn-d" @click="abrirReinicio()">Borrar todos los datos…</button>

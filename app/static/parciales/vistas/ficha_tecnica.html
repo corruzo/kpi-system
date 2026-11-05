@@ -1,5 +1,5 @@
     <!-- ============ FICHA TÉCNICA ============ -->
-    <section x-show="view==='ficha'" class="space-y-4">
+    <section data-vista="ficha" x-show="view==='ficha'" class="space-y-4">
       <template x-if="fv.data">
         <div class="space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -44,6 +44,8 @@
               <tbody>
                 <template x-for="v in fv.data.indicador.variables" :key="v.clave"><tr><td class="td sticky left-0 bg-white font-medium" x-text="v.etiqueta"></td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center" x-text="valorFicha(p, v.clave)"></td></template></tr></template>
                 <tr><td class="td sticky left-0 bg-slate-50 font-bold">INDICADOR</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center font-bold" :class="p.medicion && p.medicion.estado!=='observado' ? ({verde:'bg-green-100 text-green-800',amarillo:'bg-amber-100 text-amber-800',rojo:'bg-red-100 text-red-800'})[p.medicion.semaforo] : ''" x-text="p.medicion && p.medicion.estado!=='observado' ? fmt(p.medicion.resultado, fv.data.indicador.unidad, fv.data.indicador.decimales) : ''"></td></template></tr>
+                <tr><td class="td sticky left-0 bg-white text-xs font-bold text-slate-600">Presupuesto</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center text-xs font-semibold text-slate-600" x-text="p.presupuesto !== null && p.presupuesto !== undefined ? fmt(p.presupuesto, fv.data.indicador.unidad, fv.data.indicador.decimales) : '—'"></td></template></tr>
+                <tr><td class="td sticky left-0 bg-white text-xs font-bold text-slate-600">Real vs. presupuesto</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center text-xs font-bold" :class="p.medicion && p.medicion.vs_presupuesto ? (p.medicion.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700') : 'text-slate-400'" x-text="p.medicion && p.medicion.vs_presupuesto && p.medicion.estado!=='observado' ? (p.medicion.vs_presupuesto.cumple ? '✓ ' : '✗ ') + (p.medicion.vs_presupuesto.porcentaje !== null ? nf(p.medicion.vs_presupuesto.porcentaje, 0) + '%' : '') : ''"></td></template></tr>
                 <tr><td class="td sticky left-0 bg-white text-xs text-slate-500">Estado</td><template x-for="p in fv.data.periodos" :key="p.periodo"><td class="td text-center text-[11px] text-slate-500" x-text="p.medicion ? estadoTxt(p.medicion.estado) : ''"></td></template></tr>
               </tbody></table></div></div>
 

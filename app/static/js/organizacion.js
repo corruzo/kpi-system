@@ -1,6 +1,6 @@
 /* Organización: áreas, usuarios y listas de apoyo de la ficha (gerencias, procesos, objetivos, cargos). */
 SIGT.modulos.organizacion = () => ({
-    areas: [], usuarios: [], catalogos: [],
+    areas: [], usuarios: [], catalogos: [], orgTab: 'equipo',
     usuario: {}, modalUsuario: false, areaForm: { id: null, nombre: '' },
     catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
     reinicio: { abierto: false, frase: '', password: '' },
@@ -15,13 +15,6 @@ SIGT.modulos.organizacion = () => ({
     },
 
     async cargarAreas() { this.areas = await this.api('/api/areas'); },
-    setup() {
-      const pasos = [
-        { n: 1, t: 'Crear las áreas de la empresa', ok: this.areas.length > 0, v: 'org' },
-        { n: 2, t: 'Registrar usuarios (jefes de área y gerente / auditor)', ok: this.usuarios.some(u => u.rol === 'jefe') && this.usuarios.some(u => u.rol === 'gerente'), v: 'org' },
-        { n: 3, t: 'Crear las fichas de indicadores', ok: this.indicadores.length > 0, v: 'fichas' }];
-      return { pasos, completo: pasos.every(p => p.ok) };
-    },
     async guardarArea() {
       this.busy = true;
       try {

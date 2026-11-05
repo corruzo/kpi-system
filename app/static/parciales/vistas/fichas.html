@@ -1,13 +1,9 @@
     <!-- ============ FICHAS ============ -->
-    <section x-show="view==='fichas'" class="space-y-4">
+    <section data-vista="fichas" x-show="view==='fichas'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 class="page-title">Fichas técnicas</h1><p class="text-sm text-slate-600">Configuración de indicadores, fórmulas y semáforos.</p></div>
+        <div><p class="eyebrow">Paso 2 de la puesta en marcha</p><h1 class="page-title">Indicadores</h1><p class="text-sm text-slate-600">Qué se mide, cómo se calcula y cuándo se considera bueno (semáforo). El presupuesto de cada año se ingresa en <b>Período y presupuesto</b>.</p></div>
         <button data-tour="fichas-nuevo" class="btn btn-p w-full sm:w-auto" @click="nuevaFicha()" :disabled="!areas.length">+ Nuevo indicador</button>
       </div>
-      <template x-if="!setup().completo"><div class="card border-brand/30 bg-brand-light"><div class="card-b space-y-2">
-        <div class="font-semibold text-cobalt">Configuración inicial</div>
-        <template x-for="p in setup().pasos" :key="p.t"><button class="flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2.5 text-left text-sm" @click="go(p.v)"><span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white" :class="p.ok ? 'bg-green-600' : 'bg-slate-400'" x-text="p.ok ? '✓' : p.n"></span><span class="flex-1" x-text="p.t"></span><span class="text-brand">Ir →</span></button></template>
-      </div></div></template>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4" x-show="indicadores.length">
         <input class="inp lg:col-span-1" type="search" x-model="fq.q" placeholder="Buscar código, nombre o área" aria-label="Buscar">
         <select class="inp" x-model="fq.area" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
@@ -15,7 +11,7 @@
         <select class="inp" x-model="fq.estado" aria-label="Estado"><option value="activo">Activos</option><option value="archivado">Archivados</option><option value="">Todos</option></select>
       </div>
       <p class="text-xs text-slate-500" x-show="indicadores.length" x-text="fichasFiltradas.length + ' de ' + indicadores.length + ' indicadores'"></p>
-      <div class="card p-10 text-center text-sm text-slate-500" x-show="setup().completo && !fichasFiltradas.length">No hay indicadores que coincidan. Cree uno con «Nuevo indicador» o ajuste los filtros.</div>
+      <div class="card p-10 text-center text-sm text-slate-500" x-show="!fichasFiltradas.length">No hay indicadores que coincidan. Cree uno con «Nuevo indicador» o ajuste los filtros.</div>
       <div class="hidden md:block" x-show="fichasFiltradas.length"><div class="card overflow-x-auto">
         <table class="w-full"><thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Frecuencia</th><th class="th">Meta / Límite</th><th class="th">Cargas</th><th class="th"></th></tr></thead>
           <tbody><template x-for="i in fichasFiltradas" :key="i.id"><tr :class="!i.activo && 'bg-slate-50 text-slate-500'">

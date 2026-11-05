@@ -23,7 +23,8 @@ SIGT.modulos.revision = () => ({
       const filas = Object.entries(m.valores).map(([k, val]) => `<tr><td class="pr-4 text-slate-500">${esc(et[k] || k)}</td><td class="font-semibold">${esc(nf(val, 2))}</td></tr>`).join('');
       const bloque = (t, x) => x ? `<div class="mt-2"><div class="text-xs font-semibold uppercase text-slate-500">${t}</div><div class="text-sm whitespace-pre-line">${esc(x)}</div></div>` : '';
       const notas = m.notas.map(n => `<div class="text-sm bg-brand-light border border-brand/20 rounded p-2 mt-1"><b>${esc(n.usuario.split(' (')[0])}</b> · ${esc(this.fecha(n.fecha))}<br>${esc(n.texto)}</div>`).join('');
-      return `<div class="text-sm"><table class="text-sm">${filas}</table>
+      const pr = m.vs_presupuesto ? `<div class="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-sm"><b>Presupuesto:</b> ${esc(this.fmt(m.presupuesto, m.unidad, m.decimales))} · <b>Diferencia:</b> ${m.vs_presupuesto.desviacion > 0 ? '+' : ''}${esc(nf(m.vs_presupuesto.desviacion, m.decimales))}${m.vs_presupuesto.porcentaje !== null ? ` (${esc(nf(m.vs_presupuesto.porcentaje, 1))}%)` : ''} · <b class="${m.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700'}">${m.vs_presupuesto.cumple ? 'Cumple' : 'No alcanza'}</b></div>` : '';
+      return `<div class="text-sm"><table class="text-sm">${filas}</table>${pr}
         ${bloque('Resultados del análisis', m.analisis)}${bloque('Correcciones / plan de mejora', m.plan_mejora)}
         <div class="text-xs text-slate-500 mt-2">Cargado por ${esc(m.cargado_por)} · ${esc(this.fecha(m.cargado_en))} · versión ${m.version}
         ${m.revisado_por ? ` · Revisado por ${esc(m.revisado_por.split(' (')[0])} · ${esc(this.fecha(m.revisado_en))}` : ''}</div>

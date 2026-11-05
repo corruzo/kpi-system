@@ -16,3 +16,10 @@ def test_la_hoja_de_estilos_declara_manrope_y_la_paleta_de_la_guia(client):
 def test_la_pagina_principal_carga_los_estilos(client):
     html = client.get("/").text
     assert "/static/tailwind.css" in html and 'content="#f8f9fb"' in html
+
+
+def test_la_pagina_carga_las_animaciones_y_la_vista_de_presupuesto(client):
+    html = client.get("/").text
+    assert "/static/vendor/motion.js" in html and "/static/js/animaciones.js" in html and 'data-vista="presupuesto"' in html
+    for ruta in ("/static/vendor/motion.js", "/static/js/animaciones.js", "/static/js/presupuesto.js"):
+        assert client.get(ruta).status_code == 200
