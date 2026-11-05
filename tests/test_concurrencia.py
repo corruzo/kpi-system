@@ -52,4 +52,5 @@ def test_el_mismo_id_de_bloqueo_que_la_bitacora():
     import inspect
 
     from app.servicios import auditoria
-    assert f"pg_advisory_xact_lock({concurrencia.ID_BLOQUEO_ESCRITURA})" in inspect.getsource(auditoria.registrar)
+    assert auditoria.ID_BLOQUEO_ESCRITURA is concurrencia.ID_BLOQUEO_ESCRITURA      # una sola constante, importada
+    assert "pg_advisory_xact_lock({ID_BLOQUEO_ESCRITURA})" in inspect.getsource(auditoria.registrar)
