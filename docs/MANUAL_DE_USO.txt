@@ -25,6 +25,7 @@ consultarse por secciones después.
         6.2 El gerente / auditor revisa, aprueba o devuelve
         6.3 Corregir una carga devuelta o un error ya aprobado
   7.  Cómo se compara lo real contra lo presupuestado (dónde verlo)
+  7B. PANEL DE CONTROL (rangos, filtros, gráficos, rankings)
   8.  AUDITORÍA: cómo se audita el sistema
   9.  MODIFICAR: tabla "quiero cambiar X, ¿cómo?"
  10.  ELIMINAR, ARCHIVAR y lo que NO se puede borrar (y por qué)
@@ -156,7 +157,7 @@ Menú de cada rol (lo que ve en pantalla):
    Administrador: Inicio (Puesta en marcha) y tres grupos:
                     CONFIGURAR: Organización y equipo · Indicadores · Período y presupuesto
                     OPERAR:     Cargar datos · Bandeja de aprobación · Todas las cargas
-                    ANALIZAR:   Panel de análisis · Reportes
+                    ANALIZAR:   Panel de control · Reportes
                     CONTROL:    Cierre de años · Importar · Bitácora
    (En el celular la barra inferior muestra las 4 primeras secciones y el botón "Más" abre el resto.)
 
@@ -448,9 +449,7 @@ PASO 5.  CARGA MENSUAL
     4. No puede revisar cargas que usted mismo hizo.
     - "Todas las cargas": historial completo con filtros; desde allí puede agregar NOTAS DE AUDITORÍA a
       cualquier carga y REABRIR una carga ya aprobada (botón "Reabrir carga", con motivo).
-    - "Panel de análisis": cumplimiento por área, semáforos, mapa de calor mes a mes, tendencias con
-      LÍNEA DE PRESUPUESTO (rombo magenta) junto al resultado, columna "Vs. presupuesto" ("9 de 10
-      cumplen") y comparación con el año anterior.
+    - "Panel de control": ver sección 7B.
 
 6.3 CORREGIR UNA CARGA
     - Carga DEVUELTA: el jefe abre ese indicador/período, ve la observación, corrige y pulsa
@@ -469,11 +468,44 @@ PASO 5.  CARGA MENSUAL
    - Mis cargas / Todas las cargas ... en cada tarjeta ("Ppto. 96 % · no alcanza") y, al abrirla, el
                             detalle con diferencia y porcentaje.
    - Bandeja ............... el gerente ve la comparación antes de aprobar.
-   - Panel de análisis ..... gráfico de tendencia con línea de presupuesto y tabla "Vs. presupuesto".
+   - Panel de control ...... cumplimiento del presupuesto por período, real contra presupuesto por indicador y rankings.
    - Ficha técnica ......... filas "Presupuesto" y "Real vs. presupuesto" por período, y la línea en el
                             gráfico de valores.
    - API ................... cada medición trae "presupuesto" y "vs_presupuesto" {presupuesto,
                             desviacion, porcentaje, cumple}.
+
+
+====================================================================================================
+7B. PANEL DE CONTROL  (gerente y administrador; menú Analizar > Panel de control)
+====================================================================================================
+    Una sola pantalla para ver TODO, de todos los modos. Todo se recalcula al instante con los filtros.
+
+    RANGO DE FECHAS: botones rápidos "Este mes", "Últimos 3 meses", "Últimos 6 meses", "Ejercicio elegido" (el de la parte
+      superior), "Ejercicio anterior" y "Todo (5 años)"; o escriba las fechas exactas en "Desde" y "Hasta" (máximo 60 meses).
+    VER POR: Mensual, Bimestral, Trimestral, Cuatrimestral, Semestral o Anual (las mismas frecuencias de los indicadores). Cada
+      período de un indicador se ubica en la vista según el mes en que CIERRA (un trimestre aparece en su último mes).
+      NOTA: no existe vista semanal porque ningún indicador se mide con esa frecuencia (la más corta es mensual).
+    FILTROS: Área, Frecuencia del indicador (mensual…eventual), Seguimiento (proceso / objetivo / proveedor), un Indicador
+      concreto y "Solo cargas aprobadas". "Restablecer" los quita. El panel recuerda sus filtros la próxima vez.
+
+    QUÉ MUESTRA
+      Indicadores clave (con la variación frente al rango anterior de igual duración):
+        Indicadores y mediciones · Cumplimiento (% de mediciones en verde) · Cumplen el presupuesto · Real vs. presupuesto
+        (promedio de real ÷ presupuestado) · Carga al día · Cargas a tiempo (dentro de 10 días tras el cierre del período; las
+        importadas desde Excel no cuentan) · Por aprobar y devueltas · Tiempo de aprobación.
+      Gráficos:
+        1. Evolución del semáforo por período (cumple / alerta / crítico, al 100 %).
+        2. Estado actual: la última medición de cada indicador.
+        3. Cumplimiento del presupuesto por período (períodos que cumplen y no alcanzan, y su %).
+        4. Estado de las cargas por período: aprobadas, en revisión, devueltas y sin cargar.
+        5. Comparativo por Área, Gerencia, Tipo de seguimiento, Frecuencia o Proceso/objetivo, midiendo semáforo o presupuesto.
+        6. Tendencia de UN indicador: resultado, presupuesto, meta y límite crítico.
+        7. Puntualidad de la carga por responsable (retraso promedio en días).
+      Requiere atención: críticos, en alerta y empeorando, períodos sin cargar y cargas devueltas.
+      Rankings: indicadores más rezagados, mejor desempeño y mayor desviación del presupuesto.
+      Mapa de calor: semáforo de cada indicador en cada período de la vista.
+      Tabla de todos los indicadores: ordenable (toque el encabezado); toque un indicador para abrir su ficha.
+    SALIDAS: "Exportar tabla (CSV)" (abre en Excel) e "Imprimir".
 
 
 ====================================================================================================
@@ -513,7 +545,7 @@ PASO 5.  CARGA MENSUAL
 
 8.5 CÓMO HACER UNA AUDITORÍA PASO A PASO
     1. Bitácora > "Verificar integridad": debe decir que la cadena es íntegra.
-    2. Panel de análisis del ejercicio: revise cumplimiento, indicadores críticos y períodos sin
+    2. Panel de control del ejercicio: revise cumplimiento, indicadores críticos y períodos sin
        cargar ("Requiere atención").
     3. Historial: filtre por estado "Devuelto" o semáforo "Crítico"; verifique que tengan análisis y
        plan de mejora (ISO 9.1.3 y 10.2).
@@ -809,7 +841,7 @@ PASO 5.  CARGA MENSUAL
                plan de mejora ("Instalar respaldo eléctrico, Mantenimiento, 30-nov"). Enviar carga.
             El gerente Luis entra > Bandeja > abre la carga, ve la comparación y pulsa Aprobar.
             Noviembre: Marta carga 980/1000 -> 98 % -> verde; presupuesto 96 -> cumple (+2).
-            En el Panel de análisis, Luis ve la línea de presupuesto (96) junto a los resultados (90, 98)
+            En el Panel de control, Luis ve la línea de presupuesto (96) junto a los resultados (90, 98)
             y la columna "Vs. presupuesto": "1 de 2 cumplen".
    AUDIT    El administrador abre Bitácora > Verificar integridad: cadena íntegra. Ve, en orden:
             EJERCICIO_CREADO, PRESUPUESTO_GUARDADO (x2), CARGA, APROBACION, CARGA...
