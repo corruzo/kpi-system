@@ -47,7 +47,7 @@
           <div class="space-y-4 fade-in">
             <div class="card">
               <div class="card-b space-y-1 text-sm">
-                <div class="flex items-start justify-between gap-2"><div class="font-semibold" x-text="ind.nombre"></div><button type="button" class="info" @click="fichaAbierta=!fichaAbierta" aria-label="Ver ficha técnica del indicador">i</button></div>
+                <div class="flex items-start justify-between gap-2"><div><div class="text-xs text-slate-500"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <b x-text="ind.codigo"></b></div><div class="font-semibold" x-text="ind.nombre"></div></div><button type="button" class="info" @click="fichaAbierta=!fichaAbierta" aria-label="Ver ficha técnica del indicador">i</button></div>
                 <div class="text-slate-600" x-text="ind.objetivo"></div>
                 <div class="ayuda !mt-2 space-y-1" x-show="fichaAbierta" x-transition>
                   <button type="button" class="btn btn-s btn-sm" @click="verFicha(ind.id)">Abrir ficha técnica completa</button>

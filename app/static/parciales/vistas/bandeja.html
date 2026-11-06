@@ -1,11 +1,11 @@
     <!-- ============ BANDEJA ============ -->
     <section data-vista="bandeja" x-show="view==='bandeja'" class="mx-auto max-w-4xl space-y-4">
-      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> enviadas por los jefes de área, pendientes de revisión.</p></div>
+      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> enviadas por los encargados de proceso, pendientes de revisión.</p></div>
       <div class="card border-brand/30 bg-brand-light" x-show="bandejaOtros.length"><div class="card-b space-y-2 text-sm text-cobalt"><template x-for="o in bandejaOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>También hay <b x-text="o.n"></b> carga(s) por aprobar del ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ver ese ejercicio</button></div></template></div></div>
       <template x-for="m in bandeja" :key="m.id">
         <div class="card fade-in">
           <div class="card-h">
-            <div class="min-w-0"><div class="text-xs text-slate-500" x-text="m.area + ' · ' + m.periodo_etiqueta + (m.version>1 ? ' · reenvío v'+m.version : '')"></div><div class="truncate font-semibold" x-text="m.codigo + ' · ' + m.indicador"></div></div>
+            <div class="min-w-0"><div class="text-xs text-slate-500" x-text="m.area + ' · ' + m.periodo_etiqueta + (m.version>1 ? ' · reenvío v'+m.version : '')"></div><div class="truncate font-semibold"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <span x-text="m.codigo + ' · ' + m.indicador"></span></div></div>
             <div class="flex shrink-0 items-center gap-2"><span class="text-2xl font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="chip !border-transparent !text-white" :class="semBg(m.semaforo)" x-text="semTxt(m.semaforo)"></span></div>
           </div>
           <div class="card-b space-y-4">

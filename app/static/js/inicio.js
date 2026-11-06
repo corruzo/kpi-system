@@ -12,11 +12,11 @@ SIGT.modulos.inicio = () => ({
     get pasosMarcha() {
       if (!this.marcha) return [];
       const txt = {
-        org: { t: 'Organización y equipo', d: 'Registre las áreas de la empresa y a las personas: un jefe por área (carga datos) y un gerente / auditor (aprueba).', b: 'Crear áreas y usuarios', ir: () => this.go('org') },
+        org: { t: 'Organización y equipo', d: 'Registre las áreas de la empresa y a las personas: un encargado de proceso por área (carga datos) y un gerente / auditor (aprueba).', b: 'Crear áreas y usuarios', ir: () => this.go('org') },
         fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia (mensual, trimestral…) y su semáforo.', b: 'Crear indicadores', ir: () => this.go('fichas') },
         periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se puede presupuestar ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
         presupuesto: { t: 'Presupuesto del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar presupuesto', ir: () => this.go('presupuesto') },
-        carga: { t: 'Carga mensual de datos', d: 'Cada mes el jefe de área ingresa su dato real; el sistema lo compara con lo presupuestado y el gerente lo aprueba.', b: 'Ver cargas', ir: () => this.go('carga') },
+        carga: { t: 'Carga mensual de datos', d: 'Cada mes el encargado de proceso ingresa su dato real; el sistema lo compara con lo presupuestado y el gerente lo aprueba.', b: 'Ver cargas', ir: () => this.go('carga') },
       };
       let ahora = true;
       return this.marcha.pasos.map((p, i) => {
@@ -28,7 +28,7 @@ SIGT.modulos.inicio = () => ({
     get marchaCompleta() { return this.marcha && this.marcha.pasos.every(p => p.hecho); },
     get esRevisor() { return ['gerente', 'admin'].includes(this.user.rol); },
     saludo() { const h = new Date().getHours(); return (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + this.user.nombre.split(' (')[0].split(' ')[0]; },
-    // Resumen del ejercicio (solo gerencia/administración: el jefe no accede al panel analítico)
+    // Resumen del ejercicio (solo gerencia/administración: el encargado no accede al panel analítico)
     async cargarInicio() {
       if (!this.esRevisor) return;
       if (this.user.rol === 'admin') { try { this.marcha = await this.api('/api/puesta-en-marcha', {}, true); } catch { this.marcha = null; } }

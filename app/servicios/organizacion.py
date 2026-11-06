@@ -63,7 +63,7 @@ def listar_usuarios(db: Session) -> list[Usuario]:
 
 def _validar_rol_y_area(db: Session, rol: str, area_id: int | None) -> None:
     if rol == "jefe" and not area_id:
-        raise Invalido("Un Jefe de Área debe tener un área asignada.")
+        raise Invalido("Un encargado de proceso debe tener un área asignada.")
     if area_id and not db.get(Area, area_id):
         raise Invalido("Área inexistente.")
 
@@ -90,6 +90,10 @@ def editar_usuario(db: Session, admin: Usuario, usuario_id: int, datos) -> Usuar
     if u.id == admin.id and (not datos.activo or datos.rol != "admin"):
         raise Invalido("No puede desactivarse ni quitarse el rol de administrador a sí mismo.")
     _validar_rol_y_area(db, datos.rol, datos.area_id)
+    n_asignados = db.scalar(select(func.count(Indicador.id)).where(Indicador.encargado_id == u.id)) or 0
+    if n_asignados and (datos.rol != "jefe" or not datos.activo or datos.area_id != u.area_id):
+        raise Conflicto(f"Tiene {n_asignados} indicador(es) asignado(s) como encargado de proceso: reasígnelos a otra persona "
+                        "(Indicadores → editar) antes de cambiarle el rol o el área, o de inhabilitarlo.")
     nuevos = {"nombre": datos.nombre.strip(), "rol": datos.rol, "activo": datos.activo,
               "area_id": datos.area_id if datos.rol == "jefe" else None}
     cambios = {}
@@ -152,6 +156,8 @@ def eliminar_usuario(db: Session, admin: Usuario, usuario_id: int) -> None:
         raise NoEncontrado("Usuario no encontrado.")
     if u.id == admin.id:
         raise Invalido("No puede eliminar su propia cuenta.")
+    if db.scalar(select(Indicador.id).where(Indicador.encargado_id == u.id).limit(1)):
+        raise Conflicto("Es encargado de proceso de uno o más indicadores: reasígnelos antes de eliminarlo.")
     if u.id in ids_con_historial(db):
         raise Conflicto("Este usuario tiene actividad registrada (ingresos, cargas o revisiones) y no puede eliminarse sin perder la "
                         "trazabilidad. Inhabilítelo: no podrá ingresar y su historial se conserva.")

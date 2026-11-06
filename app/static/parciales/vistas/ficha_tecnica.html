@@ -11,7 +11,7 @@
 
           <div class="card overflow-hidden">
             <div class="bg-ink px-4 py-3 text-white"><div class="flex flex-wrap items-center justify-between gap-2"><div class="flex items-center gap-3"><img x-show="fv.data.parametros.logo_url" :src="fv.data.parametros.logo_url" alt="Logo" class="h-11 max-w-[120px] rounded-lg bg-white object-contain p-1"><div><div class="text-lg font-bold" x-text="fv.data.parametros.empresa"></div><div class="text-xs text-slate-300" x-text="fv.data.parametros.gerencia_emisora"></div></div></div>
-              <div class="text-center text-sm font-bold sm:text-base">FICHA TÉCNICA DE INDICADOR DE GESTIÓN</div>
+              <div class="text-center text-sm font-bold sm:text-base">FICHA TÉCNICA DE INDICADOR DE GESTIÓN<div class="mt-1 flex items-center justify-center gap-2 text-xs font-semibold"><span class="nc !bg-white/15 !text-white" x-text="etiquetaNC"></span><span x-text="fv.data.indicador.codigo"></span></div></div>
               <div class="text-right text-xs"><div class="text-slate-300">Seguimiento de:</div><div class="font-semibold" x-text="({proceso:'Desempeño de proceso',objetivo:'Objetivo organizacional',proveedor:'Desempeño de proveedor externo'})[fv.data.indicador.seguimiento]"></div></div></div></div>
             <div class="grid grid-cols-1 gap-px bg-slate-200 sm:grid-cols-2">
               <div class="bg-white p-3"><div class="lbl" x-text="fv.data.indicador.seguimiento==='objetivo' ? 'Objetivo organizacional' : 'Proceso'"></div><div class="text-sm font-semibold" x-text="fv.data.indicador.ref_nombre || '—'"></div></div>

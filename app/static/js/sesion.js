@@ -15,6 +15,7 @@ SIGT.modulos.sesion = () => ({
       await this.api('/api/logout', { method: 'POST' });
       this.user = null; this.view = ''; this.menu = false;
       for (const limpiar of this.ganchos.salida) limpiar.call(this);
+      try { ['sigt_panel', 'sigt_ej'].forEach(k => localStorage.removeItem(k)); } catch { }   // nada de la sesión queda en el equipo
     },
     iniciales(u = this.user) { return u.nombre.split(' (')[0].split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); },
     rolNombre: u => ROLES[u.rol],

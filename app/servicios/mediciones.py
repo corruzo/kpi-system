@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..dominio import calendario, formulas, presupuesto, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
 from ..models import Indicador, Medicion, NotaAuditoria, Usuario, ahora
-from . import auditoria, ejercicios, indicadores, presupuestos
+from . import acceso, auditoria, ejercicios, indicadores, presupuestos
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
 MIN_TEXTO_NOTA = 5
@@ -107,9 +107,8 @@ def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, area_id=N
            semaforo_=None, ejercicio=None, desde=0, limite=100) -> list[Medicion]:
     q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
          .offset(max(desde, 0)).limit(max(1, min(limite, 500))))
-    if u.rol == "jefe":
-        q = q.where(Indicador.area_id == u.area_id)
-    elif area_id:
+    q = acceso.restringir(q, u)
+    if area_id:
         q = q.where(Indicador.area_id == area_id)
     for columna, valor in ((Medicion.estado, estado), (Medicion.indicador_id, indicador_id), (Medicion.periodo, periodo),
                            (Medicion.semaforo, semaforo_), (Medicion.ejercicio, ejercicio)):
@@ -146,7 +145,7 @@ def revisar(db: Session, u: Usuario, medicion_id: int, accion: str, nota: str) -
 
 
 def reabrir(db: Session, u: Usuario, medicion_id: int, nota: str) -> Medicion:
-    """Devuelve al jefe una carga ya aprobada (p. ej. se detectó un error): queda como «devuelta»."""
+    """Devuelve al encargado una carga ya aprobada (p. ej. se detectó un error): queda como «devuelta»."""
     m = _obtener_modificable(db, medicion_id)
     if m.estado != "aprobado":
         raise Conflicto("Solo se pueden reabrir cargas aprobadas.")

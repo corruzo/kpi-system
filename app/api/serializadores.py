@@ -29,7 +29,7 @@ def catalogo(c: Catalogo) -> dict:
 
 def indicador(i: Indicador) -> dict:
     return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "area_id": i.area_id,
-            "area": i.area.nombre, "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
+            "encargado_id": i.encargado_id, "area": i.area.nombre, "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
             "formula": i.formula, "variables": i.variables, "constantes": i.constantes or [], "decimales": i.precision,
             "fuente": i.fuente or "", "notas": i.notas or "", "meta": i.meta, "limite": i.limite,
             "meta_tope": i.meta_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",

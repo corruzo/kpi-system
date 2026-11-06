@@ -1,23 +1,20 @@
 """Fichas técnicas de indicadores: consulta según el rol, alta, edición, archivado y ficha por ejercicio."""
 
+import unicodedata
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, semaforo
-from ..errores import Invalido, NoEncontrado, Prohibido
+from ..errores import Invalido, NoEncontrado
 from ..models import Area, Indicador, Medicion, Presupuesto, Usuario
-from . import auditoria, ejercicios
+from . import acceso, auditoria, ejercicios
 
 
 # ---------------------------------------------------------------- acceso y consulta
 def obtener_visible(db: Session, u: Usuario, indicador_id: int) -> Indicador:
-    """El indicador, si el usuario puede verlo: el jefe solo los de su área; los archivados, solo el admin."""
-    ind = db.get(Indicador, indicador_id)
-    if not ind or (u.rol != "admin" and not ind.activo):
-        raise NoEncontrado("Indicador no encontrado.")
-    if u.rol == "jefe" and ind.area_id != u.area_id:
-        raise Prohibido("Este indicador pertenece a otra área.")
-    return ind
+    """El indicador, si el usuario puede verlo (ver `acceso`); si no, 404 como si no existiera."""
+    return acceso.exigir_visible(u, db.get(Indicador, indicador_id))
 
 
 def estados_de_todos(db: Session) -> dict[int, dict[str, str]]:
@@ -42,11 +39,7 @@ def _dividir_pendientes(ind: Indicador, pendientes: list[str], ejercicio: int) -
 def listar(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
     """(indicador, cargas registradas, pendientes del ejercicio, pendientes de otros ejercicios) de los indicadores
     visibles para el usuario. Sin `ejercicio` se usa el vigente."""
-    q = select(Indicador).order_by(Indicador.codigo)
-    if u.rol == "jefe":
-        q = q.where(Indicador.area_id == u.area_id)
-    if u.rol != "admin":
-        q = q.where(Indicador.activo.is_(True))
+    q = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
     cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).group_by(Medicion.indicador_id)).all())
     hoy = calendario.hoy()
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
@@ -114,6 +107,7 @@ def validar_ficha(db: Session, datos, propio_id: int | None = None) -> None:
         raise Invalido(str(e)) from None
     if not db.get(Area, datos.area_id):
         raise Invalido("Área inexistente.")
+    _validar_encargado(db, datos)
     repetido = db.scalar(select(Indicador).where(Indicador.codigo == datos.codigo))
     if repetido and repetido.id != propio_id:
         raise Invalido(f"Ya existe un indicador con el código {datos.codigo}.")
@@ -139,14 +133,45 @@ def probar_formula(datos) -> dict:
             "semaforo": semaforo.clasificar(resultado, datos.meta, datos.limite, datos.sentido, datos.meta_tope, datos.limite_tope)}
 
 
+# ---------------------------------------------------------------- código automático
+def _prefijo(area: Area) -> str:
+    """Tres letras del área, sin tildes ni símbolos (p. ej. «Calidad y Mejora» → CAL)."""
+    base = "".join(c for c in unicodedata.normalize("NFD", area.nombre) if c.isalnum() and ord(c) < 128).upper()
+    return (base or "IND")[:3]
+
+
+def sugerir_codigo(db: Session, area_id: int) -> str:
+    """Próximo código libre del área: PREFIJO-NN, con NN consecutivo entre los códigos ya registrados con ese prefijo.
+    No reutiliza números de indicadores eliminados ni archivados (los archivados siguen en la tabla)."""
+    area = db.get(Area, area_id)
+    if not area:
+        raise Invalido("Área inexistente.")
+    prefijo = _prefijo(area)
+    usados = list(db.scalars(select(Indicador.codigo).where(Indicador.codigo.like(f"{prefijo}-%"))))
+    numeros = [int(c[len(prefijo) + 1:]) for c in usados if c[len(prefijo) + 1:].isdigit()]
+    return f"{prefijo}-{max(numeros, default=0) + 1:02d}"
+
+
+def _validar_encargado(db: Session, datos) -> None:
+    if datos.encargado_id is None:
+        return
+    e = db.get(Usuario, datos.encargado_id)
+    if not e or e.rol != "jefe" or not e.activo:
+        raise Invalido("El encargado de proceso debe ser un usuario activo con ese rol.")
+    if e.area_id != datos.area_id:
+        raise Invalido("El encargado de proceso debe pertenecer al área del indicador.")
+
+
 # ---------------------------------------------------------------- alta, edición y baja
 def crear(db: Session, admin: Usuario, datos) -> Indicador:
+    if not datos.codigo:
+        datos.codigo = sugerir_codigo(db, datos.area_id) if db.get(Area, datos.area_id) else ""
     validar_ficha(db, datos)
     ind = Indicador(**campos_de_ficha(datos))
     db.add(ind)
     db.flush()
     auditoria.registrar(db, admin, "INDICADOR_CREADO", "indicador", ind.id,
-                        {"codigo": ind.codigo, "nombre": ind.nombre, "formula": ind.formula, "meta": ind.meta,
+                        {"codigo": ind.codigo, "nombre": ind.nombre, "encargado_id": ind.encargado_id, "formula": ind.formula, "meta": ind.meta,
                          "limite": ind.limite, "sentido": ind.sentido}, ind)
     db.commit()
     return ind
@@ -167,6 +192,7 @@ def editar(db: Session, admin: Usuario, indicador_id: int, datos) -> Indicador:
     ind = db.get(Indicador, indicador_id)
     if not ind:
         raise NoEncontrado("Indicador no encontrado.")
+    datos.codigo = ind.codigo   # el código identifica al indicador en bitácora y reportes: no se cambia
     validar_ficha(db, datos, indicador_id)
     if db.scalar(select(Medicion.id).where(Medicion.indicador_id == indicador_id).limit(1)):
         _proteger_historial(ind, datos)

@@ -10,7 +10,7 @@ from ..errores import Invalido, NoEncontrado
 from ..excel import comun, sello
 from ..models import Area, Bitacora, Indicador, Medicion, Presupuesto, Usuario
 from ..security import firmar_reporte
-from . import auditoria, bitacora, indicadores, parametros, zip_seguro
+from . import acceso, auditoria, bitacora, indicadores, parametros, zip_seguro
 
 MAX_BYTES_VERIFICAR = 10_000_000
 
@@ -59,11 +59,9 @@ def verificar(db: Session, contenido: bytes) -> dict:
 
 
 def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, estado: str | None) -> tuple[bytes, str]:
-    """Real contra presupuesto. El jefe solo obtiene su área."""
-    if u.rol == "jefe":
-        area_id = u.area_id
-    q_ind = select(Indicador).order_by(Indicador.codigo)
-    q_med = select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo)
+    """Real contra presupuesto. El encargado de proceso solo obtiene sus indicadores (ver `acceso`)."""
+    q_ind = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
+    q_med = acceso.restringir(select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo), u)
     filtros = []
     if area_id:
         q_ind, q_med = q_ind.where(Indicador.area_id == area_id), q_med.where(Indicador.area_id == area_id)
@@ -77,7 +75,7 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
     inds, meds = db.scalars(q_ind).all(), db.scalars(q_med).all()
     if anio:
         meds = [m for m in meds if calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
-    q_pres = select(Presupuesto).join(Indicador, Presupuesto.indicador_id == Indicador.id)
+    q_pres = acceso.restringir(select(Presupuesto).join(Indicador, Presupuesto.indicador_id == Indicador.id), u)
     if area_id:
         q_pres = q_pres.where(Indicador.area_id == area_id)
     if anio:
@@ -85,8 +83,10 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
     presupuestos = {(p.indicador_id, p.periodo): p.valor for p in db.scalars(q_pres)}
     anios = {int(anio)} if anio else ({m.ejercicio or calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) for m in meds}
                                       | {p.ejercicio for p in db.scalars(q_pres)})
-    por_aprobar = len(db.scalars(select(Medicion.id).join(Indicador).where(
-        Medicion.estado == "enviado", *([Indicador.area_id == area_id] if area_id else []))).all())
+    q_apr = acceso.restringir(select(Medicion.id).join(Indicador).where(Medicion.estado == "enviado"), u)
+    if area_id:
+        q_apr = q_apr.where(Indicador.area_id == area_id)
+    por_aprobar = len(db.scalars(q_apr).all())
     empresa = parametros.datos_para_reportes(db)["empresa"]
     libro = excel.general.reporte_general(empresa, meds, inds, presupuestos, sorted(anios), u.nombre, " · ".join(filtros),
                                           por_aprobar, solo_cargadas=bool(estado))
@@ -95,11 +95,7 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
 
 def fichas(db: Session, u: Usuario, ejercicio: int | None, area_id: int | None, indicador_id: int | None) -> tuple[bytes, str]:
     """Una hoja por indicador con el formato de la ficha técnica del SGC."""
-    q = select(Indicador).order_by(Indicador.codigo)
-    if u.rol == "jefe":
-        area_id = u.area_id
-    if u.rol != "admin":
-        q = q.where(Indicador.activo.is_(True))
+    q = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
     if area_id:
         q = q.where(Indicador.area_id == area_id)
     if indicador_id:

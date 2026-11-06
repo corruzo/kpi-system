@@ -20,7 +20,7 @@
             <button class="flex w-full items-center gap-3 p-4 text-left" @click="open=!open" :aria-expanded="open">
               <span class="h-10 w-1.5 shrink-0 rounded-full" :class="semBg(m.semaforo)"></span>
               <span class="min-w-0 flex-1">
-                <span class="block text-xs text-slate-500" x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span>
+                <span class="block text-xs text-slate-500"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <span x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span></span>
                 <span class="block truncate font-semibold" x-text="m.indicador"></span>
               </span>
               <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="block text-[11px] font-semibold" x-show="m.vs_presupuesto" :class="m.vs_presupuesto && m.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700'" x-text="m.vs_presupuesto ? 'Ppto. ' + fmt(m.presupuesto, m.unidad, m.decimales) + ' · ' + (m.vs_presupuesto.cumple ? 'cumple' : 'no alcanza') : ''"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
@@ -28,7 +28,7 @@
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>
               <div class="space-y-2 rounded-lg bg-amber-50 p-3" x-show="['gerente','admin'].includes(user.rol) && m.estado==='aprobado'">
-                <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala al jefe de área para corregirla (queda registrado).</p>
+                <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala al encargado de proceso para corregirla (queda registrado).</p>
                 <div class="flex flex-col gap-2 sm:flex-row"><input class="inp" x-model="reabrirNota[m.id]" placeholder="Motivo de la reapertura"><button class="btn btn-d whitespace-nowrap" :disabled="busy" @click="reabrir(m)">Reabrir carga</button></div></div>
               <button class="btn btn-s btn-sm" @click="verFicha(m.indicador_id)">Ver ficha del indicador</button>
               <div class="flex flex-col gap-2 sm:flex-row" x-show="['gerente','admin'].includes(user.rol)">

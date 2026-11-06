@@ -18,7 +18,7 @@ def _descarga(datos: bytes, nombre: str) -> Response:
 @router.get("/general.xlsx")
 def general(anio: AnioConsulta = None, area_id: IdConsulta = None, estado: str | None = None,
             db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    """Resumen, mediciones, tendencias, plan de mejora y fichas. El jefe solo obtiene su área."""
+    """Resumen, mediciones, tendencias, plan de mejora y fichas. El encargado de proceso solo obtiene sus indicadores."""
     return _descarga(*reportes.general(db, u, anio, area_id, estado))
 
 

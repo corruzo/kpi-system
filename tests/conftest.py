@@ -52,7 +52,17 @@ def crear_usuario(c, rol: str, area_id: int | None = None) -> str:
     r = c.post("/api/usuarios", json={"username": username, "nombre": f"Usuario {username}", "rol": rol,
                                        "area_id": area_id, "password": CLAVE})
     assert r.status_code == 201, r.text
+    if rol == "jefe":
+        JEFES_POR_AREA[area_id] = r.json()["id"]
     return username
+
+
+JEFES_POR_AREA: dict[int, int] = {}   # último encargado creado en cada área: por defecto recibe los indicadores nuevos de la prueba
+
+
+def id_de_usuario(c, username: str) -> int:
+    entrar(c, "admin", CLAVE_ADMIN)
+    return next(u["id"] for u in c.get("/api/usuarios").json() if u["username"] == username)
 
 
 def ficha_base(area_id: int, **cambios) -> dict:
@@ -88,6 +98,8 @@ def presupuestar(c, indicador: dict, valor: float | None = None, anio: int | Non
 def crear_indicador(c, area_id: int, presupuesto: bool = True, **cambios) -> dict:
     """Crea un indicador y, salvo que se pida lo contrario, ya presupuestado (vigente y año anterior)."""
     entrar(c, "admin", CLAVE_ADMIN)
+    if "encargado_id" not in cambios and area_id in JEFES_POR_AREA:
+        cambios["encargado_id"] = JEFES_POR_AREA[area_id]
     r = c.post("/api/indicadores", json=ficha_base(area_id, **cambios))
     assert r.status_code == 201, r.text
     ind = r.json()
@@ -100,8 +112,9 @@ def crear_indicador(c, area_id: int, presupuesto: bool = True, **cambios) -> dic
 def escenario(client):
     """Un área con su jefe, un gerente y un indicador mensual listo para cargar."""
     area = crear_area(client)
-    return {"area": area, "jefe": crear_usuario(client, "jefe", area), "gerente": crear_usuario(client, "gerente"),
-            "indicador": crear_indicador(client, area)}
+    jefe = crear_usuario(client, "jefe", area)
+    return {"area": area, "jefe": jefe, "gerente": crear_usuario(client, "gerente"),
+            "indicador": crear_indicador(client, area, encargado_id=id_de_usuario(client, jefe))}
 
 
 def periodo_actual(c, indicador_id: int, posicion: int = 0) -> str:

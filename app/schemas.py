@@ -93,7 +93,8 @@ class ConstanteIn(BaseModel):
 
 
 class IndicadorIn(BaseModel):
-    codigo: str = Field(min_length=2, max_length=20)
+    codigo: str = Field(default="", max_length=20)   # vacío = lo genera el sistema; al editar no se puede cambiar
+    encargado_id: int | None = Field(default=None, ge=1, le=ID_MAX)   # único encargado de proceso que lo ve y carga
     nombre: str = Field(min_length=3, max_length=150)
     objetivo: str = Field(default="", max_length=1000)
     area_id: int = Field(ge=1, le=ID_MAX)

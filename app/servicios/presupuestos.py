@@ -161,7 +161,7 @@ def avance_de_puesta_en_marcha(db: Session, hoy: date) -> dict:
     pres = resumen(db, anio) if periodo_creado else {"total": 0, "completos": 0, "pendientes": 0}
     cargas = len(list(db.scalars(select(Medicion.id).where(Medicion.ejercicio == anio))))
     return {"ejercicio": anio, "etiqueta": calendario.etiqueta_ejercicio(anio), "pasos": [
-        {"id": "org", "hecho": n_areas > 0 and bool(jefes), "detalle": f"{n_areas} área(s) · {len(jefes)} jefe(s) de área"},
+        {"id": "org", "hecho": n_areas > 0 and bool(jefes), "detalle": f"{n_areas} área(s) · {len(jefes)} encargado(s) de proceso"},
         {"id": "fichas", "hecho": n_ind > 0, "detalle": f"{n_ind} indicador(es)"},
         {"id": "periodo", "hecho": periodo_creado, "detalle": calendario.etiqueta_ejercicio(anio) + (" creado" if periodo_creado else " sin crear")},
         {"id": "presupuesto", "hecho": periodo_creado and pres["total"] > 0 and pres["pendientes"] == 0,

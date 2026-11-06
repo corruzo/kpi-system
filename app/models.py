@@ -117,6 +117,7 @@ class Indicador(Base):
     nombre: Mapped[str] = mapped_column(String(150))
     objetivo: Mapped[str] = mapped_column(Text, default="")
     area_id: Mapped[int] = mapped_column(ForeignKey("areas.id"), index=True)
+    encargado_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)  # único usuario con rol de encargado que lo ve y carga
     unidad: Mapped[str] = mapped_column(String(20))        # %, días, TM, USD, cantidad
     frecuencia: Mapped[str] = mapped_column(String(20))    # mensual | trimestral | semestral
     sentido: Mapped[str] = mapped_column(String(10))       # mayor | menor  (mayor/menor es mejor)

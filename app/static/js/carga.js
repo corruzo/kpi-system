@@ -1,4 +1,4 @@
-/* Carga rápida: el jefe de área (o el administrador) elige indicador y período, digita los datos y envía. */
+/* Carga rápida: el encargado de proceso (o el administrador) elige indicador y período, digita los datos y envía. */
 SIGT.modulos.carga = () => ({
     f: { indicador_id: '', periodo: '', valores: {}, analisis: '', plan_mejora: '', tocado: false },
     periodosInd: [], calc: null, _seq: 0, fichaAbierta: false,

@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from ... import schemas
 from ...dominio import calendario
+from ...errores import Invalido
 from ...models import Usuario
 from ...servicios import indicadores, parametros
 from .. import serializadores as ser
-from ..deps import AnioConsulta, IdRuta, escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, IdConsulta, IdRuta, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["indicadores"])
 solo_admin = requiere("admin")
@@ -18,6 +19,14 @@ solo_admin = requiere("admin")
 def listar(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
     """Indicadores con sus períodos pendientes del ejercicio pedido (y cuántos quedan en otros ejercicios)."""
     return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u, ejercicio)]
+
+
+@router.get("/indicadores/codigo-sugerido")
+def codigo_sugerido(area_id: IdConsulta, db: Session = Depends(get_db), _=Depends(solo_admin)):
+    """Código que recibirá el próximo indicador del área (el definitivo lo asigna el servidor al guardar)."""
+    if area_id is None:
+        raise Invalido("Indique el área.")
+    return {"codigo": indicadores.sugerir_codigo(db, area_id)}
 
 
 @router.post("/indicadores", status_code=201)

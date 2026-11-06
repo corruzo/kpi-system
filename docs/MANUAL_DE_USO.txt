@@ -21,7 +21,7 @@ consultarse por secciones después.
         Paso 4. Presupuestar cada indicador
         Paso 5. Carga mensual (arranca la operación)
   6.  OPERACIÓN MENSUAL
-        6.1 El jefe de área carga su dato real
+        6.1 El encargado de proceso carga su dato real
         6.2 El gerente / auditor revisa, aprueba o devuelve
         6.3 Corregir una carga devuelta o un error ya aprobado
   7.  Cómo se compara lo real contra lo presupuestado (dónde verlo)
@@ -50,13 +50,13 @@ El sistema funciona SIEMPRE en el mismo orden. Cuando el administrador entra, la
    PASO 2   Indicadores             -> crear la ficha de cada indicador de gestión.
    PASO 3   Período fiscal          -> abrir el año de gestión (ej. 2026-2027).
    PASO 4   Presupuesto             -> decir cuánto se espera lograr en cada indicador y período.
-   PASO 5   Carga mensual           -> cada mes, cada jefe de área ingresa su dato real; el sistema
+   PASO 5   Carga mensual           -> cada mes, cada encargado de proceso ingresa su dato real; el sistema
                                        lo COMPARA con lo presupuestado para ese mes; el gerente lo
                                        aprueba.
 
 Regla de oro: cada paso necesita el anterior.
    - Sin período fiscal creado no se puede presupuestar ni cargar datos.
-   - Sin presupuesto para un período, el jefe no puede cargar el dato real de ese período
+   - Sin presupuesto para un período, el encargado no puede cargar el dato real de ese período
      (no habría con qué compararlo).
 
 Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y se crea el siguiente.
@@ -76,7 +76,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
 
 2.2 INDICADOR (ficha técnica)
     Define QUÉ se mide: nombre, área responsable, unidad (%, TM, días, USD...), frecuencia, sentido
-    (mayor es mejor / menor es mejor), fórmula, variables (los datos que digita el jefe) y el
+    (mayor es mejor / menor es mejor), fórmula, variables (los datos que digita el encargado) y el
     semáforo (meta y límite crítico).
 
 2.3 FRECUENCIA
@@ -96,7 +96,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
         c) Un valor ANUAL repetido en cada período (para porcentajes, promedios y tiempos).
 
 2.5 DATO REAL y RESULTADO
-    Cada mes el jefe digita las VARIABLES del indicador (ej. "TM producidas" y "TM presupuestadas"). El
+    Cada mes el encargado digita las VARIABLES del indicador (ej. "TM producidas" y "TM presupuestadas"). El
     sistema calcula el RESULTADO con la fórmula (ej. real / plan * 100 = 90 %).
 
 2.6 COMPARACIÓN REAL vs. PRESUPUESTO
@@ -113,14 +113,14 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
 2.7 SEMÁFORO (distinto del presupuesto)
     Es la clasificación ISO 9001 del resultado según la META y el LÍMITE CRÍTICO de la ficha:
         Verde = Cumple | Amarillo = Alerta | Rojo = Crítico.
-    Si queda en Alerta o Crítico, el jefe DEBE escribir el análisis y el plan de mejora (mínimo 10
+    Si queda en Alerta o Crítico, el encargado DEBE escribir el análisis y el plan de mejora (mínimo 10
     caracteres cada uno). El semáforo y el presupuesto son dos lecturas complementarias: el semáforo
     mide contra la meta de calidad; el presupuesto mide contra lo presupuestado para ese período.
 
 2.8 ESTADOS DE UNA CARGA
-    ENVIADO ("En revisión")  El jefe la envió; espera al gerente. No se puede modificar.
+    ENVIADO ("En revisión")  El encargado la envió; espera al gerente. No se puede modificar.
     APROBADO                 Aceptada. Cuenta en el panel y en los reportes.
-    OBSERVADO ("Devuelto")   El gerente la devolvió con una observación; el jefe corrige y REENVÍA
+    OBSERVADO ("Devuelto")   El gerente la devolvió con una observación; el encargado corrige y REENVÍA
                              (queda versión 2, 3...).
     Regla de segregación de funciones: nadie puede aprobar ni devolver una carga que hizo él mismo.
 
@@ -133,7 +133,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
 3. QUIÉN PUEDE HACER QUÉ
 ====================================================================================================
 
-   Acción                                              Jefe de área   Gerente/Auditor   Administrador
+   Acción                                              Encargado de proceso   Gerente/Auditor   Administrador
    -------------------------------------------------   ------------   ---------------   -------------
    Crear áreas, usuarios, parámetros, logo, listas          -               -                 SI
    Crear / editar / archivar / eliminar indicadores         -               -                 SI
@@ -152,7 +152,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
    Reinicio de fábrica                                      -               -                 SI
 
 Menú de cada rol (lo que ve en pantalla):
-   Jefe:          Inicio · Carga del mes · Mis cargas · Reportes
+   Encargado:          Inicio · Carga del mes · Mis cargas · Reportes
    Gerente:       Inicio · Bandeja · Todas las cargas · Panel · Período y presupuesto · Reportes · Cierre de años
    Administrador: Inicio (Puesta en marcha) y tres grupos:
                     CONFIGURAR: Organización y equipo · Indicadores · Período y presupuesto
@@ -245,7 +245,7 @@ Esta sección es para quien instala el sistema (responsable técnico o de TI).
 Al iniciar sesión como administrador se abre "PUESTA EN MARCHA": una portada y cinco tarjetas
 numeradas. La tarjeta resaltada con la etiqueta "Siguiente paso" es la que toca hacer; cada tarjeta
 tiene un botón grande que lo lleva directo a la pantalla correspondiente y, debajo del texto, un
-resumen en vivo (por ejemplo "2 área(s) · 1 jefe(s) de área", "5 indicador(es)", "3 de 5 indicadores
+resumen en vivo (por ejemplo "2 área(s) · 1 encargado(s) de proceso", "5 indicador(es)", "3 de 5 indicadores
 presupuestados"). Cuando un paso se completa se marca con ✓ y la tarjeta se pone verde. Cuando
 los cinco están listos aparece "El sistema está en marcha".
 
@@ -295,14 +295,14 @@ Primero las áreas, después las personas.
           Usuario        3 a 40 caracteres: minúsculas, números, punto, guion, guion bajo. NO se puede
                          cambiar después.
           Nombre completo  Mínimo 3 caracteres.
-          Rol            Jefe de Área, Gerente / Auditor SGC, o Administrador SGC.
-          Área           Obligatoria SOLO para el Jefe de Área (el área cuyos indicadores cargará).
+          Rol            Encargado de proceso, Gerente / Auditor SGC, o Administrador SGC.
+          Área           Obligatoria SOLO para el Encargado de proceso (su área; los indicadores concretos se le asignan en la ficha).
           Contraseña inicial  Mínimo 10 caracteres. Entréguesela a la persona; puede cambiarla desde su
                          menú de perfil > "Cambiar contraseña".
      3. Guarde.
-     Mínimo recomendado: UN jefe por cada área que tenga indicadores y AL MENOS UN gerente / auditor
+     Mínimo recomendado: UN encargado de proceso por cada área que tenga indicadores y AL MENOS UN gerente / auditor
      (quien aprueba; recuerde que nadie aprueba lo que cargó él mismo).
-  Este paso queda "Listo" cuando existe al menos un área y un jefe de área con área asignada.
+  Este paso queda "Listo" cuando existe al menos un área y un encargado de proceso con área asignada.
 
   C) (Opcional) LISTAS DE APOYO - pestaña "Listas de apoyo"
      Procesos (con su objetivo), Objetivos organizacionales, Gerencias y Cargos. Se ofrecen como
@@ -317,11 +317,15 @@ PASO 2.  INDICADORES  (menú: Configurar > Indicadores)
      fórmulas" muestra funciones y ejemplos listos):
 
      1 · IDENTIFICACIÓN
-        Código *               Único, ej. PRO-01 (se guarda en mayúsculas).
+        Identificación NC-16   Lo asigna el sistema (prefijo del área + consecutivo, ej. CAL-03): no se escribe
+                               a mano, no se repite y no se puede cambiar. Aparece con la insignia NC-16 en
+                               todas las pantallas y en el encabezado de los Excel.
         Nombre *               Nombre completo del indicador.
-        Objetivo               Para qué se mide (lo ve el jefe al cargar).
+        Objetivo del indicador Para qué se mide ESTE indicador (lo ve el encargado al cargar).
         Sigla                  Abreviatura para la fórmula documentada (ej. SP).
-        Área responsable *     Solo los jefes de esa área (y el administrador) pueden cargarlo.
+        Área responsable *     Departamento dueño del indicador.
+        Encargado de proceso * La ÚNICA persona que ve y carga este indicador (debe ser de esa área). Dos encargados
+                               de la misma área NO ven los indicadores del otro.
      2 · PROCESO, OBJETIVO Y RESPONSABLES  (datos de la ficha técnica en papel)
      3 · MEDICIÓN
         Unidad *               %, días, horas, TM, kg, USD, cantidad... (o escriba otra).
@@ -336,11 +340,11 @@ PASO 2.  INDICADORES  (menú: Configurar > Indicadores)
         Topes (opcional)       Acotan el otro extremo de cada franja (columnas Mín./Máx. de la ficha).
         NOTA: la meta es del SEMÁFORO. Lo que se espera lograr cada período (el presupuesto) NO se
         escribe aquí: se ingresa en el Paso 4, para cada año.
-     5 · VARIABLES (1 a 12): los datos que digitará el jefe cada período. Escriba la etiqueta
+     5 · VARIABLES (1 a 12): los datos que digitará el encargado cada período. Escriba la etiqueta
         visible (ej. "Producción real (kg)"); la clave se genera sola. Opciones por variable: texto de
         ayuda, unidad, opcional (con valor por defecto) y permitir negativos. Botones ↑ ↓ ordenan y
         ✕ quita.
-     6 · CONSTANTES (opcional): valores fijos de la fórmula que el jefe NO ve (horas por turno,
+     6 · CONSTANTES (opcional): valores fijos de la fórmula que el encargado NO ve (horas por turno,
         tarifa, factor...).
      7 · FÓRMULA: ej.  real / plan * 100.  Se valida mientras escribe. Hay botones para insertar
         variables, operadores y funciones (si, div, pct, min, max, sum, avg, abs, round, sqrt,
@@ -410,7 +414,7 @@ PASO 4.  PRESUPUESTAR CADA INDICADOR  (menú: Configurar > Período y presupuest
 ----------------------------------------------------------------------------------------------------
 PASO 5.  CARGA MENSUAL
 ----------------------------------------------------------------------------------------------------
-  Con el paso 4 hecho, los jefes ya pueden cargar. Avíseles (usuario y clave inicial). Este paso queda
+  Con el paso 4 hecho, los encargados ya pueden cargar. Avíseles (usuario y clave inicial). Este paso queda
   "Listo" en cuanto existe la primera carga del ejercicio. A partir de aquí el administrador solo
   supervisa (sección 6).
 
@@ -419,7 +423,7 @@ PASO 5.  CARGA MENSUAL
 6. OPERACIÓN MENSUAL
 ====================================================================================================
 
-6.1 EL JEFE DE ÁREA CARGA SU DATO REAL  (menú: Carga del mes)
+6.1 EL ENCARGADO DE PROCESO CARGA SU DATO REAL  (menú: Carga del mes)
     1. Ingrese con su usuario. La pantalla de Inicio muestra "Qué hacer ahora" (períodos pendientes).
     2. Pulse "Carga del mes" (o el botón de un pendiente, p. ej. "PRO-01 · Octubre 2026").
     3. Elija el INDICADOR y el PERÍODO. Se ofrecen los períodos del ejercicio elegido que ya
@@ -452,7 +456,7 @@ PASO 5.  CARGA MENSUAL
     - "Panel de control": ver sección 7B.
 
 6.3 CORREGIR UNA CARGA
-    - Carga DEVUELTA: el jefe abre ese indicador/período, ve la observación, corrige y pulsa
+    - Carga DEVUELTA: el encargado abre ese indicador/período, ve la observación, corrige y pulsa
       "Reenviar para revisión" (versión 2, 3...). El presupuesto con que se cargó la primera vez se
       CONSERVA.
     - Error en una carga ya APROBADA: el gerente (o el administrador) abre la carga en "Todas las
@@ -588,7 +592,7 @@ PASO 5.  CARGA MENSUAL
                                               cargado están bloqueados. Con el año cerrado: el
                                               administrador lo reabre primero.
    Un dato ya enviado                         No se edita: el gerente lo DEVUELVE (o REABRE si estaba
-                                              aprobado) y el jefe corrige y reenvía.
+                                              aprobado) y el encargado corrige y reenvía.
    Un período fiscal cerrado                  Cierre de años > "Reabrir" (administrador, con motivo de 5+
                                               caracteres). Al terminar de corregir, vuelva a cerrarlo.
 
@@ -638,7 +642,7 @@ PASO 5.  CARGA MENSUAL
     2. Pulse "Copiar del año anterior" para traer el presupuesto del año pasado a todos los
        indicadores que aún no tienen el de este año; ajuste lo que cambie y guarde.
     3. Para indicadores nuevos: abra cada uno y presupuéstelo (Paso 4).
-    Los jefes podrán cargar los períodos del nuevo año en cuanto estén creados y presupuestados.
+    Los encargados podrán cargar los períodos del nuevo año en cuanto estén creados y presupuestados.
 
 
 ====================================================================================================
@@ -666,7 +670,7 @@ PASO 5.  CARGA MENSUAL
     para imprimir y para comparar números: lo REAL contra lo PRESUPUESTADO.
 
     13.1 INFORME "REAL VS PRESUPUESTO"  (botón "Descargar reporte Excel")
-        Filtros: Ejercicio (o todos), Área (no para el jefe) y Estado de la carga. El archivo se
+        Filtros: Ejercicio (o todos), Área (no para el encargado) y Estado de la carga. El archivo se
         llama  <Empresa>_real_vs_presupuesto_AAAAMMDD.xlsx.  Hojas:
           Resumen ............. Totales (indicadores, períodos presupuestados, con real, que cumplen y
                                 que no alcanzan, cargas por aprobar, % de cumplimiento) y cumplimiento
@@ -686,7 +690,7 @@ PASO 5.  CARGA MENSUAL
         valor). "Cumple" = real >= presupuesto si "mayor es mejor", o real <= presupuesto si "menor es
         mejor". Si a un período le falta el presupuesto o el real, esas celdas quedan vacías.
         Un indicador histórico importado sin presupuesto aparece con el presupuesto vacío.
-        El jefe solo obtiene su área.
+        El encargado de proceso solo obtiene sus indicadores asignados.
 
     13.2 FICHAS TÉCNICAS (formato SGC)  (botón "Descargar fichas en Excel")
         Una hoja por indicador con el diseño de la ficha en papel, también en blanco y negro: proceso,
@@ -819,7 +823,7 @@ PASO 5.  CARGA MENSUAL
 
    PASO 0   Admin: Organización > Empresa y logo > Inicio del ejercicio fiscal = Octubre > Guardar.
    PASO 1   Admin: crea el área "Producción". Crea los usuarios:
-               jefe.prod  (Jefe de Área, área Producción), gerente1 (Gerente / Auditor SGC).
+               encargado.prod  (Encargado de proceso, área Producción), gerente1 (Gerente / Auditor SGC).
    PASO 2   Admin: crea dos indicadores del área Producción:
                PRO-01  Cumplimiento del plan de producción   % · mensual · mayor es mejor
                         fórmula: real / plan * 100     meta 95 · límite crítico 85
@@ -852,10 +856,10 @@ PASO 5.  CARGA MENSUAL
 ====================================================================================================
 18. GLOSARIO
 ====================================================================================================
-   Área .................. Departamento de la empresa; dueño de indicadores y de sus jefes.
+   Área .................. Departamento de la empresa; dueño de indicadores y de sus encargados.
    Bitácora .............. Registro inalterable de toda la actividad (cadena SHA-256).
    Carga ................. El dato real de un indicador para un período.
-   Constante ............. Valor fijo de la fórmula que el jefe no ve.
+   Constante ............. Valor fijo de la fórmula que el encargado no ve.
    Diferencia ............ Real menos presupuestado.
    Ejercicio / Período fiscal ... Año de gestión; se crea, se presupuesta, se carga y se cierra.
    Ficha técnica ......... Definición completa de un indicador.
@@ -863,10 +867,10 @@ PASO 5.  CARGA MENSUAL
    Meta / Límite crítico . Umbrales del semáforo.
    Período ............... Cada mes / trimestre / semestre... en que se mide un indicador.
    Presupuesto ........... Resultado que se espera lograr en cada período; se fija al inicio del año.
-   Real .................. Resultado calculado con los datos que digitó el jefe.
+   Real .................. Resultado calculado con los datos que digitó el encargado.
    Segregación de funciones ... Nadie revisa su propia carga.
    Semáforo .............. Verde / Amarillo / Rojo según meta y límite crítico.
-   Variable .............. Dato que el jefe digita cada período.
+   Variable .............. Dato que el encargado digita cada período.
 
 ====================================================================================================
 FIN DEL MANUAL

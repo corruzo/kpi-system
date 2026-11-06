@@ -54,7 +54,7 @@ Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/
 ## Roles
 | Rol | Capacidades |
 |---|---|
-| Jefe de Área | Carga rápida de su área; resultado y semáforo en vivo; análisis y plan de mejora obligatorios si hay Alerta/Crítico (validado en servidor); reenvío de cargas devueltas. |
+| Encargado de proceso | Carga rápida de su área; resultado y semáforo en vivo; análisis y plan de mejora obligatorios si hay Alerta/Crítico (validado en servidor); reenvío de cargas devueltas. |
 | Gerente / Auditor SGC | Bandeja de aprobación, notas de auditoría, panel de análisis, exportación CSV. |
 | Administrador SGC | Fichas de indicadores, áreas, usuarios (alta, roles, restablecer clave, inhabilitar, eliminar), bitácora. |
 
@@ -93,7 +93,7 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 
 ## Reportes en Excel
 Todos los libros son **en blanco y negro, sin logo ni gráficos**; cada hoja empieza solo con el nombre de la empresa de Parámetros (`app/excel/comun.py` define el estilo).
-- `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento del presupuesto por área e indicador), *Real vs Presupuesto* (una fila por indicador y período: presupuestado, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el jefe de área solo obtiene su área.
+- `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento del presupuesto por área e indicador), *Real vs Presupuesto* (una fila por indicador y período: presupuestado, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el encargado de proceso solo obtiene su área.
 - `GET /api/reportes/fichas.xlsx`: una hoja por indicador en el formato de la ficha, con la sección «Real vs presupuesto».
 - `GET /api/reportes/bitacora.xlsx` (solo administrador). Cada descarga queda en la bitácora.
 

@@ -41,7 +41,7 @@ SIGT.modulos.revision = () => ({
       const nota = (this.reabrirNota[m.id] || '').trim();
       if (nota.length < 5) { this.avisar('Indique el motivo de la reapertura.', true); return; }
       this.busy = true;
-      try { await this.api(`/api/mediciones/${m.id}/reabrir`, { method: 'POST', body: { accion: 'observar', nota } }); this.avisar('Carga devuelta al jefe de área.'); await this.cargarHistorial(); } catch { }
+      try { await this.api(`/api/mediciones/${m.id}/reabrir`, { method: 'POST', body: { accion: 'observar', nota } }); this.avisar('Carga devuelta al encargado de proceso.'); await this.cargarHistorial(); } catch { }
       this.busy = false;
     },
     // La bandeja trae todas las cargas por aprobar (ninguna se pierde), pero se muestran las del ejercicio elegido;
@@ -61,7 +61,7 @@ SIGT.modulos.revision = () => ({
       this.busy = true;
       try {
         await this.api(`/api/mediciones/${m.id}/revision`, { method: 'POST', body: { accion, nota } });
-        this.avisar(accion === 'aprobar' ? 'Carga aprobada.' : 'Carga devuelta al jefe de área.');
+        this.avisar(accion === 'aprobar' ? 'Carga aprobada.' : 'Carga devuelta al encargado de proceso.');
         await this.cargarBandeja();
       } catch { }
       this.busy = false;

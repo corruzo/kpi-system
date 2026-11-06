@@ -15,7 +15,7 @@
       <div class="hidden md:block" x-show="fichasFiltradas.length"><div class="card overflow-x-auto">
         <table class="w-full"><thead><tr><th class="th">Código</th><th class="th">Indicador</th><th class="th">Área</th><th class="th">Frecuencia</th><th class="th">Meta / Límite</th><th class="th">Cargas</th><th class="th"></th></tr></thead>
           <tbody><template x-for="i in fichasFiltradas" :key="i.id"><tr :class="!i.activo && 'bg-slate-50 text-slate-500'">
-            <td class="td whitespace-nowrap font-semibold" x-text="i.codigo"></td>
+            <td class="td whitespace-nowrap font-semibold"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <span x-text="i.codigo"></span></td>
             <td class="td"><div class="font-medium" x-text="i.nombre"></div><div class="font-mono text-xs text-slate-500" x-text="i.formula"></div><span class="chip mt-1 border-slate-300 text-slate-600" x-show="!i.activo">Archivado</span></td>
             <td class="td" x-text="i.area"></td><td class="td" x-text="cap(i.frecuencia) + ' · ' + i.unidad"></td>
             <td class="td whitespace-nowrap" x-text="umbralTxt(i)"></td><td class="td" x-text="i.n_mediciones"></td>
@@ -25,7 +25,7 @@
       </div></div>
       <div class="space-y-3 md:hidden">
         <template x-for="i in fichasFiltradas" :key="'m'+i.id"><div class="card" :class="!i.activo && 'bg-slate-50'"><div class="card-b space-y-2">
-          <div class="flex items-start justify-between gap-2"><div><div class="text-xs text-slate-500" x-text="i.codigo + ' · ' + i.area"></div><div class="font-semibold" x-text="i.nombre"></div></div><span class="chip border-slate-300 text-slate-600" x-text="i.activo ? i.n_mediciones + ' cargas' : 'Archivado'"></span></div>
+          <div class="flex items-start justify-between gap-2"><div><div class="text-xs text-slate-500"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <b x-text="i.codigo"></b> · <span x-text="i.area"></span></div><div class="font-semibold" x-text="i.nombre"></div></div><span class="chip border-slate-300 text-slate-600" x-text="i.activo ? i.n_mediciones + ' cargas' : 'Archivado'"></span></div>
           <div class="text-xs text-slate-500" x-text="cap(i.frecuencia) + ' · ' + i.unidad + ' · ' + umbralTxt(i)"></div>
           <div class="grid grid-cols-2 gap-2 pt-1"><button class="btn btn-s btn-sm col-span-2" @click="verFicha(i.id)">Ver ficha técnica</button><button class="btn btn-s btn-sm" @click="editarFicha(i)">Editar</button><button class="btn btn-s btn-sm" @click="duplicarFicha(i)">Duplicar</button>
             <button class="btn btn-s btn-sm" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" @click="eliminarFicha(i)">Eliminar</button></div>

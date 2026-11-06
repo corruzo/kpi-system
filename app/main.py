@@ -68,6 +68,7 @@ async def asegurar_arranque_y_cabeceras(request: Request, call_next):
         respuesta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     if request.url.path.startswith("/api/"):
         respuesta.headers.setdefault("Cache-Control", "no-store")   # los datos de la API no se guardan, salvo los públicos que lo piden
+        respuesta.headers.append("Vary", "Cookie")                  # defensa en profundidad: ningún caché compartido mezcla sesiones
     return respuesta
 
 

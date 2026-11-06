@@ -24,20 +24,32 @@ SIGT.modulos.indicadores = () => ({
         (!this.fq.frecuencia || i.frecuencia === this.fq.frecuencia) &&
         (this.fq.estado === '' || (this.fq.estado === 'activo') === i.activo));
     },
+    codigoSugerido: '',
+    get etiquetaNC() { return (this.params.codigo_formato || 'NC-16').split('-').slice(0, 2).join('-'); },
+    get encargadosDelArea() { return this.usuarios.filter(u => u.rol === 'jefe' && u.activo && u.area_id === this.ficha.area_id); },
+    async cambioDeArea() {
+      if (!this.encargadosDelArea.some(u => u.id === this.ficha.encargado_id)) this.ficha.encargado_id = this.encargadosDelArea.length === 1 ? this.encargadosDelArea[0].id : null;
+      await this.pedirCodigo();
+    },
+    async pedirCodigo() {
+      if (this.ficha.id || !this.ficha.area_id) { this.codigoSugerido = ''; return; }
+      try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?area_id=${this.ficha.area_id}`)).codigo; } catch { this.codigoSugerido = ''; }
+    },
     nuevaFicha() {
       this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', meta: 90, limite: 80, meta_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables. Pulse «Guía de fórmulas» para ver funciones y ejemplos.');
+      this.cambioDeArea();
     },
     editarFicha(i) {
       this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.constantes ||= [];
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
-      this.abrirFicha(''); this.validarFormula();
+      this.abrirFicha(''); this.validarFormula(); this.codigoSugerido = '';
     },
     duplicarFicha(i) {
       this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true };
       this.ficha.constantes ||= [];
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
-      this.abrirFicha('Ficha duplicada: asigne un código nuevo.'); this.validarFormula();
+      this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo();
     },
     abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.ay = ''; this.verGuiaFormulas = false; this.modal = true; },
     get fichaBloqueada() { return (this.ficha.n_mediciones || 0) > 0; },
@@ -83,7 +95,7 @@ SIGT.modulos.indicadores = () => ({
     },
     cuerpoFicha(f) {
       return {
-        codigo: f.codigo, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
+        codigo: f.id ? f.codigo : '', encargado_id: f.encargado_id || null, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
         variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta, ayuda: v.ayuda || '', unidad: v.unidad || '', opcional: !!v.opcional, defecto: Number(v.defecto || 0), negativo: !!v.negativo })),
         constantes: (f.constantes || []).map(c => ({ clave: c.clave, etiqueta: c.etiqueta, valor: Number(c.valor) })),
         decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', meta: f.meta, limite: f.limite,
