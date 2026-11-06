@@ -30,6 +30,6 @@ def test_logo_se_valida_redimensiona_y_no_aparece_en_reportes(client):
         assert client.delete("/api/logo").json()["logo_url"] is None
 
 
-def test_antes_de_iniciar_sesion_solo_se_expone_el_logo(client):
+def test_antes_de_iniciar_sesion_solo_se_expone_la_marca(client):
     client.cookies.clear()
-    assert set(client.get("/api/publico").json()) == {"logo_url"}      # ni nombre de empresa ni otros datos
+    assert set(client.get("/api/publico").json()) == {"empresa", "logo_url"}      # nada más: ni usuarios, ni áreas, ni parámetros
