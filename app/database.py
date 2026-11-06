@@ -45,7 +45,8 @@ if ES_SQLITE:
 elif ES_POSTGRES:
     # Serverless (Vercel): sin pool propio; el pooler de Supabase gestiona las conexiones.
     _pool = {"poolclass": NullPool} if os.getenv("VERCEL") or os.getenv("SIGT_NULLPOOL") == "1" else \
-        {"pool_size": int(os.getenv("SIGT_POOL_SIZE", "5")), "max_overflow": 5, "pool_recycle": 300}
+        {"pool_size": int(os.getenv("SIGT_POOL_SIZE", "5")), "max_overflow": 5, "pool_recycle": 300,
+         "pool_timeout": 10, "pool_use_lifo": True}   # espera máx. 10 s por una conexión (luego 503) y reutiliza las más recientes
     engine = create_engine(
         DATABASE_URL, pool_pre_ping=True, **_pool,
         # prepare_threshold=None: compatible con el pooler transaccional de Supabase (puerto 6543)

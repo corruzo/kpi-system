@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import io
+import time
 
 from sqlalchemy.orm import Session
 
@@ -14,20 +15,33 @@ LADO_MAXIMO = 600
 _TIPOS = ("image/png", "image/jpeg", "image/webp")
 
 
+_CACHE_SEGUNDOS = 60
+_cache: dict = {"hasta": 0.0, "datos": None}
+
+
+def _invalidar() -> None:
+    _cache["hasta"] = 0.0
+
+
 def bytes_logo(db: Session) -> bytes | None:
+    """Logo en bytes. Se recuerda 60 s en memoria: es lo que más se pide (pantalla de ingreso) y casi nunca cambia."""
+    if time.monotonic() < _cache["hasta"]:
+        return _cache["datos"]
     fila = db.get(Parametro, "logo")
-    if not fila or not fila.valor:
-        return None
-    try:
-        return base64.b64decode(fila.valor.split(",", 1)[1])
-    except Exception:
-        return None
+    datos = None
+    if fila and fila.valor:
+        try:
+            datos = base64.b64decode(fila.valor.split(",", 1)[1])
+        except Exception:
+            datos = None
+    _cache.update(hasta=time.monotonic() + _CACHE_SEGUNDOS, datos=datos)
+    return datos
 
 
 def url_logo(db: Session) -> str | None:
     """URL pública del logo, con una huella para que el navegador renueve su caché al cambiarlo."""
     datos = bytes_logo(db)
-    return f"/api/logo?v={hashlib.sha1(datos).hexdigest()[:10]}" if datos else None
+    return f"/api/logo?v={hashlib.sha256(datos).hexdigest()[:10]}" if datos else None
 
 
 def _decodificar(data_url: str) -> bytes:
@@ -69,6 +83,7 @@ def guardar(db: Session, usuario: Usuario, data_url: str) -> str:
         db.add(Parametro(clave="logo", valor=valor))
     auditoria.registrar(db, usuario, "LOGO_ACTUALIZADO", "parametro", None, {"bytes": len(png), "ancho": ancho, "alto": alto})
     db.commit()
+    _invalidar()
     return url_logo(db)
 
 
@@ -78,3 +93,4 @@ def quitar(db: Session, usuario: Usuario) -> None:
         db.delete(fila)
         auditoria.registrar(db, usuario, "LOGO_ELIMINADO", "parametro", None, {})
         db.commit()
+    _invalidar()

@@ -39,8 +39,9 @@ def eliminar_area(area_id: IdRuta, db: Session = Depends(get_db), u: Usuario = D
 # ---------------------------------------------------------------- usuarios
 @router.get("/usuarios")
 def listar_usuarios(db: Session = Depends(get_db), _=Depends(solo_admin)):
-    con_historial = organizacion.ids_con_historial(db)
-    return [{**ser.usuario(x), "puede_eliminarse": x.id not in con_historial} for x in organizacion.listar_usuarios(db)]
+    con_historial, ingresos = organizacion.ids_con_historial(db), organizacion.ultimos_ingresos(db)
+    return [{**ser.usuario(x), "puede_eliminarse": x.id not in con_historial, "ultimo_ingreso": ser.iso(ingresos.get(x.id))}
+            for x in organizacion.listar_usuarios(db)]
 
 
 @router.post("/usuarios", status_code=201)
@@ -52,6 +53,20 @@ def crear_usuario(datos: schemas.UsuarioIn, db: Session = Depends(get_db), u: Us
 def editar_usuario(usuario_id: IdRuta, datos: schemas.UsuarioEdit, db: Session = Depends(get_db),
                    u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     return ser.usuario(organizacion.editar_usuario(db, u, usuario_id, datos))
+
+
+@router.post("/usuarios/{usuario_id}/cerrar-sesiones")
+def cerrar_sesiones(usuario_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+    """Soporte: cierra las sesiones abiertas del usuario en todos sus dispositivos."""
+    organizacion.cerrar_sesiones(db, u, usuario_id)
+    return {"ok": True}
+
+
+@router.post("/sistema/desbloquear-accesos")
+def desbloquear_accesos(db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+    """Soporte: levanta el bloqueo por intentos fallidos de ingreso."""
+    organizacion.desbloquear_accesos(db, u)
+    return {"ok": True}
 
 
 @router.delete("/usuarios/{usuario_id}")
@@ -107,11 +122,13 @@ def reiniciar_sistema(datos: schemas.ReinicioIn, db: Session = Depends(get_db), 
 
 # ---------------------------------------------------------------- logo
 @router.get("/logo", include_in_schema=False)
-def ver_logo(db: Session = Depends(get_db)):
+def ver_logo(v: str | None = None, db: Session = Depends(get_db)):
     datos = marca.bytes_logo(db)
     if not datos:
         raise NoEncontrado("Sin logo.")
-    return Response(datos, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    # con ?v=<huella> la URL cambia si cambia el logo: el navegador puede guardarlo un año
+    cache = "public, max-age=31536000, immutable" if v else "public, max-age=3600"
+    return Response(datos, media_type="image/png", headers={"Cache-Control": cache})
 
 
 @router.put("/logo")

@@ -21,16 +21,25 @@
           </div>
         </div>
         <div class="card lg:col-span-3 self-start">
-          <div class="card-h"><h2 class="font-semibold">Usuarios</h2><button class="btn btn-p btn-sm" @click="nuevoUsuario()">+ Nuevo usuario</button></div>
+          <div class="card-h"><h2 class="font-semibold">Usuarios</h2><span class="flex flex-wrap gap-2"><button class="btn btn-s btn-sm" :disabled="busy" @click="desbloquearAccesos()" title="Levanta el bloqueo por intentos fallidos de ingreso">Desbloquear accesos</button><button class="btn btn-p btn-sm" @click="nuevoUsuario()">+ Nuevo usuario</button></span></div>
           <ul class="divide-y divide-slate-100">
             <template x-for="x in usuarios" :key="x.id"><li class="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap" :class="!x.activo && 'bg-slate-50'">
               <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600" x-text="iniciales(x)"></span>
-              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" :class="!x.activo && 'text-slate-500'" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inactivo')"></span></span>
-              <span class="flex shrink-0 flex-wrap justify-end gap-1.5">
+              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" :class="!x.activo && 'text-slate-500'" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inhabilitado')"></span><span class="block truncate text-[11px] text-slate-400" x-text="ultimoIngreso(x)"></span></span>
+              <span class="flex w-full flex-wrap gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
                 <button class="btn btn-s btn-sm" @click="editarUsuario(x)">Editar</button>
+                <button class="btn btn-s btn-sm" x-show="x.id !== user.id" @click="abrirSoporte(x)" :aria-expanded="soporte===x.id">Soporte</button>
                 <button class="btn btn-s btn-sm" x-show="x.id !== user.id" :disabled="busy" @click="alternarUsuario(x)" x-text="x.activo ? 'Inhabilitar' : 'Habilitar'"></button>
                 <button class="btn btn-d btn-sm" x-show="x.id !== user.id" :disabled="busy || !x.puede_eliminarse" @click="eliminarUsuario(x)" :title="x.puede_eliminarse ? 'Eliminar definitivamente' : 'Tiene actividad registrada: solo puede inhabilitarse'">Eliminar</button>
               </span>
+              <div class="basis-full rounded-2xl bg-slate-50 p-3 sm:ml-[3.25rem]" x-show="soporte===x.id && x.id !== user.id" x-transition>
+                <div class="eyebrow mb-2">Soporte a este usuario</div>
+                <div class="flex flex-wrap gap-2">
+                  <button class="btn btn-s btn-sm" @click="editarUsuario(x); generarClave()">Generar clave temporal</button>
+                  <button class="btn btn-s btn-sm" :disabled="busy" @click="cerrarSesiones(x)">Cerrar sus sesiones</button>
+                  <button class="btn btn-s btn-sm" @click="verActividad(x)">Ver su actividad</button>
+                </div>
+              </div>
             </li></template>
           </ul>
         </div>

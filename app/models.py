@@ -43,14 +43,14 @@ class Ejercicio(Base):
     __table_args__ = (CheckConstraint("estado IN ('abierto', 'cerrado')", name="ck_ejercicios_estado"),)
     anio: Mapped[int] = mapped_column(Integer, primary_key=True)             # año en que termina
     estado: Mapped[str] = mapped_column(String(10), default="cerrado")      # cerrado | abierto
-    cerrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    cerrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     cerrado_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota: Mapped[str | None] = mapped_column(Text, default="")
     resumen: Mapped[dict | None] = mapped_column(JSON)                      # foto de los resultados al cerrar
-    reabierto_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    reabierto_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     reabierto_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_reapertura: Mapped[str | None] = mapped_column(Text, default="")
-    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     creado_en: Mapped[datetime | None] = mapped_column(DateTime)
     cerrado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[cerrado_por_id])
 
@@ -65,7 +65,7 @@ class Presupuesto(Base):
     indicador_id: Mapped[int] = mapped_column(ForeignKey("indicadores.id"))
     periodo: Mapped[str] = mapped_column(String(10))
     valor: Mapped[float] = mapped_column(Float)
-    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     actualizado_en: Mapped[datetime | None] = mapped_column(DateTime)
 
 
@@ -173,9 +173,9 @@ class Medicion(Base):
     analisis: Mapped[str] = mapped_column(Text, default="")
     plan_mejora: Mapped[str] = mapped_column(Text, default="")
     version: Mapped[int] = mapped_column(Integer, default=1)
-    cargado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"))
+    cargado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
     cargado_en: Mapped[datetime] = mapped_column(DateTime, index=True)
-    revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    revisado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     revisado_en: Mapped[datetime | None] = mapped_column(DateTime)
     nota_revision: Mapped[str] = mapped_column(Text, default="")
     # Foto del método de cálculo vigente al cargar (reproducibilidad del histórico)
@@ -212,7 +212,7 @@ class NotaAuditoria(Base):
     __tablename__ = "notas_auditoria"
     id: Mapped[int] = mapped_column(primary_key=True)
     medicion_id: Mapped[int] = mapped_column(ForeignKey("mediciones.id"), index=True)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"))
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
     texto: Mapped[str] = mapped_column(Text)
     fecha: Mapped[datetime] = mapped_column(DateTime, default=ahora)
     medicion: Mapped[Medicion] = relationship(back_populates="notas")
@@ -224,7 +224,7 @@ class Bitacora(Base):
     __tablename__ = "bitacora"
     id: Mapped[int] = mapped_column(primary_key=True)
     fecha: Mapped[datetime] = mapped_column(DateTime)
-    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)
     usuario_nombre: Mapped[str] = mapped_column(String(120))
     rol: Mapped[str] = mapped_column(String(20))
     accion: Mapped[str] = mapped_column(String(40), index=True)

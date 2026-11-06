@@ -6,7 +6,7 @@ SIGT.modulos.ejercicios = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      ingreso() { return this.cargarEjercicios(); },
+      ingreso: Object.assign(function () { return this.cargarEjercicios(); }, { primero: true }),   // los demás módulos dependen del ejercicio elegido
       entrar: { ejercicios() { return this.cargarEjerciciosVista(); } },
     },
 

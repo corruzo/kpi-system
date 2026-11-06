@@ -3,6 +3,7 @@
 El HTML se divide en archivos pequeños —una vista o ventana por archivo— que `index.html` incluye con
 `<!--#incluir parciales/xxx.html-->`. La página se ensambla en el servidor, así que el navegador recibe un solo documento.
 """
+import hashlib
 import re
 from pathlib import Path
 
@@ -26,12 +27,26 @@ def _expandir(texto: str, profundidad: int = 0) -> str:
     return _INCLUIR.sub(sustituir, texto)
 
 
+_RECURSO = re.compile(r'((?:src|href|content)=")(/static/[^"?]+\.(?:js|css))"')
+
+
+def _con_huella(html: str) -> str:
+    """Agrega ?v=<huella> a los scripts y estilos: el navegador los guarda un año (sin volver a pedirlos) y, si un archivo
+    cambia, la URL cambia sola. Así la página carga rápido y nunca muestra una versión vieja."""
+    def sustituir(m: re.Match) -> str:
+        ruta = (BASE / m.group(2).removeprefix("/static/")).resolve()
+        if BASE.resolve() not in ruta.parents or not ruta.is_file():
+            return m.group(0)
+        return f'{m.group(1)}{m.group(2)}?v={hashlib.sha1(ruta.read_bytes()).hexdigest()[:10]}"'
+    return _RECURSO.sub(sustituir, html)
+
+
 def pagina_principal() -> str:
     """HTML completo. En producción se arma una vez; en desarrollo se relee para ver los cambios al recargar."""
     global _cache
     if PRODUCCION and _cache is not None:
         return _cache
-    html = _expandir((BASE / "index.html").read_text(encoding="utf-8"))
+    html = _con_huella(_expandir((BASE / "index.html").read_text(encoding="utf-8")))
     if PRODUCCION:
         _cache = html
     return html

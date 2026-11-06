@@ -703,6 +703,28 @@ PASO 5.  CARGA MENSUAL
     - MONITOREO: GET /healthz responde {"ok": true} si la aplicación y la base están vivas.
 
 
+    SOPORTE A OTROS USUARIOS (desde el administrador)
+      Organización y equipo > Áreas y usuarios. En cada usuario:
+        - Último ingreso: se ve debajo del nombre ("Nunca ha ingresado" si no ha entrado).
+        - Soporte > "Generar clave temporal": crea una clave aleatoria de 14 caracteres y la muestra UNA vez en pantalla
+          (cópiela). Pulse "Guardar": el usuario queda con esa clave y sus sesiones se cierran. Entréguesela y pídale que la
+          cambie al ingresar (menú de su perfil > Cambiar contraseña).
+        - Soporte > "Cerrar sus sesiones": lo saca de todos sus dispositivos (por ejemplo, un teléfono perdido).
+        - Soporte > "Ver su actividad": abre la Bitácora filtrada por ese usuario.
+        - "Inhabilitar" / "Habilitar" y "Eliminar" (ver sección 10).
+      Botón "Desbloquear accesos" (arriba de la lista): levanta el bloqueo por intentos fallidos de ingreso (cuando alguien
+      dice "Demasiados intentos fallidos"). Todo queda en la Bitácora.
+
+    CAPACIDAD Y SEGURIDAD DE LA BASE DE DATOS (Supabase / Vercel)
+      - La página y sus archivos se comprimen y se guardan en el navegador: la primera visita ronda 230 KB y las siguientes
+        unos 50 KB.
+      - La aplicación solo se conecta a la base con el rol "postgres" a través del "pooler" de Supabase (puerto 6543). Los roles
+        públicos de Supabase (anon / authenticated) no tienen ningún permiso sobre las tablas y todas tienen RLS activo: aunque
+        alguien conozca la dirección y la clave pública del proyecto, no puede leer ni escribir datos por esa vía.
+      - Para más usuarios simultáneos: en Supabase suba el tamaño de cómputo (Project Settings > Compute) y active respaldos
+        diarios o PITR; en Vercel active el Firewall con reglas de límite de peticiones por IP. Active la verificación en dos
+        pasos (2FA) en las cuentas de Supabase, Vercel y GitHub, y no comparta la SIGT_SECRET.
+
 ====================================================================================================
 16. PROBLEMAS FRECUENTES Y QUÉ HACER
 ====================================================================================================

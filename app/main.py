@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
@@ -32,6 +33,8 @@ CSP = ("default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; "
        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 CABECERAS_DE_SEGURIDAD = {"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin",
+                          "Cross-Origin-Opener-Policy": "same-origin", "Cross-Origin-Resource-Policy": "same-origin",
+                          "X-Permitted-Cross-Domain-Policies": "none",
                           "Content-Security-Policy": CSP, "Permissions-Policy": "camera=(), microphone=(), geolocation=()"}
 
 
@@ -64,7 +67,7 @@ async def asegurar_arranque_y_cabeceras(request: Request, call_next):
     if PRODUCCION:
         respuesta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     if request.url.path.startswith("/api/"):
-        respuesta.headers["Cache-Control"] = "no-store"
+        respuesta.headers.setdefault("Cache-Control", "no-store")   # los datos de la API no se guardan, salvo los públicos que lo piden
     return respuesta
 
 
@@ -122,6 +125,8 @@ async def responder_error_interno(request: Request, e: Exception):
 for router in ROUTERS:
     app.include_router(router)
 
+app.add_middleware(GZipMiddleware, minimum_size=1024)   # HTML, JS, CSS y JSON viajan comprimidos (≈ 70 % menos)
+
 
 @app.get("/healthz", include_in_schema=False)
 def salud(db: Session = Depends(get_db)):
@@ -132,7 +137,18 @@ def salud(db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-app.mount("/static", StaticFiles(directory=ESTATICOS), name="static")
+class EstaticosConCache(StaticFiles):
+    """Archivos estáticos con caché: los que llevan huella (?v=) o son tipografías se guardan un año; el resto, cinco minutos."""
+    async def get_response(self, path, scope):
+        respuesta = await super().get_response(path, scope)
+        if respuesta.status_code == 200:
+            eterno = b"v=" in scope.get("query_string", b"") or path.startswith("fonts/")
+            respuesta.headers["Cache-Control"] = ("public, max-age=31536000, immutable" if eterno
+                                                  else "public, max-age=300, must-revalidate")
+        return respuesta
+
+
+app.mount("/static", EstaticosConCache(directory=ESTATICOS), name="static")
 
 
 @app.get("/", include_in_schema=False)

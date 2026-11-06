@@ -24,9 +24,10 @@ SIGT.modulos.ficha_tecnica = () => ({
       todos.sort((a, b) => b.clave.length - a.clave.length).forEach(v => t = t.replace(new RegExp('\\b' + v.clave + '\\b', 'g'), v.clave.toUpperCase()));
       return [`${i.sigla || 'IND'} = ${t}`, ...i.variables.map(v => `${v.clave.toUpperCase()} = ${v.etiqueta}`), ...(i.constantes || []).map(c => `${c.clave.toUpperCase()} = ${c.etiqueta} (${c.valor})`)].join('\n');
     },
-    dibujarFicha() {
+    async dibujarFicha() {
+      try { await this.cargarGraficos(); } catch (e) { this.avisar(e.message, true); return; }
       const d = this.fv.data, c = document.getElementById('ch-ficha');
-      if (!d || !c || typeof Chart === 'undefined') return;
+      if (!d || !c) return;
       Chart.getChart(c)?.destroy();
       const i = d.indicador, ps = d.periodos.filter(p => p.medicion && p.medicion.estado !== 'observado'), mayor = i.sentido === 'mayor';
       const linea = (l, v, col) => ({ label: l, data: ps.map(() => v), borderColor: col, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 });

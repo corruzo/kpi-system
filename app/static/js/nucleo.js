@@ -1,14 +1,21 @@
 /* Núcleo: arranque, comunicación con la API, avisos, descargas y navegación entre vistas. */
 SIGT.modulos.nucleo = () => ({
     ready: false, view: '', busy: false, menu: false, mas: false,
+    pendientes: 0, cargando: false, _tc: null, sinConexion: !navigator.onLine, fallaArranque: '',
     toast: { msg: '', error: false }, _toastT: null,
 
     // ------------------------------------------------------------ arranque
     async init() {
       // Cualquier error no controlado se avisa al usuario (y se deja en la consola) en lugar de fallar en silencio.
+      addEventListener('online', () => { this.sinConexion = false; this.avisar('Conexión restablecida.'); });
+      addEventListener('offline', () => { this.sinConexion = true; });
       addEventListener('unhandledrejection', ev => { ev.preventDefault(); console.error(ev.reason); if (!ev.reason?.avisado) this.avisar('Ocurrió un error inesperado. Si continúa, recargue la página.', true); });
       try { this.marca = await (await fetch('/api/publico')).json(); } catch { }
-      try { this.user = await this.api('/api/me', {}, true); } catch { this.user = null; }
+      try { this.user = await this.api('/api/me', {}, true); }
+      catch (e) {
+        this.user = null;
+        if (e.estado !== 401) { this.fallaArranque = e.message; return; }   // sin sesión es normal (login); otra causa es una falla real
+      }
       if (this.user) {      // con sesión válida, un fallo al cargar los datos NO debe parecer un cierre de sesión
         try { await this.abrirSesion(); } catch (e) { if (!e.avisado) this.avisar('No se pudieron cargar todos los datos. Recargue la página.', true); }
       }
@@ -17,7 +24,10 @@ SIGT.modulos.nucleo = () => ({
     },
     // Tras ingresar: cada módulo carga sus datos (ganchos «ingreso»), se abre la vista inicial del rol y se avisa a «listo».
     async abrirSesion() {
-      for (const cargar of this.ganchos.ingreso) await cargar.call(this);
+      // Lo que otros módulos necesitan (el ejercicio elegido) va primero; el resto se carga EN PARALELO: tarda lo del más lento.
+      const [primeros, resto] = [this.ganchos.ingreso.filter(f => f.primero), this.ganchos.ingreso.filter(f => !f.primero)];
+      for (const cargar of primeros) await cargar.call(this);
+      await Promise.all(resto.map(cargar => cargar.call(this)));
       await this.go(VISTA_INICIAL);
       for (const f of this.ganchos.listo) await f.call(this);
     },
@@ -30,10 +40,11 @@ SIGT.modulos.nucleo = () => ({
       if (o.body && typeof o.body !== 'string' && !(o.body instanceof FormData)) { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
       const falla = (msg, estado) => { if (!silencioso) this.avisar(msg, true); return Object.assign(new Error(msg), { avisado: true, estado }); };
       const control = new AbortController(), plazo = setTimeout(() => control.abort(), 60000);
+      this.iniciarCarga();
       let r;
       try { r = await fetch(url, { ...o, signal: control.signal }); }
       catch (e) { throw falla(e.name === 'AbortError' ? 'El servidor tardó demasiado en responder. Intente de nuevo.' : 'No hay conexión con el servidor. Revise su internet e intente de nuevo.'); }
-      finally { clearTimeout(plazo); }
+      finally { clearTimeout(plazo); this.terminarCarga(); }
       if (!r.ok) {
         let d = {}; try { d = await r.json(); } catch { }
         let msg = d.detail || (r.status >= 500 ? `El servidor tuvo un problema (código ${r.status}). Intente de nuevo en unos segundos.` : 'Error inesperado.');
@@ -42,6 +53,18 @@ SIGT.modulos.nucleo = () => ({
         throw falla(msg, r.status);
       }
       try { return await r.json(); } catch { throw falla('La respuesta del servidor no es válida. Recargue la página.', r.status); }
+    },
+    // Barra de progreso global: se muestra si alguna petición tarda más de 0,2 s
+    iniciarCarga() { this.pendientes++; if (!this._tc) this._tc = setTimeout(() => { this.cargando = this.pendientes > 0; }, 200); },
+    terminarCarga() { if (--this.pendientes <= 0) { this.pendientes = 0; clearTimeout(this._tc); this._tc = null; this.cargando = false; } },
+    // Chart.js (200 KB) se baja solo cuando una pantalla necesita gráficos
+    cargarGraficos() {
+      if (window.Chart) return Promise.resolve();
+      return this._graficos ||= new Promise((ok, no) => {
+        const s = document.createElement('script'); s.src = document.querySelector('meta[name="sgc-chart"]').content;
+        s.onload = ok; s.onerror = () => { this._graficos = null; no(Object.assign(new Error('No se pudieron cargar los gráficos. Revise su conexión.'), { avisado: false })); };
+        document.head.appendChild(s);
+      });
     },
     avisar(msg, error = false) {
       this.toast = { msg, error }; clearTimeout(this._toastT);

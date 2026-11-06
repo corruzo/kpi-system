@@ -24,8 +24,9 @@ SIGT.modulos.panel = () => ({
       if (!this.dash.indicadores.some(i => i.id === this.tendInd)) this.tendInd = this.dash.indicadores.find(i => i.serie.length)?.id || this.dash.indicadores[0]?.id;
       this.$nextTick(() => this.dibujar());
     },
-    dibujar() {
-      if (!this.dash || typeof Chart === 'undefined') return;
+    async dibujar() {
+      if (!this.dash) return;
+      try { await this.cargarGraficos(); } catch (e) { this.avisar(e.message, true); return; }
       const nuevo = (id, cfg) => { const c = document.getElementById(id); if (!c) return; Chart.getChart(c)?.destroy(); new Chart(c, cfg); };
       Chart.defaults.font.family = 'Manrope, ui-sans-serif, system-ui, "Segoe UI", sans-serif'; Chart.defaults.color = '#476788'; Chart.defaults.borderColor = '#d4e0ed';
       const r = this.dash.resumen, i = this.dash.indicadores.find(x => x.id === this.tendInd);

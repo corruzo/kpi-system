@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api", tags=["sesión"])
 
 def _abrir_sesion(response: Response, u: Usuario) -> None:
     response.set_cookie(security.COOKIE, security.crear_token(u.id, u.sesion_v), httponly=True, secure=PRODUCCION,
-                        samesite="lax", max_age=security.DURACION)
+                        samesite="strict", max_age=security.DURACION)
 
 
 @router.post("/login")
@@ -52,6 +52,7 @@ def marcar_guia(datos: schemas.TourIn, db: Session = Depends(get_db), u: Usuario
 
 
 @router.get("/publico")
-def datos_publicos(db: Session = Depends(get_db)):
+def datos_publicos(response: Response, db: Session = Depends(get_db)):
     """Datos visibles antes de iniciar sesión: solo la marca de la pantalla de ingreso (nombre de la empresa y logo)."""
+    response.headers["Cache-Control"] = "public, max-age=60"   # el dato más pedido y sin sesión: no debe ir a la base cada vez
     return {"empresa": parametros.leer(db).get("empresa", ""), "logo_url": marca.url_logo(db)}

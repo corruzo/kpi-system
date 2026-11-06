@@ -27,6 +27,9 @@ SIGT.modulos.bitacora = () => ({
         case 'REPORTE_EXPORTADO': return `Reporte Excel (${d.filas} filas) ${(d.filtros || []).join(' · ')}`;
         case 'INDICADOR_EDITADO': return `${d.codigo}: cambios en ` + Object.keys(d.cambios || {}).join(', ');
         case 'INICIO_SESION': return 'Inicio de sesión';
+        case 'USUARIO_ELIMINADO': return `${d.username || ''} (${d.nombre || ''}) eliminado`;
+        case 'SESIONES_CERRADAS': return `Sesiones de ${d.username || ''} cerradas por soporte`;
+        case 'ACCESOS_DESBLOQUEADOS': return 'Bloqueo por intentos fallidos levantado';
         case 'IMPORTACION': return `${d.codigo} ← ${d.archivo} (${d.hoja}): ${(d.periodos || []).length} períodos importados`;
         case 'PARAMETROS_EDITADOS': return 'Cambios: ' + Object.keys(d.cambios || {}).join(', ');
         case 'CATALOGO_CREADO': case 'CATALOGO_ELIMINADO': return d.valor || `${d.cantidad || ''} elementos (${d.origen || ''})`;

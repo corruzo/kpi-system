@@ -2,6 +2,7 @@
 SIGT.modulos.organizacion = () => ({
     areas: [], usuarios: [], catalogos: [], orgTab: 'equipo',
     usuario: {}, modalUsuario: false, areaForm: { id: null, nombre: '' },
+    soporte: null, claveTemporal: '',
     catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
     reinicio: { abierto: false, frase: '', password: '' },
 
@@ -28,8 +29,8 @@ SIGT.modulos.organizacion = () => ({
       if (!confirm(`¿Eliminar el área «${a.nombre}»?`)) return;
       try { await this.api(`/api/areas/${a.id}`, { method: 'DELETE' }); this.areas = await this.api('/api/areas'); this.avisar('Área eliminada.'); } catch { }
     },
-    nuevoUsuario() { this.usuario = { username: '', nombre: '', rol: 'jefe', area_id: '', password: '', activo: true }; this.modalUsuario = true; },
-    editarUsuario(x) { this.usuario = { ...x, area_id: x.area_id || '', password: '' }; this.modalUsuario = true; },
+    nuevoUsuario() { this.claveTemporal = ''; this.usuario = { username: '', nombre: '', rol: 'jefe', area_id: '', password: '', activo: true }; this.modalUsuario = true; },
+    editarUsuario(x) { this.claveTemporal = ''; this.usuario = { ...x, area_id: x.area_id || '', password: '' }; this.modalUsuario = true; },
     async guardarUsuario() {
       this.busy = true;
       try {
@@ -59,6 +60,27 @@ SIGT.modulos.organizacion = () => ({
       try { await this.api(`/api/usuarios/${x.id}`, { method: 'DELETE' }); this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario eliminado.'); } catch { }
       this.busy = false;
     },
+    // ------------------------------------------------------------ soporte a usuarios (administrador)
+    abrirSoporte(x) { this.soporte = this.soporte === x.id ? null : x.id; },
+    async cerrarSesiones(x) {
+      if (!confirm(`¿Cerrar las sesiones abiertas de «${x.nombre}» en todos sus dispositivos? Deberá volver a ingresar.`)) return;
+      this.busy = true;
+      try { await this.api(`/api/usuarios/${x.id}/cerrar-sesiones`, { method: 'POST' }); this.avisar('Sesiones cerradas.'); } catch { }
+      this.busy = false;
+    },
+    async desbloquearAccesos() {
+      if (!confirm('¿Levantar el bloqueo por intentos fallidos de ingreso? Los usuarios bloqueados podrán volver a intentarlo ya.')) return;
+      this.busy = true;
+      try { await this.api('/api/sistema/desbloquear-accesos', { method: 'POST' }); this.avisar('Accesos desbloqueados.'); } catch { }
+      this.busy = false;
+    },
+    async verActividad(x) { this.bitUsuario = x.nombre; this.bitAccion = ''; await this.go('bitacora'); },
+    // Clave temporal: aleatoria (criptográfica), de 14 caracteres sin letras ambiguas; el administrador la comunica al usuario
+    generarClave() {
+      const abc = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint32Array(14));
+      this.usuario.password = Array.from(r, n => abc[n % abc.length]).join(''); this.claveTemporal = this.usuario.password;
+    },
+    ultimoIngreso(x) { return x.ultimo_ingreso ? 'Último ingreso: ' + this.fecha(x.ultimo_ingreso) : 'Nunca ha ingresado'; },
     get catActual() { return this.catalogos.filter(c => c.tipo === this.catTab); },
     async guardarCat() {
       this.busy = true;

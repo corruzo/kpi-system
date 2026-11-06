@@ -20,3 +20,11 @@ ALTER TABLE catalogos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ejercicios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE intentos_fallidos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE presupuestos ENABLE ROW LEVEL SECURITY;
+
+-- Migración 0006: blindaje adicional (idempotente)
+ALTER TABLE alembic_version ENABLE ROW LEVEL SECURITY;
+ALTER FUNCTION public.bitacora_inmutable() SET search_path = '';
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;

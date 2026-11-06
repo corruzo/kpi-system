@@ -6,6 +6,7 @@ from .. import security
 from ..errores import Conflicto, Invalido, NoEncontrado
 from ..models import Area, Bitacora, Catalogo, Ejercicio, Indicador, Medicion, NotaAuditoria, Presupuesto, Usuario
 from . import auditoria
+from .sesion import limite_intentos
 
 
 # ---------------------------------------------------------------- áreas
@@ -115,6 +116,32 @@ def ids_con_historial(db: Session) -> set[int]:
                  select(NotaAuditoria.usuario_id), select(Ejercicio.creado_por_id), select(Ejercicio.cerrado_por_id),
                  select(Ejercicio.reabierto_por_id), select(Presupuesto.actualizado_por_id)]
     return {i for i in db.scalars(union(*consultas)) if i is not None}
+
+
+def ultimos_ingresos(db: Session) -> dict[int, object]:
+    """{usuario_id: fecha de su último ingreso}, en una sola consulta (para el soporte a usuarios)."""
+    filas = db.execute(select(Bitacora.usuario_id, func.max(Bitacora.fecha)).where(Bitacora.accion == "INICIO_SESION")
+                       .group_by(Bitacora.usuario_id))
+    return {uid: fecha for uid, fecha in filas if uid is not None}
+
+
+def cerrar_sesiones(db: Session, admin: Usuario, usuario_id: int) -> None:
+    """Soporte: saca a un usuario de todos sus dispositivos (sube su versión de sesión). Debe volver a ingresar."""
+    u = db.get(Usuario, usuario_id)
+    if not u:
+        raise NoEncontrado("Usuario no encontrado.")
+    if u.id == admin.id:
+        raise Invalido("Para cerrar su propia sesión use «Cerrar sesión» del menú de su perfil.")
+    u.sesion_v += 1
+    auditoria.registrar(db, admin, "SESIONES_CERRADAS", "usuario", u.id, {"username": u.username})
+    db.commit()
+
+
+def desbloquear_accesos(db: Session, admin: Usuario) -> None:
+    """Soporte: levanta el bloqueo por intentos fallidos de ingreso (de todos los usuarios y orígenes)."""
+    limite_intentos.reiniciar()
+    auditoria.registrar(db, admin, "ACCESOS_DESBLOQUEADOS", "sistema", None, {})
+    db.commit()
 
 
 def eliminar_usuario(db: Session, admin: Usuario, usuario_id: int) -> None:
