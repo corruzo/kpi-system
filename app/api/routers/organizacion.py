@@ -1,11 +1,13 @@
 """Organización: áreas, usuarios, listas de apoyo, parámetros del sistema y logo."""
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from ... import schemas
 from ...errores import NoEncontrado
 from ...models import Usuario
-from ...servicios import marca, organizacion, parametros, reinicio
+from ...servicios import auditoria, marca, organizacion, parametros, reinicio, respaldo
 from .. import serializadores as ser
 from ..deps import IdRuta, escritura, get_db, requiere, usuario_actual
 
@@ -140,3 +142,15 @@ def guardar_logo(datos: schemas.LogoIn, db: Session = Depends(get_db), u: Usuari
 def quitar_logo(db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
     marca.quitar(db, u)
     return {"logo_url": None}
+
+
+@router.post("/respaldo")
+def descargar_respaldo(datos: schemas.RespaldoIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+    """Respaldo cifrado de toda la base (se descarga como archivo). La frase de paso no se guarda en ningún lado."""
+    archivo, resumen = respaldo.crear(db, datos.frase)
+    auditoria.registrar(db, u, "RESPALDO_CREADO", "sistema", None, {"bytes": resumen["bytes"], "sha256": resumen["sha256_archivo"]})
+    db.commit()
+    nombre = f"sigt-respaldo-{datetime.now(UTC):%Y%m%d-%H%M%S}.sigtbak"
+    return Response(archivo, media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"', "Cache-Control": "no-store",
+                             "X-Respaldo-Sha256": resumen["sha256_archivo"]})

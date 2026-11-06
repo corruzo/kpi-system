@@ -68,6 +68,18 @@ SIGT.modulos.organizacion = () => ({
       try { await this.api(`/api/usuarios/${x.id}/cerrar-sesiones`, { method: 'POST' }); this.avisar('Sesiones cerradas.'); } catch { }
       this.busy = false;
     },
+    respFrase: '',
+    async descargarRespaldo() {
+      this.busy = true;
+      try {
+        const r = await fetch('/api/respaldo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ frase: this.respFrase }) });
+        if (!r.ok) { let d = {}; try { d = await r.json(); } catch { } throw new Error(typeof d.detail === 'string' ? d.detail : 'No se pudo generar el respaldo.'); }
+        const nombre = (r.headers.get('content-disposition') || '').match(/filename="?([^";]+)/)?.[1] || 'respaldo.sigtbak';
+        const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000); this.respFrase = ''; this.avisar('Respaldo cifrado descargado. Guárdelo fuera del servidor.');
+      } catch (e) { this.avisar(e.message, true); }
+      this.busy = false;
+    },
     async desbloquearAccesos() {
       if (!confirm('¿Levantar el bloqueo por intentos fallidos de ingreso? Los usuarios bloqueados podrán volver a intentarlo ya.')) return;
       this.busy = true;

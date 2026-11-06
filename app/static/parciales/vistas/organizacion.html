@@ -54,6 +54,12 @@
               <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
               <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
             </div></div></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Respaldo de seguridad</h2></div>
+          <form class="card-b space-y-3" @submit.prevent="descargarRespaldo()">
+            <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, presupuestos y bitácora). Solo se puede abrir con la frase de paso que escriba aquí: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
+            <div><label class="lbl" for="frase-resp">Frase de paso (mínimo 12 caracteres)</label><input id="frase-resp" type="password" class="inp" x-model="respFrase" minlength="12" maxlength="200" autocomplete="new-password" required></div>
+            <button class="btn btn-s" :disabled="busy || respFrase.length < 12">Descargar respaldo cifrado</button>
+          </form></div>
         <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
           <form class="card-b space-y-3" @submit.prevent="guardarParametros()">
             <div><label class="lbl">Empresa</label><input class="inp" x-model="parForm.empresa" required maxlength="120"></div>

@@ -225,3 +225,8 @@ class ImpIn(BaseModel):
     indicadores: list[ImpIndicador] = Field(max_length=100)
     catalogos: list[ImpCatalogo] = Field(default_factory=list, max_length=500)
     areas_nuevas: list[str] = Field(default_factory=list, max_length=60)
+
+
+# ---------------------------------------------------------------- respaldo
+class RespaldoIn(BaseModel):
+    frase: str = Field(min_length=12, max_length=200)

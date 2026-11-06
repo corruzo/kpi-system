@@ -84,6 +84,11 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 - **Blindaje en Supabase (migración `0006`):** RLS en todas las tablas (incluida `alembic_version`) y sin ningún permiso para los roles públicos `anon` / `authenticated`: la única vía a los datos es esta aplicación. Cookie de sesión `HttpOnly` + `Secure` + `SameSite=Strict`, CSP, HSTS, `X-Frame-Options: DENY`, COOP/CORP, contraseñas PBKDF2, bloqueo por intentos, sesiones revocables (el administrador puede cerrarlas), bitácora inalterable.
 - **Límites honestos:** una aplicación FastAPI + una base PostgreSQL atiende con holgura a miles de usuarios simultáneos de una empresa; «millones» exigiría infraestructura (más cómputo en Supabase, réplicas de lectura, CDN, reglas de *rate limit* del Firewall de Vercel) que se configura en esas plataformas, no en el código. La política CSP conserva `unsafe-eval`/`unsafe-inline` porque Alpine.js (versión estándar) lo necesita.
 
+## Ingeniería, respaldos y operación
+- `docs/ARQUITECTURA.md`: capas, reglas de ingeniería y política de acceso (cada encargado de proceso ve **solo** los indicadores que se le asignan).
+- `docs/OPERACION.md`: respaldos cifrados (`python -m app.respaldar`, botón en *Organización*, flujo diario `.github/workflows/respaldo.yml`), RPO/RTO, restauración e incidentes.
+- `make verificar` (o el CI de GitHub: ruff, pytest en SQLite y PostgreSQL, migraciones + `alembic check`, CSS compilado, `pip-audit`).
+
 ## Robustez y calidad del código
 - **Errores:** toda excepción termina en JSON claro (`app/main.py`): restricción única/llave foránea → 409, valor fuera de rango → 422, base caída → 503 y cualquier otra → 500 con un **código** que se registra en el log con su traza (el usuario nunca ve detalles técnicos). `/healthz` responde 503 si la base no contesta. La interfaz (`nucleo.api`) convierte falta de conexión, tiempo agotado y respuestas no válidas en avisos en español, y avisa de cualquier error no controlado.
 - **Entradas:** ids, años y paginación se validan con rangos (`api/deps.py`: `IdRuta`, `AnioRuta`, `Limite`…); textos y diccionarios tienen tope de tamaño (`schemas.py`). La búsqueda por usuario en la bitácora trata `%` y `_` como texto.

@@ -1,0 +1,21 @@
+# pip install pre-commit && pre-commit install && pre-commit install --hook-type pre-push
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: ruff check
+        language: system
+        types: [python]
+      - id: css-compilado
+        name: tailwind.css al día
+        entry: sh -c 'npm run build:css >/dev/null && git diff --exit-code app/static/tailwind.css'
+        language: system
+        files: ^(src/|app/static/(parciales|js)/|tailwind.config.js)
+        pass_filenames: false
+      - id: pruebas
+        name: pytest
+        entry: python -m pytest -q -x
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

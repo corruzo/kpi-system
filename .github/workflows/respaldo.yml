@@ -1,0 +1,38 @@
+name: Respaldo cifrado de la base
+
+# Requiere los secretos del repositorio: SIGT_DATABASE_URL (URI de Supabase) y SIGT_BACKUP_KEY (frase de paso, 12+ caracteres).
+# El archivo sale cifrado (.sigtbak) y se guarda 30 días como artefacto privado. Descárguelo y consérvelo TAMBIÉN fuera de
+# Supabase y de GitHub (ver docs/OPERACION.md).
+on:
+  schedule:
+    - cron: "17 7 * * *"   # todos los días, 07:17 UTC (03:17 hora de Venezuela)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    env:
+      SIGT_ENV: production
+      SIGT_DATABASE_URL: ${{ secrets.SIGT_DATABASE_URL }}
+      SIGT_BACKUP_KEY: ${{ secrets.SIGT_BACKUP_KEY }}
+      SIGT_SECRET: ${{ secrets.SIGT_BACKUP_KEY }}   # la herramienta no firma sesiones; en producción solo se exige que exista
+    steps:
+      - name: Comprobar secretos
+        run: |
+          [ -n "$SIGT_DATABASE_URL" ] && [ -n "$SIGT_BACKUP_KEY" ] || { echo "::error::Faltan los secretos SIGT_DATABASE_URL y/o SIGT_BACKUP_KEY"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: python -m app.respaldar crear --salida respaldos
+      - name: Verificar que el respaldo se puede abrir
+        run: python -m app.respaldar verificar respaldos/*.sigtbak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_number }}
+          path: respaldos/*.sigtbak
+          retention-days: 30
+          if-no-files-found: error
