@@ -1,11 +1,11 @@
 """Organización: áreas, usuarios, listas de apoyo, parámetros del sistema y logo."""
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from ... import schemas
-from ...errores import NoEncontrado
+from ...errores import Invalido, NoEncontrado
 from ...models import Usuario
 from ...servicios import auditoria, marca, organizacion, parametros, reinicio, respaldo
 from .. import serializadores as ser
@@ -154,3 +154,28 @@ def descargar_respaldo(datos: schemas.RespaldoIn, db: Session = Depends(get_db),
     return Response(archivo, media_type="application/octet-stream",
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"', "Cache-Control": "no-store",
                              "X-Respaldo-Sha256": resumen["sha256_archivo"]})
+
+
+TOPE_RESPALDO = 60 * 1024 * 1024   # un respaldo mayor no es plausible y agotaría la memoria de la función
+
+
+@router.post("/respaldo/restaurar")
+async def restaurar_respaldo(archivo: UploadFile = File(...), frase: str = Form(..., min_length=12, max_length=200),
+                             password: str = Form(..., max_length=128), confirmacion: str = Form(..., max_length=40),
+                             db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+    """Reemplaza TODOS los datos por los del respaldo. Pide la frase del respaldo, la contraseña del administrador y escribir
+    RESTAURAR. Todo o nada. Al terminar, las sesiones abiertas dejan de valer: hay que volver a ingresar."""
+    if confirmacion.strip() != "RESTAURAR":
+        raise Invalido("Escriba exactamente «RESTAURAR» para confirmar.")
+    reinicio.exigir_password(u, password, f"restaurar|{u.id}")
+    contenido = await archivo.read(TOPE_RESPALDO + 1)
+    if len(contenido) > TOPE_RESPALDO:
+        raise Invalido("El archivo es demasiado grande para ser un respaldo de este sistema.")
+    r = respaldo.restaurar(db, contenido, frase, reemplazar=True)
+    db.expire_all()                      # lo cargado antes ya no corresponde a lo restaurado
+    restaurado = db.get(Usuario, u.id)   # si el administrador existe en el respaldo, deja constancia en la cadena restaurada
+    if restaurado:
+        auditoria.registrar(db, restaurado, "RESPALDO_RESTAURADO", "sistema", None, {"respaldo_del": r["creado"]})
+        db.commit()
+    parametros.refrescar(forzar=True)
+    return {"ok": True, "creado": r["creado"], "tablas": r["tablas"]}

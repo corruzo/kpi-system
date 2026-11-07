@@ -6,7 +6,6 @@ SIGT.modulos.revision = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      async ingreso() { if (['gerente', 'admin'].includes(this.user.rol)) await this.cargarBandeja(); },
       ejercicio() { this.filtro2.periodo = ''; },
       entrar: { historial() { return this.cargarHistorial(); }, bandeja() { return this.cargarBandeja(); } },
     },

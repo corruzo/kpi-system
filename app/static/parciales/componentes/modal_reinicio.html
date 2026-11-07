@@ -1,5 +1,5 @@
   <!-- ===== Modal: reinicio de fábrica ===== -->
-  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="reinicio.abierto" x-transition.opacity>
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="reinicio.abierto" x-transition.opacity>
     <form class="sheet w-full max-w-md" @submit.prevent="confirmarReinicio()" @keydown.escape.window="reinicio.abierto=false">
       <div class="card-h"><h2 class="text-lg font-bold text-red-800">Borrar todos los datos</h2><button type="button" class="btn btn-s btn-sm" @click="reinicio.abierto=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-4">

@@ -69,3 +69,31 @@ def test_el_respaldo_no_deja_datos_legibles_y_solo_lo_descarga_el_admin(client, 
     jefe = crear_usuario(client, "jefe", crear_area(client))
     entrar(client, jefe, CLAVE)
     assert client.post("/api/respaldo", json={"frase": FRASE}).status_code == 403
+
+
+def test_restaurar_desde_la_interfaz_reemplaza_todo_y_exige_confirmaciones(client, con_datos):
+    from conftest import CLAVE_ADMIN
+    entrar(client, "admin", CLAVE_ADMIN)
+    archivo = client.post("/api/respaldo", json={"frase": FRASE}).content
+    areas_antes = {a["id"] for a in client.get("/api/areas").json()}
+    nueva = crear_area(client, "Area posterior al respaldo")
+    entrar(client, "admin", CLAVE_ADMIN)
+
+    def restaurar(**cambios):
+        datos = {"frase": FRASE, "password": CLAVE_ADMIN, "confirmacion": "RESTAURAR", **cambios}
+        return client.post("/api/respaldo/restaurar", data=datos, files={"archivo": ("r.sigtbak", archivo)})
+
+    assert restaurar(confirmacion="no").status_code == 422
+    assert restaurar(password="incorrecta-123").status_code == 401
+    assert restaurar(frase="otra-frase-distinta-1").status_code == 422
+    assert nueva in {a["id"] for a in client.get("/api/areas").json()}   # nada cambió con los intentos fallidos
+    r = restaurar()
+    assert r.status_code == 200, r.text
+    entrar(client, "admin", CLAVE_ADMIN)
+    assert {a["id"] for a in client.get("/api/areas").json()} == areas_antes
+    assert client.get("/api/bitacora/verificar").json()["ok"] is True
+    jefe = crear_usuario(client, "jefe", crear_area(client))
+    from conftest import CLAVE
+    entrar(client, jefe, CLAVE)
+    assert client.post("/api/respaldo/restaurar", data={"frase": FRASE, "password": CLAVE, "confirmacion": "RESTAURAR"},
+                       files={"archivo": ("r.sigtbak", archivo)}).status_code == 403

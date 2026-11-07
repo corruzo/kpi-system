@@ -78,7 +78,8 @@ def test_los_estaticos_con_huella_se_guardan_un_anio_y_la_api_nunca(client):
     assert "immutable" in client.get(ruta).headers["cache-control"]
     assert "immutable" in client.get("/static/fonts/manrope-latin-wght-normal.woff2").headers["cache-control"]
     assert "max-age=300" in client.get("/static/js/nucleo.js").headers["cache-control"]        # sin huella: poco tiempo
-    assert client.get("/api/publico").headers["cache-control"] == "public, max-age=60"
+    assert client.get("/api/publico").headers["cache-control"].startswith("public, max-age=60, s-maxage=60")
+    assert "s-maxage" in client.get(ruta).headers["cache-control"]                              # la CDN también lo guarda
     entrar(client, "admin", CLAVE_ADMIN)
     assert client.get("/api/me").headers["cache-control"] == "no-store"
 

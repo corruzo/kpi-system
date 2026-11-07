@@ -8,10 +8,6 @@ SIGT.modulos.organizacion = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      async ingreso() {
-        if (this.user.rol !== 'jefe') await this.cargarAreas();
-        if (this.user.rol === 'admin') { this.catalogos = await this.api('/api/catalogos'); this.usuarios = await this.api('/api/usuarios'); }
-      },
       entrar: { async org() { await this.cargarAreas(); this.usuarios = await this.api('/api/usuarios'); this.catalogos = await this.api('/api/catalogos'); } },
     },
 
@@ -68,7 +64,19 @@ SIGT.modulos.organizacion = () => ({
       try { await this.api(`/api/usuarios/${x.id}/cerrar-sesiones`, { method: 'POST' }); this.avisar('Sesiones cerradas.'); } catch { }
       this.busy = false;
     },
-    respFrase: '',
+    respFrase: '', restaurar: { archivo: null, frase: '', password: '', confirmacion: '' },
+    async restaurarRespaldo() {
+      if (!confirm('Se reemplazarán TODOS los datos actuales por los del respaldo. ¿Continuar?')) return;
+      this.busy = true;
+      try {
+        const f = new FormData(); const r = this.restaurar;
+        f.append('archivo', r.archivo); f.append('frase', r.frase); f.append('password', r.password); f.append('confirmacion', r.confirmacion);
+        await this.api('/api/respaldo/restaurar', { method: 'POST', body: f });
+        this.restaurar = { archivo: null, frase: '', password: '', confirmacion: '' };
+        this.avisar('Respaldo restaurado. Vuelva a ingresar.'); setTimeout(() => location.reload(), 1500);
+      } catch { }
+      this.busy = false;
+    },
     async descargarRespaldo() {
       this.busy = true;
       try {

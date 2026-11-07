@@ -1,5 +1,5 @@
   <!-- ===== Cierre de ejercicio ===== -->
-  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="cierre.abierto" x-transition.opacity @keydown.escape.window="cierre.abierto=false">
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="cierre.abierto" x-transition.opacity @keydown.escape.window="cierre.abierto=false">
     <div class="sheet max-h-[92vh] w-full max-w-2xl">
       <div class="card-h"><h2 class="text-lg" x-text="'Cerrar ejercicio ' + (cierre.e ? cierre.e.etiqueta : '')"></h2><button class="btn btn-s btn-sm" @click="cierre.abierto=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-4 overflow-y-auto" x-show="cierre.v">
@@ -18,7 +18,7 @@
       <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button class="btn btn-s" @click="cierre.abierto=false">Cancelar</button><button class="btn btn-p" :disabled="busy || !cierre.v || !cierre.v.puede_cerrar || (cierre.v.total_faltantes && !cierre.aceptar)" @click="confirmarCierre()">Cerrar y archivar ejercicio</button></div>
     </div>
   </div>
-  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="reap.abierto" x-transition.opacity @keydown.escape.window="reap.abierto=false">
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="reap.abierto" x-transition.opacity @keydown.escape.window="reap.abierto=false">
     <form class="sheet w-full max-w-md" @submit.prevent="confirmarReapertura()">
       <div class="card-h"><h2 class="text-lg" x-text="'Reabrir ejercicio ' + (reap.e ? reap.e.etiqueta : '')"></h2><button type="button" class="btn btn-s btn-sm" @click="reap.abierto=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-3"><p class="text-sm text-slate-600">El ejercicio volverá a admitir cargas y revisiones. Quedará registrado quién lo reabrió y por qué.</p><div><label class="lbl">Motivo de la reapertura</label><textarea class="inp" rows="3" x-model="reap.nota" required minlength="5" maxlength="2000"></textarea></div></div>

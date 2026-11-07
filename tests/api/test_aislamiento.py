@@ -137,3 +137,18 @@ def test_toda_ruta_de_la_api_exige_sesion_salvo_las_publicas(client):
                 .replace("{area_id}", "1").replace("{anio}", "2026").replace("{elemento_id}", "1")
             r = client.request(metodo, url, headers={"Origin": "http://testserver"})
             assert r.status_code in (401, 403), f"{metodo} {path} → {r.status_code}"
+
+
+def test_el_arranque_entrega_a_cada_rol_solo_lo_suyo_en_una_peticion(client, dos_encargados):
+    d = dos_encargados
+    entrar(client, d["a"])
+    r = client.get("/api/arranque").json()
+    assert {i["id"] for i in r["indicadores"]} == {d["ind_a"]["id"]}
+    assert "areas" not in r and "usuarios" not in r and "catalogos" not in r and "bandeja" not in r
+    assert r["usuario"]["username"] == d["a"] and r["ejercicio"] in {e["anio"] for e in r["ejercicios"]["ejercicios"]}
+    entrar(client, "admin", CLAVE_ADMIN)
+    r = client.get("/api/arranque").json()
+    assert {"usuario", "parametros", "ejercicios", "ejercicio", "indicadores", "areas", "bandeja", "catalogos", "usuarios"} <= r.keys()
+    assert {d["ind_a"]["id"], d["ind_b"]["id"]} <= {i["id"] for i in r["indicadores"]}
+    client.cookies.clear()
+    assert client.get("/api/arranque").status_code == 401

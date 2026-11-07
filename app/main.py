@@ -144,8 +144,9 @@ class EstaticosConCache(StaticFiles):
         respuesta = await super().get_response(path, scope)
         if respuesta.status_code == 200:
             eterno = b"v=" in scope.get("query_string", b"") or path.startswith("fonts/")
-            respuesta.headers["Cache-Control"] = ("public, max-age=31536000, immutable" if eterno
-                                                  else "public, max-age=300, must-revalidate")
+            # s-maxage: la CDN de Vercel también lo guarda; sin él cada archivo despertaba la función de Python
+            respuesta.headers["Cache-Control"] = ("public, max-age=31536000, s-maxage=31536000, immutable" if eterno
+                                                  else "public, max-age=300, s-maxage=3600, must-revalidate")
         return respuesta
 
 
@@ -154,4 +155,5 @@ app.mount("/static", EstaticosConCache(directory=ESTATICOS), name="static")
 
 @app.get("/", include_in_schema=False)
 def inicio():
-    return HTMLResponse(pagina_principal(), headers={"Cache-Control": "no-cache"})
+    # El HTML es igual para todos (sin datos de usuario): la CDN lo sirve sin despertar la función y lo renueva en segundo plano.
+    return HTMLResponse(pagina_principal(), headers={"Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=600"})

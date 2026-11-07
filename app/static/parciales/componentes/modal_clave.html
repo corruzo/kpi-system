@@ -1,5 +1,5 @@
   <!-- ===== Modal: contraseña ===== -->
-  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="modalClave" x-transition.opacity>
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="modalClave" x-transition.opacity>
     <form class="sheet w-full max-w-sm" @submit.prevent="cambiarClave()" @keydown.escape.window="modalClave=false">
       <div class="card-h"><h2 class="text-lg font-bold">Cambiar contraseña</h2><button type="button" class="btn btn-s btn-sm" @click="modalClave=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-4">

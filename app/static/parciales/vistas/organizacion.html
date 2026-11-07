@@ -54,12 +54,6 @@
               <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
               <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
             </div></div></div>
-        <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Respaldo de seguridad</h2></div>
-          <form class="card-b space-y-3" @submit.prevent="descargarRespaldo()">
-            <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, presupuestos y bitácora). Solo se puede abrir con la frase de paso que escriba aquí: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
-            <div><label class="lbl" for="frase-resp">Frase de paso (mínimo 12 caracteres)</label><input id="frase-resp" type="password" class="inp" x-model="respFrase" minlength="12" maxlength="200" autocomplete="new-password" required></div>
-            <button class="btn btn-s" :disabled="busy || respFrase.length < 12">Descargar respaldo cifrado</button>
-          </form></div>
         <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
           <form class="card-b space-y-3" @submit.prevent="guardarParametros()">
             <div><label class="lbl">Empresa</label><input class="inp" x-model="parForm.empresa" required maxlength="120"></div>
@@ -84,6 +78,24 @@
             <ul class="max-h-72 divide-y divide-slate-100 overflow-y-auto"><template x-for="c in catActual" :key="c.id"><li class="flex items-center justify-between gap-2 py-2"><span class="min-w-0 text-sm"><span class="block truncate" x-text="c.valor"></span><span class="block truncate text-xs text-slate-500" x-show="c.detalle" x-text="c.detalle"></span></span>
               <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
             <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
+          </div></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='avanzado'"><div class="card-h"><h2 class="font-semibold">Respaldo de la base de datos</h2></div>
+          <div class="card-b grid grid-cols-1 gap-4 md:grid-cols-2">
+            <form class="space-y-3 rounded-2xl border border-slate-200 p-4" @submit.prevent="descargarRespaldo()">
+              <h3 class="font-semibold">Exportar</h3>
+              <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, presupuestos y bitácora). Solo se abre con la frase de paso que escriba: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
+              <div><label class="lbl" for="frase-resp">Frase de paso (mínimo 12 caracteres)</label><input id="frase-resp" type="password" class="inp" x-model="respFrase" minlength="12" maxlength="200" autocomplete="new-password" required></div>
+              <button class="btn btn-p" :disabled="busy || respFrase.length < 12">Descargar respaldo cifrado</button>
+            </form>
+            <form class="space-y-3 rounded-2xl border border-amber-300 bg-amber-50/50 p-4" @submit.prevent="restaurarRespaldo()">
+              <h3 class="font-semibold">Importar (restaurar)</h3>
+              <p class="text-sm text-slate-700"><b>Reemplaza todos los datos actuales</b> por los del archivo (también la bitácora y los usuarios). Si algo falla, no se cambia nada. Al terminar deberá volver a ingresar. Le conviene descargar un respaldo antes.</p>
+              <div><label class="lbl" for="arch-resp">Archivo de respaldo (.sigtbak)</label><input id="arch-resp" type="file" accept=".sigtbak" class="inp" @change="restaurar.archivo = $event.target.files[0] || null" required></div>
+              <div><label class="lbl" for="frase-rest">Frase de paso del respaldo</label><input id="frase-rest" type="password" class="inp" x-model="restaurar.frase" maxlength="200" autocomplete="off" required></div>
+              <div><label class="lbl" for="pass-rest">Su contraseña de administrador</label><input id="pass-rest" type="password" class="inp" x-model="restaurar.password" maxlength="128" autocomplete="current-password" required></div>
+              <div><label class="lbl" for="conf-rest">Escriba <b>RESTAURAR</b> para confirmar</label><input id="conf-rest" class="inp" x-model="restaurar.confirmacion" autocomplete="off" required></div>
+              <button class="btn btn-d" :disabled="busy || !restaurar.archivo || restaurar.frase.length < 12 || !restaurar.password || restaurar.confirmacion.trim() !== 'RESTAURAR'">Restaurar y reemplazar todo</button>
+            </form>
           </div></div>
         <div class="card self-start border-red-200 lg:col-span-2" x-show="orgTab==='avanzado'" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
           <div class="card-b flex flex-wrap items-center justify-between gap-3">

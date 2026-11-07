@@ -5,7 +5,6 @@ SIGT.modulos.parametros = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      ingreso() { return this.cargarParametros(); },
       entrar: { org() { this.parForm = { ...this.params, clave_reportes: '' }; } },
     },
 

@@ -5,16 +5,14 @@ window.SIGT_ANIM = (() => {
   const M = window.Motion;
   const reducido = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const activo = () => !!M && !reducido();
-  const MUELLE = { type: 'spring', stiffness: 420, damping: 32 };
+  const SUAVE = { duration: .18, ease: 'easeOut' };   // corta y sin cálculo de muelle: la pantalla aparece al instante
 
-  /** Entrada de una pantalla: sus bloques aparecen en cascada, subiendo y creciendo con un muelle. */
+  /** Entrada de una pantalla: sus primeros bloques aparecen en cascada breve (solo opacidad y desplazamiento: no fuerzan re-maquetado). */
   function pantalla(raiz) {
     if (!activo() || !raiz) return;
-    const bloques = [...raiz.querySelectorAll(':scope > *')].filter(e => e.getClientRects().length).slice(0, 14);
+    const bloques = [...raiz.children].filter(e => e.getClientRects().length).slice(0, 5);   // solo lo que se ve primero
     if (!bloques.length) return;
-    M.animate(bloques, { opacity: [0, 1], y: [22, 0], scale: [.985, 1] }, { ...MUELLE, delay: M.stagger(.055) });
-    const mosaicos = [...raiz.querySelectorAll('.tile, .paso')].filter(e => e.getClientRects().length).slice(0, 12);
-    if (mosaicos.length) M.animate(mosaicos, { opacity: [0, 1], y: [16, 0] }, { ...MUELLE, delay: M.stagger(.03, { startDelay: .08 }) });
+    M.animate(bloques, { opacity: [0, 1], y: [10, 0] }, { ...SUAVE, delay: M.stagger(.025) });   // en total ≈ 0,3 s (antes ≈ 1 s)
   }
 
   /** Rebote al pulsar: delegación global, sin tocar cada botón. */
@@ -58,6 +56,6 @@ window.SIGT_ANIM = (() => {
   addEventListener('resize', recalcular);
   addEventListener('orientationchange', recalcular);
   document.fonts?.ready.then(recalcular);
-  new MutationObserver(recalcular).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-activo'] });
+  new MutationObserver(recalcular).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['data-activo'] });   // solo atributos: no se dispara con cada cambio del DOM
   return { pantalla, indicadores };
 })();

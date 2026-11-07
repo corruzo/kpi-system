@@ -39,12 +39,12 @@
 
   /* ---- portada de cada pantalla: degradado navy → azul con destellos */
   .hero { @apply relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-ink via-cobalt to-brand p-6 text-white shadow-float sm:p-8; }
-  .hero::before { content: ''; @apply pointer-events-none absolute -right-10 -top-16 -z-10 h-56 w-56 rounded-full bg-cyan/40 blur-3xl; }
-  .hero::after { content: ''; @apply pointer-events-none absolute -bottom-20 left-1/3 -z-10 h-52 w-52 rounded-full bg-magenta/25 blur-3xl; }
+  .hero::before { content: ''; @apply pointer-events-none absolute -right-14 -top-20 -z-10 h-72 w-72 rounded-full; background: radial-gradient(circle, rgba(0,153,255,.42), transparent 68%); }
+  .hero::after { content: ''; @apply pointer-events-none absolute -bottom-24 left-1/3 -z-10 h-64 w-64 rounded-full; background: radial-gradient(circle, rgba(229,92,255,.26), transparent 68%); }
   .hero h1 { @apply text-[1.9rem] font-extrabold leading-[1.1] tracking-tight sm:text-[2.6rem]; }
   .hero p { @apply text-white/80; }
-  .hero-ico { @apply flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.4rem] bg-white/15 text-white ring-1 ring-white/25 backdrop-blur; }
-  .hero-stat { @apply rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15 backdrop-blur; }
+  .hero-ico { @apply flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.4rem] bg-white/15 text-white ring-1 ring-white/25; }
+  .hero-stat { @apply rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15; }
 
   /* ---- mosaicos con icono (accesos, pasos, secciones) */
   .tile { @apply flex w-full flex-col items-start gap-3 rounded-3xl border border-slate-200/80 bg-white p-5 text-left shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-float focus-visible:-translate-y-1; }
@@ -97,7 +97,7 @@
   .pill { @apply relative z-10 flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:text-slate-900; }
   .pill-on { @apply bg-white text-brand shadow-soft; }
   .pill-on svg { @apply text-brand; }
-  .dock { @apply fixed inset-x-3 bottom-3 z-30 rounded-[1.9rem] border border-slate-200/80 bg-white/95 p-2 shadow-float backdrop-blur-xl; padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+  .dock { @apply fixed inset-x-3 bottom-3 z-30 rounded-[1.9rem] border border-slate-200/80 bg-white/95 p-2 shadow-float; padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
   .tile:active, .btn:active, .nav-item:active, .pill:active { filter: brightness(.96); }
   .slide-ind { transition: transform .42s cubic-bezier(.34,1.4,.5,1), width .42s cubic-bezier(.34,1.4,.5,1), height .42s cubic-bezier(.34,1.4,.5,1), opacity .2s; }
   .slide-ind.sin-transicion { transition: none; }

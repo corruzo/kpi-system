@@ -1,8 +1,7 @@
 <!-- ===================== LOGIN: marca (logo, sistema y empresa), campos de ingreso y advertencia de uso ===================== -->
 <template x-if="!user && ready">
   <main data-vista="login" class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-    <div class="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-cyan/20 blur-3xl" aria-hidden="true"></div>
-    <div class="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-brand/15 blur-3xl" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute inset-0" style="background:radial-gradient(circle at 5% 20%,rgba(0,153,255,.14),transparent 28rem),radial-gradient(circle at 95% 90%,rgba(0,107,255,.12),transparent 30rem)" aria-hidden="true"></div>
     <div class="relative w-full max-w-sm">
       <div class="mb-6 text-center">
         <img x-show="marca.logo_url" :src="marca.logo_url" alt="Logo de la empresa" class="mx-auto h-16 max-w-[220px] object-contain">

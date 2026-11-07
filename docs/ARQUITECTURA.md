@@ -48,3 +48,13 @@ El valor interno `jefe` se conserva (restricción `ck_usuarios_rol` y sesiones e
 `make verificar` ejecuta lo mismo que el CI (`.github/workflows/ci.yml`): ruff, pytest en SQLite **y** PostgreSQL 16, migraciones
 desde cero + `alembic check`, CSS compilado al día y `pip-audit` de dependencias. `.pre-commit-config.yaml` lo corre antes de
 cada commit/push. Despliegue: Vercel despliega la rama `master`; las migraciones se aplican al arrancar.
+
+## Rendimiento
+- **Una petición de arranque** (`GET /api/arranque`) entrega usuario, parámetros, ejercicios, indicadores, áreas, bandeja, listas y
+  resumen de inicio según el rol (reutiliza los mismos routers, así cada dato conserva su regla de acceso). Antes eran ~10
+  peticiones, varias encadenadas: en un servidor remoto cada una paga su viaje de red.
+- **CDN**: estáticos con huella `s-maxage` de un año; el HTML y `/api/publico` con `s-maxage` corto y `stale-while-revalidate`,
+  para que la CDN de Vercel los sirva sin despertar la función de Python.
+- **Interfaz**: sin `backdrop-filter` ni `blur` de pantalla completa (costosos de pintar en móviles), animaciones de entrada de
+  0,18 s solo en opacidad/desplazamiento y sin muelles, observadores del DOM limitados a atributos.
+- **Base de datos**: listados sin consultas por fila (p. ej. ejercicios: una consulta, no una por año).

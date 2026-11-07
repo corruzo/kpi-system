@@ -61,19 +61,23 @@ def anios_cerrados(db: Session) -> set[int]:
     return {e.anio for e in db.scalars(select(Ejercicio)) if e.estado == "cerrado"}
 
 
-def estado(db: Session, anio: int, hoy: date) -> str:
+_SIN_DATO = object()   # «no se pasó la fila»: distinto de None, que significa «el ejercicio no tiene fila»
+
+
+def estado(db: Session, anio: int, hoy: date, fila=_SIN_DATO) -> str:
     """cerrado | vigente | futuro | terminado (ya pasó su último día y sigue abierto)."""
-    fila = db.get(Ejercicio, anio)
+    if fila is _SIN_DATO:
+        fila = db.get(Ejercicio, anio)
     if fila and fila.estado == "cerrado":
         return "cerrado"
     ini, fin = calendario.limites(anio)
     return "vigente" if ini <= hoy <= fin else ("futuro" if ini > hoy else "terminado")
 
 
-def anios_conocidos(db: Session, hoy: date) -> list[int]:
+def anios_conocidos(db: Session, hoy: date, filas: dict[int, Ejercicio] | None = None) -> list[int]:
     """Ejercicios con datos, con fila propia, el vigente y el siguiente; el más reciente primero."""
     anios = {a for a in db.scalars(select(Medicion.ejercicio).distinct()) if a}
-    anios |= set(db.scalars(select(Ejercicio.anio)))
+    anios |= set(filas) if filas is not None else set(db.scalars(select(Ejercicio.anio)))
     vigente = calendario.ejercicio_de_fecha(hoy)
     anios |= {vigente, vigente + 1}   # el siguiente se ofrece para crearlo con antelación
     return sorted(anios, reverse=True)
@@ -169,13 +173,14 @@ def foto(db: Session, anio: int, area_id: int | None = None, hoy: date | None = 
 
 
 # ---------------------------------------------------------------- listado, verificación, cierre y reapertura
-def descripcion(db: Session, anio: int, hoy: date) -> dict:
-    """Datos generales del ejercicio: fechas, estado y, si está cerrado, quién y cuándo."""
+def descripcion(db: Session, anio: int, hoy: date, filas: dict[int, Ejercicio] | None = None) -> dict:
+    """Datos generales del ejercicio: fechas, estado y, si está cerrado, quién y cuándo. Con `filas` (todas las filas por año)
+    no consulta la base por cada ejercicio."""
     ini, fin = calendario.limites(anio)
-    fila = db.get(Ejercicio, anio)
+    fila = filas.get(anio) if filas is not None else db.get(Ejercicio, anio)
     cerrado = bool(fila and fila.estado == "cerrado")
     return {"anio": anio, "etiqueta": calendario.etiqueta_ejercicio(anio), "desde": ini, "hasta": fin,
-            "estado": estado(db, anio, hoy), "fila": fila, "creado": fila is not None,
+            "estado": estado(db, anio, hoy, fila), "fila": fila, "creado": fila is not None,
             "cerrado_por": fila.cerrado_por.nombre if cerrado and fila.cerrado_por else None}
 
 

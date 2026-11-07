@@ -6,7 +6,9 @@
 
 ## Capas de respaldo (use al menos las dos primeras)
 1. **Respaldo cifrado del sistema** (`.sigtbak`): independiente del proveedor; se abre solo con su frase de paso.
-   - Desde la aplicación: *Organización → Parámetros → Respaldo de seguridad* (administrador).
+   - Desde la aplicación: *Organización → Avanzado → Respaldo de la base de datos* (administrador): **Exportar** descarga el
+     archivo cifrado e **Importar** lo restaura reemplazando todos los datos (pide la frase del respaldo, su contraseña y escribir
+     RESTAURAR; es todo-o-nada y obliga a volver a ingresar).
    - Automático: `.github/workflows/respaldo.yml` (diario 07:17 UTC). Cree los secretos `SIGT_DATABASE_URL` y `SIGT_BACKUP_KEY`
      en GitHub → Settings → Secrets → Actions. El archivo queda 30 días como artefacto privado:
      **descárguelo periódicamente y guárdelo fuera de GitHub y de Supabase** (otra nube o disco cifrado).

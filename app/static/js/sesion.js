@@ -5,7 +5,7 @@ SIGT.modulos.sesion = () => ({
 
     async login() {
       this.busy = true; this.loginError = '';
-      try { this.user = await this.api('/api/login', { method: 'POST', body: this.loginForm }, true); }
+      try { await this.api('/api/login', { method: 'POST', body: this.loginForm }, true); }   // el usuario lo fija el arranque, con todos sus datos
       catch (e) { this.loginError = e.message; this.busy = false; return; }
       this.loginForm.password = ''; this.verClave = false;
       try { await this.abrirSesion(); } catch (e) { if (!e.avisado) this.avisar('No se pudieron cargar todos los datos. Recargue la página.', true); }

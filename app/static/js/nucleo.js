@@ -10,24 +10,28 @@ SIGT.modulos.nucleo = () => ({
       addEventListener('online', () => { this.sinConexion = false; this.avisar('Conexión restablecida.'); });
       addEventListener('offline', () => { this.sinConexion = true; });
       addEventListener('unhandledrejection', ev => { ev.preventDefault(); console.error(ev.reason); if (!ev.reason?.avisado) this.avisar('Ocurrió un error inesperado. Si continúa, recargue la página.', true); });
-      try { this.marca = await (await fetch('/api/publico')).json(); } catch { }
-      try { this.user = await this.api('/api/me', {}, true); }
+      // Una sola petición trae el usuario y todo lo que la interfaz necesita (en paralelo con la marca del ingreso).
+      const marca = fetch('/api/publico').then(r => r.json()).then(m => { this.marca = m; }).catch(() => { });
+      try { await this.abrirSesion(true); }
       catch (e) {
         this.user = null;
         if (e.estado !== 401) { this.fallaArranque = e.message; return; }   // sin sesión es normal (login); otra causa es una falla real
       }
-      if (this.user) {      // con sesión válida, un fallo al cargar los datos NO debe parecer un cierre de sesión
-        try { await this.abrirSesion(); } catch (e) { if (!e.avisado) this.avisar('No se pudieron cargar todos los datos. Recargue la página.', true); }
-      }
+      await marca;
       this.ready = true;
       this.$nextTick(() => { if (!this.user) SIGT_ANIM.pantalla(document.querySelector('[data-vista="login"]')); });
     },
     // Tras ingresar: cada módulo carga sus datos (ganchos «ingreso»), se abre la vista inicial del rol y se avisa a «listo».
-    async abrirSesion() {
-      // Lo que otros módulos necesitan (el ejercicio elegido) va primero; el resto se carga EN PARALELO: tarda lo del más lento.
-      const [primeros, resto] = [this.ganchos.ingreso.filter(f => f.primero), this.ganchos.ingreso.filter(f => !f.primero)];
-      for (const cargar of primeros) await cargar.call(this);
-      await Promise.all(resto.map(cargar => cargar.call(this)));
+    async abrirSesion(silencioso = false) {
+      // UNA petición trae todo lo de ingreso (usuario, parámetros, ejercicios, indicadores, áreas, bandeja, listas…).
+      let preferido = null; try { preferido = Number(localStorage.getItem('sigt_ej')) || null; } catch { }
+      const d = await this.api('/api/arranque' + (preferido ? '?ejercicio=' + preferido : ''), {}, silencioso);
+      this.user = d.usuario; this.params = d.parametros;
+      this.aplicarEjercicios(d.ejercicios.ejercicios); this.ejVigente = d.ejercicios.vigente; this.ejSel = d.ejercicio;
+      this.indicadores = d.indicadores; this.areas = d.areas || [];
+      this.bandejaTotal = d.bandeja || []; this.catalogos = d.catalogos || []; this.usuarios = d.usuarios || [];
+      this.marcha = d.marcha || null; this.resumenInicio = d.resumen || null; this._inicioListo = true;   // la pantalla de inicio ya tiene sus datos
+      for (const cargar of this.ganchos.ingreso) await cargar.call(this);   // lo que no viene en el arranque (p. ej. valores por defecto)
       await this.go(VISTA_INICIAL);
       for (const f of this.ganchos.listo) await f.call(this);
     },

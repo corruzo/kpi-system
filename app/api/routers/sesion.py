@@ -54,5 +54,5 @@ def marcar_guia(datos: schemas.TourIn, db: Session = Depends(get_db), u: Usuario
 @router.get("/publico")
 def datos_publicos(response: Response, db: Session = Depends(get_db)):
     """Datos visibles antes de iniciar sesión: solo la marca de la pantalla de ingreso (nombre de la empresa y logo)."""
-    response.headers["Cache-Control"] = "public, max-age=60"   # el dato más pedido y sin sesión: no debe ir a la base cada vez
+    response.headers["Cache-Control"] = "public, max-age=60, s-maxage=60, stale-while-revalidate=300"   # el dato más pedido y sin sesión: no debe ir a la base cada vez
     return {"empresa": parametros.leer(db).get("empresa", ""), "logo_url": marca.url_logo(db)}

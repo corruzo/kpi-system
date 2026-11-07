@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from ..database import Base
 from ..errores import Conflicto, Invalido
-from . import auditoria
+from . import auditoria, reinicio
 
 MAGIA = b"SIGTBAK1"
 FORMATO = 1
@@ -133,18 +133,25 @@ def _convertir(tabla, fila: dict) -> dict:
     return {k: _de_json(v) for k, v in fila.items() if k in tabla.c}
 
 
-def restaurar(db: Session, archivo: bytes, frase: str) -> dict:
-    """Carga el respaldo en una base recién migrada (`alembic upgrade head`) y vacía. Todo o nada."""
+def restaurar(db: Session, archivo: bytes, frase: str, reemplazar: bool = False) -> dict:
+    """Carga el respaldo. Por defecto solo en una base recién migrada (`alembic upgrade head`) y vacía.
+    Con `reemplazar=True` (administrador, desde la interfaz) primero BORRA todo lo que hay. Todo o nada: si algo falla,
+    la base queda exactamente como estaba."""
     c = abrir(archivo, frase)
     actual = _revision(db)
     if c["alembic"] and actual != c["alembic"]:
         raise Conflicto(f"La base está en la revisión {actual} y el respaldo en la {c['alembic']}: ejecute `alembic upgrade head` "
                         "con la misma versión del sistema con que se hizo el respaldo.")
-    for t in Base.metadata.sorted_tables:
+    if reemplazar:
+        if not any(u.get("rol") == "admin" and u.get("activo") for u in c["tablas"]["usuarios"]["filas"]):
+            raise Invalido("El respaldo no contiene ningún administrador activo: restaurarlo dejaría el sistema sin acceso.")
+    for t in Base.metadata.sorted_tables if not reemplazar else []:
         if db.scalar(select(func.count()).select_from(t)):
             raise Conflicto(f"La tabla «{t.name}» ya tiene datos: restaure únicamente en una base vacía (sin SIGT_ADMIN_PASSWORD "
                             "al migrar). La bitácora es inmutable y no puede sobrescribirse.")
     try:
+        if reemplazar:
+            reinicio.vaciar_tablas(db)
         for t in Base.metadata.sorted_tables:
             filas = [_convertir(t, f) for f in c["tablas"][t.name]["filas"]]
             for i in range(0, len(filas), 1000):

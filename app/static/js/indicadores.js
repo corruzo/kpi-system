@@ -8,7 +8,6 @@ SIGT.modulos.indicadores = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      ingreso() { return this.cargarIndicadores(); },
       entrar: { fichas() { return this.cargarIndicadores(); } },
       ejercicio() { return this.cargarIndicadores(); },
       salida() { this.indicadores = []; },

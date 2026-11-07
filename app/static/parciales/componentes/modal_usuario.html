@@ -1,5 +1,5 @@
   <!-- ===== Modal: usuario ===== -->
-  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center sm:p-4" x-show="modalUsuario" x-transition.opacity>
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="modalUsuario" x-transition.opacity>
     <form class="sheet max-h-[92vh] w-full max-w-lg" @submit.prevent="guardarUsuario()" @keydown.escape.window="modalUsuario=false">
       <div class="card-h"><h2 class="text-lg font-bold" x-text="usuario.id ? 'Editar usuario' : 'Nuevo usuario'"></h2><button type="button" class="btn btn-s btn-sm" @click="modalUsuario=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-4 overflow-y-auto">

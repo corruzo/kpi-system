@@ -1,12 +1,13 @@
 """Ejercicios fiscales (listado, verificación, cierre y reapertura) y panel de análisis."""
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ... import schemas
 from ...dominio import calendario
 from ...errores import Prohibido
-from ...models import Usuario
+from ...models import Ejercicio, Usuario
 from ...servicios import ejercicios, panel
 from .. import serializadores as ser
 from ..deps import AnioConsulta, AnioRuta, IdConsulta, escritura, get_db, requiere, usuario_actual
@@ -20,8 +21,9 @@ def listar(detalle: bool = False, db: Session = Depends(get_db), u: Usuario = De
     if detalle and u.rol == "jefe":
         raise Prohibido("No tiene permisos para esta acción.")
     hoy, salida = calendario.hoy(), []
-    for anio in ejercicios.anios_conocidos(db, hoy):
-        item = ser.ejercicio(ejercicios.descripcion(db, anio, hoy))
+    filas = {e.anio: e for e in db.scalars(select(Ejercicio))}   # una consulta para todos (antes, una por ejercicio)
+    for anio in ejercicios.anios_conocidos(db, hoy, filas):
+        item = ser.ejercicio(ejercicios.descripcion(db, anio, hoy, filas))
         if detalle:
             item.update(ejercicios.resultados(db, anio, hoy))
         salida.append(item)

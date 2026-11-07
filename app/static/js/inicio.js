@@ -31,9 +31,11 @@ SIGT.modulos.inicio = () => ({
     // Resumen del ejercicio (solo gerencia/administración: el encargado no accede al panel analítico)
     async cargarInicio() {
       if (!this.esRevisor) return;
-      if (this.user.rol === 'admin') { try { this.marcha = await this.api('/api/puesta-en-marcha', {}, true); } catch { this.marcha = null; } }
+      if (this._inicioListo) { this._inicioListo = false; return; }   // primera entrada: los datos llegaron con el arranque
       const q = this.ejSel ? '?ejercicio=' + this.ejSel : '';
-      try { this.resumenInicio = (await this.api('/api/dashboard' + q, {}, true)).resumen; } catch { this.resumenInicio = null; }
+      await Promise.all([   // en paralelo: antes una petición esperaba a la otra
+        this.user.rol === 'admin' ? this.api('/api/puesta-en-marcha', {}, true).then(m => { this.marcha = m; }, () => { this.marcha = null; }) : null,
+        this.api('/api/dashboard' + q, {}, true).then(r => { this.resumenInicio = r.resumen; }, () => { this.resumenInicio = null; })]);
     },
     // Tareas pendientes del usuario, de la más urgente a la menos urgente
     tareas() {
