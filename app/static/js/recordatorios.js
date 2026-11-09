@@ -1,6 +1,8 @@
 /* Recordatorios de carga (administrador y gerente): quién tiene períodos pendientes y aviso por correo con un mensaje ya redactado.
    El correo se abre en el programa de correo de la computadora (Outlook, si es el predeterminado) mediante un enlace mailto:
    con destinatario, asunto y texto listos; la persona solo pulsa «Enviar». */
+const ENLACE_APP = 'https://sgctpv.vercel.app';   // dirección que reciben los encargados en el mensaje
+
 SIGT.modulos.recordatorios = () => ({
     rec: { data: null, cargando: false, plantilla: 'amable', abierto: null, soloConDeuda: true },
 
@@ -52,7 +54,7 @@ SIGT.modulos.recordatorios = () => ({
     },
     mensaje(e) {
       const p = this.PLANTILLAS[this.rec.plantilla];
-      const datos = { nombre: e.nombre, lista: this.textoPendientesDe(e) || '- (sin períodos pendientes)', enlace: location.origin, remitente: this.user.nombre };
+      const datos = { nombre: e.nombre, lista: this.textoPendientesDe(e) || '- (sin períodos pendientes)', enlace: ENLACE_APP, remitente: this.user.nombre };
       const llenar = t => t.replace(/\{(\w+)\}/g, (_, k) => datos[k] ?? '');
       return { asunto: llenar(p.asunto), cuerpo: llenar(p.cuerpo) };
     },
