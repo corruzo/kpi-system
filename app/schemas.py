@@ -1,7 +1,7 @@
 """Esquemas de entrada (validación de los datos que llegan a la API), ordenados por dominio."""
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from .dominio import formulas
 from .dominio.calendario import FRECUENCIAS
@@ -35,11 +35,16 @@ class AreaIn(BaseModel):
     nombre: str = Field(min_length=2, max_length=80)
 
 
+Correo = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=120,
+                                          pattern=r"^$|^[^@\s,;<>\"]+@[^@\s,;<>\"]+\.[^@\s,;<>\"]{2,}$")] | None
+
+
 class UsuarioIn(BaseModel):
     username: str = Field(pattern=r"^[a-z0-9._-]{3,40}$")
     nombre: str = Field(min_length=3, max_length=120)
     rol: Rol
     area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
+    email: Correo = None
     password: str = Field(min_length=10, max_length=128)
 
 
@@ -47,6 +52,7 @@ class UsuarioEdit(BaseModel):
     nombre: str = Field(min_length=3, max_length=120)
     rol: Rol
     area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
+    email: Correo = None
     activo: bool = True
     password: str | None = Field(default=None, min_length=10, max_length=128)
 
@@ -230,3 +236,8 @@ class ImpIn(BaseModel):
 # ---------------------------------------------------------------- respaldo
 class RespaldoIn(BaseModel):
     frase: str = Field(min_length=12, max_length=200)
+
+
+# ---------------------------------------------------------------- recordatorios
+class RecordatorioIn(BaseModel):
+    mensaje: str = Field(max_length=60)   # nombre de la plantilla usada

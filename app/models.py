@@ -95,6 +95,7 @@ class Usuario(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
     nombre: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(120))   # opcional: destino de los recordatorios de carga
     rol: Mapped[str] = mapped_column(String(20))  # jefe | gerente | admin
     area_id: Mapped[int | None] = mapped_column(ForeignKey("areas.id"), index=True)
     password_hash: Mapped[str] = mapped_column(String(200))

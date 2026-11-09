@@ -25,13 +25,13 @@ SIGT.modulos.organizacion = () => ({
       if (!confirm(`¿Eliminar el área «${a.nombre}»?`)) return;
       try { await this.api(`/api/areas/${a.id}`, { method: 'DELETE' }); this.areas = await this.api('/api/areas'); this.avisar('Área eliminada.'); } catch { }
     },
-    nuevoUsuario() { this.claveTemporal = ''; this.usuario = { username: '', nombre: '', rol: 'jefe', area_id: '', password: '', activo: true }; this.modalUsuario = true; },
+    nuevoUsuario() { this.claveTemporal = ''; this.usuario = { username: '', nombre: '', email: '', rol: 'jefe', area_id: '', password: '', activo: true }; this.modalUsuario = true; },
     editarUsuario(x) { this.claveTemporal = ''; this.usuario = { ...x, area_id: x.area_id || '', password: '' }; this.modalUsuario = true; },
     async guardarUsuario() {
       this.busy = true;
       try {
         const u = this.usuario, id = u.id;
-        const body = { nombre: u.nombre, rol: u.rol, area_id: u.rol === 'jefe' ? (u.area_id || null) : null };
+        const body = { nombre: u.nombre, email: (u.email || '').trim(), rol: u.rol, area_id: u.rol === 'jefe' ? (u.area_id || null) : null };
         if (id) { body.activo = u.activo; if (u.password) body.password = u.password; } else { body.username = u.username; body.password = u.password; }
         await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body });
         this.modalUsuario = false; this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario guardado.');

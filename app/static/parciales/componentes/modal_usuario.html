@@ -5,6 +5,7 @@
       <div class="card-b space-y-4 overflow-y-auto">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Usuario</label><input class="inp" x-model="usuario.username" :disabled="!!usuario.id" pattern="[a-z0-9._-]{3,40}" autocapitalize="none" required><p class="mt-1 text-xs text-slate-500">Minúsculas, números, punto, guion.</p></div>
           <div><label class="lbl">Nombre completo</label><input class="inp" x-model="usuario.nombre" required minlength="3"></div></div>
+        <div><label class="lbl" for="usuario-email">Correo electrónico (opcional)</label><input id="usuario-email" type="email" class="inp" x-model="usuario.email" maxlength="120" autocomplete="off" placeholder="nombre@tripoliven.com"><p class="mt-1 text-xs text-slate-500">Para enviarle recordatorios de carga desde Outlook.</p></div>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label class="lbl">Rol</label><select class="inp" x-model="usuario.rol"><option value="jefe">Encargado de proceso</option><option value="gerente">Gerente / Auditor SGC</option><option value="admin">Administrador SGC</option></select></div>
           <div x-show="usuario.rol==='jefe'"><label class="lbl">Área</label><select class="inp" x-model.number="usuario.area_id" :required="usuario.rol==='jefe'"><option value="">Seleccione…</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select></div>

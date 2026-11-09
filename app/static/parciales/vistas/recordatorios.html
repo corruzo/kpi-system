@@ -1,0 +1,43 @@
+    <!-- ============ RECORDATORIOS DE CARGA ============ -->
+    <section data-vista="recordatorios" x-show="view==='recordatorios'" class="mx-auto max-w-4xl space-y-4">
+      <div><h1 class="page-title">Recordatorios de carga</h1>
+        <p class="text-sm text-slate-600">Encargados de proceso con períodos pendientes de cargar. Con un clic se abre un correo ya redactado en <b>Outlook</b> (el programa de correo de su computadora), con su nombre y lo que le falta; usted solo pulsa «Enviar».</p></div>
+
+      <div class="card"><div class="card-b grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div class="sm:col-span-2"><label class="lbl" for="rec-plantilla">Mensaje</label>
+          <select id="rec-plantilla" class="inp" x-model="rec.plantilla"><template x-for="(p, k) in PLANTILLAS" :key="k"><option :value="k" x-text="p.titulo"></option></template></select></div>
+        <label class="flex items-end gap-2 pb-3 text-sm font-medium"><input type="checkbox" class="h-5 w-5" x-model="rec.soloConDeuda"> Solo con pendientes</label>
+      </div></div>
+
+      <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900" x-show="recSinCorreo"><b x-text="recSinCorreo"></b> encargado(s) con pendientes no tienen correo registrado: agréguelo en <button type="button" class="font-bold underline" @click="go('org')">Organización y equipo</button> (editar usuario).</p>
+      <p class="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700" x-show="rec.data?.sin_encargado?.length"><b x-text="rec.data?.sin_encargado?.length"></b> indicador(es) con pendientes no tienen encargado asignado, por eso nadie recibe aviso: <span class="font-mono text-xs" x-text="(rec.data?.sin_encargado || []).map(i => i.codigo).join(', ')"></span>. Asígnelos en Indicadores → Editar.</p>
+
+      <p class="py-8 text-center text-sm text-slate-500" x-show="rec.cargando && !rec.data">Cargando…</p>
+      <div class="card border-green-200 bg-green-50" x-show="rec.data && !recDeben"><div class="card-b text-sm font-semibold text-green-800">✔ Ningún encargado tiene cargas pendientes.</div></div>
+
+      <template x-for="e in recLista" :key="e.id"><template x-if="e">
+        <div class="card fade-in">
+          <div class="card-h">
+            <div class="min-w-0"><div class="truncate font-semibold" x-text="e.nombre"></div>
+              <div class="truncate text-xs text-slate-500" x-text="(e.area || 'Sin área') + (e.email ? ' · ' + e.email : ' · sin correo')"></div></div>
+            <span class="chip !border-transparent !text-white" :class="e.total ? (e.devueltos ? 'bg-red-600' : 'bg-amber-500') : 'bg-green-600'" x-text="e.total ? e.total + ' pendiente' + (e.total > 1 ? 's' : '') : 'Al día'"></span>
+          </div>
+          <div class="card-b space-y-3">
+            <ul class="space-y-1 text-sm" x-show="e.total">
+              <template x-for="i in e.indicadores" :key="i.indicador_id"><li><span class="nc" x-text="etiquetaNC"></span> <b x-text="i.codigo"></b> · <span x-text="i.nombre"></span><span class="block pl-1 text-xs text-slate-500" x-text="i.periodos.map(p => p.etiqueta + (p.devuelto ? ' (devuelta)' : '')).join(' · ') + (i.total > i.periodos.length ? ' · y ' + (i.total - i.periodos.length) + ' más' : '')"></span></li></template>
+            </ul>
+            <p class="text-xs text-slate-400" x-text="ultimoAviso(e)"></p>
+            <div class="flex flex-wrap gap-2">
+              <button class="btn btn-p btn-sm" :disabled="!e.email || busy" @click="enviarRecordatorio(e)" :title="e.email ? 'Abre el correo en Outlook' : 'Registre su correo en Organización y equipo'">✉ Enviar recordatorio por Outlook</button>
+              <button class="btn btn-s btn-sm" @click="rec.abierto = rec.abierto === e.id ? null : e.id" :aria-expanded="rec.abierto === e.id" x-text="rec.abierto === e.id ? 'Ocultar mensaje' : 'Ver mensaje'"></button>
+              <button class="btn btn-s btn-sm" :disabled="!e.email" @click="copiarMensaje(e)">Copiar mensaje</button>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-3 text-sm" x-show="rec.abierto === e.id" x-transition>
+              <div class="text-xs font-semibold text-slate-500">Asunto</div><div class="mb-2 font-medium" x-text="mensaje(e).asunto"></div>
+              <pre class="whitespace-pre-wrap font-sans text-slate-700" x-text="mensaje(e).cuerpo"></pre>
+            </div>
+          </div>
+        </div>
+      </template></template>
+      <p class="px-2 text-xs text-slate-500">Si al pulsar el botón no se abre Outlook, en Windows vaya a <i>Configuración → Aplicaciones → Aplicaciones predeterminadas → Correo electrónico (o enlace MAILTO)</i> y elija Outlook; o use «Copiar mensaje». Cada aviso queda registrado en la bitácora.</p>
+    </section>

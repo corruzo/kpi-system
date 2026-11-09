@@ -16,7 +16,7 @@ def fecha_iso(d):
 
 def usuario(u: Usuario) -> dict:
     return {"id": u.id, "username": u.username, "nombre": u.nombre, "rol": u.rol, "area_id": u.area_id,
-            "area": u.area.nombre if u.area else None, "activo": u.activo, "tour_visto": bool(u.tour_visto)}
+            "area": u.area.nombre if u.area else None, "email": u.email or "", "activo": u.activo, "tour_visto": bool(u.tour_visto)}
 
 
 def area(a: Area) -> dict:

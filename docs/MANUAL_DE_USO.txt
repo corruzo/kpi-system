@@ -875,3 +875,21 @@ PASO 5.  CARGA MENSUAL
 ====================================================================================================
 FIN DEL MANUAL
 ====================================================================================================
+
+
+================================================================================
+RECORDATORIOS DE CARGA  (menú: Recordatorios de carga — administrador y gerente)
+================================================================================
+Muestra qué encargado de proceso tiene períodos pendientes de cargar (o cargas devueltas para corregir), con el detalle por
+indicador. Los que más deben aparecen primero.
+
+  1. Registre el correo de cada encargado: Organización y equipo → Editar usuario → «Correo electrónico».
+  2. Elija el mensaje: Recordatorio amable, Urgente (carga vencida) o Carga devuelta para corregir.
+  3. Pulse «Enviar recordatorio por Outlook»: se abre un correo ya redactado (destinatario, asunto y texto con el nombre del
+     encargado y lo que le falta) en el programa de correo de la computadora. Revíselo y pulse «Enviar».
+     «Ver mensaje» muestra el texto; «Copiar mensaje» lo copia por si prefiere pegarlo en otro programa.
+  4. Cada aviso queda en la Bitácora (acción RECORDATORIO) y la tarjeta muestra la fecha del último aviso.
+
+Para que se abra Outlook: en Windows, Configuración → Aplicaciones → Aplicaciones predeterminadas → «Correo electrónico»
+(o «MAILTO») → elegir Outlook. El sistema no envía el correo por sí mismo: lo envía usted desde su Outlook.
+Los indicadores sin encargado asignado se avisan aparte (nadie recibe recordatorio por ellos).

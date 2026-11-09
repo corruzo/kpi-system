@@ -84,6 +84,9 @@ Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, e
 - **Blindaje en Supabase (migración `0006`):** RLS en todas las tablas (incluida `alembic_version`) y sin ningún permiso para los roles públicos `anon` / `authenticated`: la única vía a los datos es esta aplicación. Cookie de sesión `HttpOnly` + `Secure` + `SameSite=Strict`, CSP, HSTS, `X-Frame-Options: DENY`, COOP/CORP, contraseñas PBKDF2, bloqueo por intentos, sesiones revocables (el administrador puede cerrarlas), bitácora inalterable.
 - **Límites honestos:** una aplicación FastAPI + una base PostgreSQL atiende con holgura a miles de usuarios simultáneos de una empresa; «millones» exigiría infraestructura (más cómputo en Supabase, réplicas de lectura, CDN, reglas de *rate limit* del Firewall de Vercel) que se configura en esas plataformas, no en el código. La política CSP conserva `unsafe-eval`/`unsafe-inline` porque Alpine.js (versión estándar) lo necesita.
 
+## Recordatorios de carga
+Administrador y gerente ven qué encargado de proceso tiene períodos pendientes y, con un clic, abren en Outlook (`mailto:`) un correo prescrito con su nombre y lo que le falta (`GET /api/recordatorios`, correo opcional por usuario, aviso registrado en la bitácora).
+
 ## Ingeniería, respaldos y operación
 - `docs/ARQUITECTURA.md`: capas, reglas de ingeniería y política de acceso (cada encargado de proceso ve **solo** los indicadores que se le asignan).
 - `docs/OPERACION.md`: respaldos cifrados (`python -m app.respaldar`, botón en *Organización*, flujo diario `.github/workflows/respaldo.yml`), RPO/RTO, restauración e incidentes.

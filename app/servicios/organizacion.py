@@ -72,7 +72,7 @@ def crear_usuario(db: Session, admin: Usuario, datos) -> Usuario:
     if db.scalar(select(Usuario).where(Usuario.username == datos.username)):
         raise Invalido("Ese nombre de usuario ya existe.")
     _validar_rol_y_area(db, datos.rol, datos.area_id)
-    nuevo = Usuario(username=datos.username, nombre=datos.nombre.strip(), rol=datos.rol,
+    nuevo = Usuario(username=datos.username, nombre=datos.nombre.strip(), rol=datos.rol, email=datos.email or None,
                     area_id=datos.area_id if datos.rol == "jefe" else None,
                     password_hash=security.hash_password(datos.password))
     db.add(nuevo)
@@ -96,6 +96,8 @@ def editar_usuario(db: Session, admin: Usuario, usuario_id: int, datos) -> Usuar
                         "(Indicadores → editar) antes de cambiarle el rol o el área, o de inhabilitarlo.")
     nuevos = {"nombre": datos.nombre.strip(), "rol": datos.rol, "activo": datos.activo,
               "area_id": datos.area_id if datos.rol == "jefe" else None}
+    if datos.email is not None:   # sin el campo no se toca; con "" se borra
+        nuevos["email"] = datos.email or None
     cambios = {}
     for campo, valor in nuevos.items():
         if getattr(u, campo) != valor:

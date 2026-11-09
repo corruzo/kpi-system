@@ -3,8 +3,9 @@ window.SIGT = { modulos: {} };   // cada archivo de js/ registra aquí su módul
 
 const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos: '#a6bbd1' };
 const NAVY = '#0b3558', BRAND = '#006bff';
-const ACCIONES = ['PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION', 'EJERCICIO_CREADO', 'PRESUPUESTO_GUARDADO', 'USUARIO_ELIMINADO', 'SESIONES_CERRADAS', 'ACCESOS_DESBLOQUEADOS', 'LOGO_ACTUALIZADO', 'LOGO_ELIMINADO', 'EJERCICIO_CERRADO', 'EJERCICIO_REABIERTO'];
+const ACCIONES = ['RECORDATORIO', 'PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION', 'EJERCICIO_CREADO', 'PRESUPUESTO_GUARDADO', 'USUARIO_ELIMINADO', 'SESIONES_CERRADAS', 'ACCESOS_DESBLOQUEADOS', 'LOGO_ACTUALIZADO', 'LOGO_ELIMINADO', 'EJERCICIO_CERRADO', 'EJERCICIO_REABIERTO'];
 const ICONOS = {
+  recordatorios: 'M3 8l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
   inicio: 'M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10',
   carga: 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z',
   historial: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
@@ -25,12 +26,12 @@ const VISTA_INICIAL = 'inicio';       // primera vista tras ingresar
 // Secciones por rol, en el orden del flujo de trabajo. Cada una pertenece a un grupo del menú (GRUPOS_NAV).
 const MENU_POR_ROL = {
   jefe: ['inicio', 'carga', 'historial', 'reportes'],
-  gerente: ['inicio', 'bandeja', 'historial', 'panel', 'presupuesto', 'reportes', 'ejercicios'],
-  admin: ['inicio', 'org', 'fichas', 'presupuesto', 'carga', 'bandeja', 'historial', 'panel', 'reportes', 'ejercicios', 'importar', 'bitacora'],
+  gerente: ['inicio', 'bandeja', 'recordatorios', 'historial', 'panel', 'presupuesto', 'reportes', 'ejercicios'],
+  admin: ['inicio', 'org', 'fichas', 'presupuesto', 'carga', 'bandeja', 'recordatorios', 'historial', 'panel', 'reportes', 'ejercicios', 'importar', 'bitacora'],
 };
 const GRUPOS_NAV = {            // sección → grupo del menú lateral
   inicio: '', org: 'Configurar', fichas: 'Configurar', presupuesto: 'Configurar',
-  carga: 'Operar', bandeja: 'Operar', historial: 'Operar',
+  carga: 'Operar', bandeja: 'Operar', recordatorios: 'Operar', historial: 'Operar',
   panel: 'Analizar', reportes: 'Analizar', ejercicios: 'Control', importar: 'Control', bitacora: 'Control',
 };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

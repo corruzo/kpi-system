@@ -17,6 +17,7 @@ const ORDEN_DE_MODULOS = [
   'inicio',        // pantalla de bienvenida y tareas pendientes
   'carga',         // carga de datos
   'revision',      // historial y bandeja de aprobación
+  'recordatorios', // quién tiene la carga pendiente y aviso por Outlook
   'panel',         // dashboard
   'ficha_tecnica', // ficha en pantalla
   'reportes',      // Excel

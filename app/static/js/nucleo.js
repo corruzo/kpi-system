@@ -97,6 +97,7 @@ SIGT.modulos.nucleo = () => ({
         reportes: ver('reportes', 'Reportes', 'Reportes'),
         panel: ver('panel', 'Panel de control', 'Panel'),
         bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaTotal.length),
+        recordatorios: ver('recordatorios', 'Recordatorios de carga', 'Avisos'),
         ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
         presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presup.'),
         fichas: ver('fichas', 'Indicadores', 'Fichas'),
