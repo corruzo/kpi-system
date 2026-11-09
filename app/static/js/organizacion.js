@@ -1,6 +1,6 @@
 /* Organización: áreas, usuarios y listas de apoyo de la ficha (gerencias, procesos, objetivos, cargos). */
 SIGT.modulos.organizacion = () => ({
-    areas: [], usuarios: [], catalogos: [], orgTab: 'equipo',
+    areas: [], usuarios: [], usrQ: '', catalogos: [], orgTab: 'equipo',
     usuario: {}, modalUsuario: false, areaForm: { id: null, nombre: '' },
     soporte: null, claveTemporal: '',
     catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
@@ -8,16 +8,21 @@ SIGT.modulos.organizacion = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      entrar: { async org() { await this.cargarAreas(); this.usuarios = await this.api('/api/usuarios'); this.catalogos = await this.api('/api/catalogos'); } },
+      entrar: { async org() { await Promise.all([this.cargarAreas(), this.cargarUsuarios(1), this.api('/api/catalogos').then(c => { this.catalogos = c; })]); } },
     },
 
     async cargarAreas() { this.areas = await this.api('/api/areas'); },
+    // Usuarios: solo la página pedida (con búsqueda por nombre o usuario); el total llega en la cabecera
+    async cargarUsuarios(pagina = 1) {
+      const q = new URLSearchParams(); if (this.usrQ.trim()) q.set('q', this.usrQ.trim());
+      this.usuarios = await this.pedirPagina('usuarios', '/api/usuarios?' + q, pagina);
+    },
     async guardarArea() {
       this.busy = true;
       try {
         const id = this.areaForm.id;
         await this.api(id ? `/api/areas/${id}` : '/api/areas', { method: id ? 'PUT' : 'POST', body: { nombre: this.areaForm.nombre } });
-        this.areaForm = { id: null, nombre: '' }; this.areas = await this.api('/api/areas'); this.usuarios = await this.api('/api/usuarios'); this.avisar('Área guardada.');
+        this.areaForm = { id: null, nombre: '' }; this.areas = await this.api('/api/areas'); await this.cargarUsuarios(this.pg('usuarios').pagina); this.avisar('Área guardada.');
       } catch { }
       this.busy = false;
     },
@@ -34,7 +39,7 @@ SIGT.modulos.organizacion = () => ({
         const body = { nombre: u.nombre, email: (u.email || '').trim(), rol: u.rol, area_id: u.rol === 'jefe' ? (u.area_id || null) : null };
         if (id) { body.activo = u.activo; if (u.password) body.password = u.password; } else { body.username = u.username; body.password = u.password; }
         await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body });
-        this.modalUsuario = false; this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario guardado.');
+        this.modalUsuario = false; await this.cargarUsuarios(this.pg('usuarios').pagina); this.avisar('Usuario guardado.');
       } catch { }
       this.busy = false;
     },
@@ -45,7 +50,7 @@ SIGT.modulos.organizacion = () => ({
       this.busy = true;
       try {
         await this.api(`/api/usuarios/${x.id}`, { method: 'PUT', body: { nombre: x.nombre, rol: x.rol, area_id: x.area_id || null, activo: !x.activo } });
-        this.usuarios = await this.api('/api/usuarios'); this.avisar(`Usuario ${accion === 'inhabilitar' ? 'inhabilitado' : 'habilitado'}.`);
+        await this.cargarUsuarios(this.pg('usuarios').pagina); this.avisar(`Usuario ${accion === 'inhabilitar' ? 'inhabilitado' : 'habilitado'}.`);
       } catch { }
       this.busy = false;
     },
@@ -53,7 +58,7 @@ SIGT.modulos.organizacion = () => ({
     async eliminarUsuario(x) {
       if (!confirm(`¿Eliminar definitivamente a «${x.nombre}»? Esta acción no se puede deshacer.`)) return;
       this.busy = true;
-      try { await this.api(`/api/usuarios/${x.id}`, { method: 'DELETE' }); this.usuarios = await this.api('/api/usuarios'); this.avisar('Usuario eliminado.'); } catch { }
+      try { await this.api(`/api/usuarios/${x.id}`, { method: 'DELETE' }); await this.cargarUsuarios(this.pg('usuarios').pagina); this.avisar('Usuario eliminado.'); } catch { }
       this.busy = false;
     },
     // ------------------------------------------------------------ soporte a usuarios (administrador)

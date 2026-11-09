@@ -1,17 +1,16 @@
 /* Bitácora del sistema (solo administrador): consulta, filtros y verificación de integridad. */
 SIGT.modulos.bitacora = () => ({
-    bitacora: [], bitAccion: '', bitUsuario: '', bitMas: false, ACCIONES,
+    bitacora: [], bitAccion: '', bitUsuario: '', ACCIONES,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
       entrar: { bitacora() { return this.cargarBitacora(); } },
     },
 
-    async cargarBitacora(reset = true) {
-      const q = new URLSearchParams({ limite: 100, desde: reset ? 0 : this.bitacora.length });
+    async cargarBitacora(pagina = 1) {
+      const q = new URLSearchParams();
       if (this.bitAccion) q.set('accion', this.bitAccion); if (this.bitUsuario.trim()) q.set('usuario', this.bitUsuario.trim());
-      const r = await this.api('/api/bitacora?' + q);
-      this.bitacora = reset ? r : [...this.bitacora, ...r]; this.bitMas = r.length === 100;
+      this.bitacora = await this.pedirPagina('bitacora', '/api/bitacora?' + q, pagina);
     },
     async verificarBitacora() {
       const r = await this.api('/api/bitacora/verificar');

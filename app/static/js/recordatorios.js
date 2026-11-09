@@ -30,17 +30,19 @@ SIGT.modulos.recordatorios = () => ({
       },
     },
 
-    async cargarRecordatorios() {
+    // Pide una página de encargados (el filtro «solo con pendientes» y los totales los calcula el servidor)
+    async cargarRecordatorios(pagina = 1) {
       this.rec.cargando = true;
-      try { this.rec.data = await this.api('/api/recordatorios'); } catch { }
+      try {
+        const p = this.pg('recordatorios'), n = Math.max(1, pagina);
+        const d = await this.api(`/api/recordatorios?solo_pendientes=${this.rec.soloConDeuda}&limite=${p.por}&desde=${(n - 1) * p.por}`);
+        p.total = d.total; p.pagina = n; this.rec.data = d;
+      } catch { }
       this.rec.cargando = false;
     },
-    get recLista() {
-      const e = this.rec.data?.encargados || [];
-      return this.rec.soloConDeuda ? e.filter(x => x.total > 0) : e;
-    },
-    get recDeben() { return (this.rec.data?.encargados || []).filter(x => x.total > 0).length; },
-    get recSinCorreo() { return (this.rec.data?.encargados || []).filter(x => x.total > 0 && !x.email).length; },
+    get recLista() { return this.rec.data?.encargados || []; },
+    get recDeben() { return this.rec.data?.deben || 0; },
+    get recSinCorreo() { return this.rec.data?.sin_correo || 0; },
 
     // Texto con los pendientes de un encargado: un renglón por indicador (máx. 8, y los períodos de cada uno acotados)
     textoPendientesDe(e) {
@@ -65,7 +67,7 @@ SIGT.modulos.recordatorios = () => ({
     // Abre el correo ya redactado en el programa de correo (Outlook) y deja constancia en la bitácora.
     async enviarRecordatorio(e) {
       const a = document.createElement('a'); a.href = this.enlaceCorreo(e); document.body.appendChild(a); a.click(); a.remove();
-      try { await this.api(`/api/recordatorios/${e.id}`, { method: 'POST', body: { mensaje: this.rec.plantilla } }, true); await this.cargarRecordatorios(); } catch { }
+      try { await this.api(`/api/recordatorios/${e.id}`, { method: 'POST', body: { mensaje: this.rec.plantilla } }, true); await this.cargarRecordatorios(this.pg('recordatorios').pagina); } catch { }
       this.avisar('Se abrió el correo en Outlook. Revíselo y pulse «Enviar».');
     },
     async copiarMensaje(e) {

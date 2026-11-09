@@ -1,12 +1,13 @@
 """Mediciones: cálculo en vivo, envío de cargas, consulta, revisión del gerente/auditor, reapertura y notas de auditoría."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from ... import schemas
+from ...dominio import calendario
 from ...models import Usuario
 from ...servicios import mediciones
 from .. import serializadores as ser
-from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, con_total, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["mediciones"])
 quien_carga = requiere("jefe", "admin")
@@ -27,10 +28,20 @@ def cargar(datos: schemas.CargaIn, db: Session = Depends(get_db), u: Usuario = D
 @router.get("/mediciones")
 def listar(estado: str | None = None, indicador_id: IdConsulta = None, area_id: IdConsulta = None,
            periodo: str | None = None, semaforo: str | None = None, ejercicio: AnioConsulta = None,
-           desde: Desde = 0, limite: Limite = 100, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+           desde: Desde = 0, limite: Limite = 100, response: Response = None, db: Session = Depends(get_db),
+           u: Usuario = Depends(usuario_actual)):
+    con_total(response, mediciones.contar(db, u, estado=estado, indicador_id=indicador_id, area_id=area_id, periodo=periodo,
+                                          semaforo_=semaforo, ejercicio=ejercicio))
     return [ser.medicion(m) for m in mediciones.listar(
         db, u, estado=estado, indicador_id=indicador_id, area_id=area_id, periodo=periodo, semaforo_=semaforo,
         ejercicio=ejercicio, desde=desde, limite=limite)]
+
+
+@router.get("/mediciones/resumen-ejercicios")
+def resumen_ejercicios(estado: str = "enviado", db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Cuántas cargas hay en un estado por ejercicio fiscal (la bandeja avisa así de lo que queda en otros ejercicios)."""
+    return [{"ejercicio": e, "etiqueta": calendario.etiqueta_ejercicio(e), "n": n}
+            for e, n in mediciones.resumen_por_ejercicio(db, u, estado)]
 
 
 @router.post("/mediciones/{medicion_id}/revision")

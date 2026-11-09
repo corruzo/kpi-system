@@ -9,7 +9,7 @@ from ...errores import Invalido, NoEncontrado
 from ...models import Usuario
 from ...servicios import auditoria, marca, organizacion, parametros, reinicio, respaldo
 from .. import serializadores as ser
-from ..deps import IdRuta, escritura, get_db, requiere, usuario_actual
+from ..deps import Desde, IdRuta, Limite, con_total, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["organización"])
 solo_admin = requiere("admin")
@@ -40,10 +40,23 @@ def eliminar_area(area_id: IdRuta, db: Session = Depends(get_db), u: Usuario = D
 
 # ---------------------------------------------------------------- usuarios
 @router.get("/usuarios")
-def listar_usuarios(db: Session = Depends(get_db), _=Depends(solo_admin)):
-    con_historial, ingresos = organizacion.ids_con_historial(db), organizacion.ultimos_ingresos(db)
+def listar_usuarios(q: str | None = None, desde: Desde = 0, limite: Limite | None = None, response: Response = None,
+                    db: Session = Depends(get_db), _=Depends(solo_admin)):
+    """Usuarios (paginados con `limite`; el total va en `X-Total-Count`)."""
+    if limite is not None:
+        con_total(response, organizacion.contar_usuarios(db, q))
+    pagina = organizacion.listar_usuarios(db, buscar=q, desde=desde, limite=limite)
+    ids = [x.id for x in pagina]
+    con_historial, ingresos = organizacion.ids_con_historial(db, ids), organizacion.ultimos_ingresos(db, ids)
     return [{**ser.usuario(x), "puede_eliminarse": x.id not in con_historial, "ultimo_ingreso": ser.iso(ingresos.get(x.id))}
-            for x in organizacion.listar_usuarios(db)]
+            for x in pagina]
+
+
+@router.get("/usuarios/opciones")
+def opciones_usuarios(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
+    """Lista mínima de usuarios activos (id, nombre, rol, área) para elegir encargados al gestionar indicadores."""
+    return [{"id": x.id, "nombre": x.nombre, "rol": x.rol, "area_id": x.area_id, "activo": x.activo}
+            for x in organizacion.listar_usuarios(db) if x.activo]
 
 
 @router.post("/usuarios", status_code=201)

@@ -1,31 +1,41 @@
 /* Indicadores: lista según el rol y administración de fichas técnicas (alta, edición, fórmula, probador). */
 SIGT.modulos.indicadores = () => ({
-    indicadores: [],
+    indicadores: [],                                                     // los que el usuario puede cargar (selector de «Cargar datos»)
+    fichas: [],                                                          // página de la lista «Indicadores» (gestión de fichas)
+    opcionesUsuarios: [],                                                // usuarios activos para elegir encargado
     fq: { q: '', area: '', frecuencia: '', estado: 'activo' },           // filtros de la lista
     ficha: { variables: [], constantes: [] }, modal: false,              // ficha en edición
     formulaMsg: { ok: true, txt: '' }, prueba: { valores: {}, res: null }, // validación y probador de fórmulas
-    verGuiaFormulas: false, ejemplos: EJEMPLOS, funcDoc: FUNC_DOC,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      entrar: { fichas() { return this.cargarIndicadores(); } },
-      ejercicio() { return this.cargarIndicadores(); },
-      salida() { this.indicadores = []; },
+      entrar: { fichas() { return Promise.all([this.cargarFichas(1), this.cargarOpcionesUsuarios()]); } },
+      ejercicio() { return Promise.all([this.cargarIndicadores(), this.view === 'fichas' ? this.cargarFichas(this.pg('fichas').pagina) : null]); },
+      salida() { this.indicadores = []; this.fichas = []; this.opcionesUsuarios = []; },
     },
 
     // Los pendientes de cada indicador corresponden al ejercicio elegido; los de otros ejercicios vienen aparte.
-    async cargarIndicadores() { this.indicadores = await this.api('/api/indicadores' + (this.ejSel ? '?ejercicio=' + this.ejSel : '')); },
-    get fichasFiltradas() {
-      const q = this.fq.q.trim().toLowerCase();
-      return this.indicadores.filter(i =>
-        (!q || (i.codigo + ' ' + i.nombre + ' ' + i.area).toLowerCase().includes(q)) &&
-        (!this.fq.area || i.area_id === Number(this.fq.area)) &&
-        (!this.fq.frecuencia || i.frecuencia === this.fq.frecuencia) &&
-        (this.fq.estado === '' || (this.fq.estado === 'activo') === i.activo));
+    // Quienes cargan datos (encargado y administrador) reciben sus indicadores al ingresar; el gerente / auditor no los necesita ahí.
+    async cargarIndicadores() {
+      if (this.user && this.user.rol === 'gerente') { this.indicadores = []; return; }
+      this.indicadores = await this.api('/api/indicadores' + (this.ejSel ? '?ejercicio=' + this.ejSel : ''));
     },
+    // Lista de gestión: el servidor filtra y entrega solo la página pedida (incluye archivados)
+    async cargarFichas(pagina = 1) {
+      const q = new URLSearchParams({ gestion: 'true' });
+      if (this.ejSel) q.set('ejercicio', this.ejSel);
+      if (this.fq.q.trim()) q.set('q', this.fq.q.trim());
+      if (this.fq.area) q.set('area_id', this.fq.area);
+      if (this.fq.frecuencia) q.set('frecuencia', this.fq.frecuencia);
+      if (this.fq.estado) q.set('activo', this.fq.estado === 'activo');
+      this.fichas = await this.pedirPagina('fichas', '/api/indicadores?' + q, pagina);
+    },
+    async cargarOpcionesUsuarios() { if (!this.opcionesUsuarios.length) this.opcionesUsuarios = await this.api('/api/usuarios/opciones'); },
+    // Tras crear, editar o eliminar: se refresca la página actual y la lista de carga
+    async refrescarIndicadores() { await Promise.all([this.cargarFichas(this.pg('fichas').pagina), this.cargarIndicadores()]); },
     codigoSugerido: '',
     get etiquetaNC() { return (this.params.codigo_formato || 'NC-16').split('-').slice(0, 2).join('-'); },
-    get encargadosDelArea() { return this.usuarios.filter(u => u.rol === 'jefe' && u.activo && u.area_id === this.ficha.area_id); },
+    get encargadosDelArea() { return this.opcionesUsuarios.filter(u => u.rol === 'jefe' && u.activo && u.area_id === this.ficha.area_id); },
     async cambioDeArea() {
       if (!this.encargadosDelArea.some(u => u.id === this.ficha.encargado_id)) this.ficha.encargado_id = this.encargadosDelArea.length === 1 ? this.encargadosDelArea[0].id : null;
       await this.pedirCodigo();
@@ -36,7 +46,7 @@ SIGT.modulos.indicadores = () => ({
     },
     nuevaFicha() {
       this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', meta: 90, limite: 80, meta_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
-      this.abrirFicha('Escriba la fórmula con las claves de las variables. Pulse «Guía de fórmulas» para ver funciones y ejemplos.');
+      this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» y los atajos de la fórmula como ayuda.');
       this.cambioDeArea();
     },
     editarFicha(i) {
@@ -50,7 +60,7 @@ SIGT.modulos.indicadores = () => ({
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
       this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo();
     },
-    abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.ay = ''; this.verGuiaFormulas = false; this.modal = true; },
+    abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.ay = ''; this.modal = true; },
     get fichaBloqueada() { return (this.ficha.n_mediciones || 0) > 0; },
     slug: t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, 'v$1').slice(0, 30),
     autoClave(v) { if (!this.fichaBloqueada && !v._manual) { v.clave = this.slug(v.etiqueta); this.validarFormula(); } },
@@ -67,12 +77,6 @@ SIGT.modulos.indicadores = () => ({
       this.ficha.formula = pre + sep + t + f.slice(b);
       this.$nextTick(() => { if (el) { el.focus(); const p = (pre + sep + t).length - atras; el.setSelectionRange(p, p); } });
       this.validarFormula();
-    },
-    usarEjemplo(e) {
-      if (this.fichaBloqueada) { this.avisar('Este indicador tiene cargas: no se pueden cambiar las variables.', true); return; }
-      this.ficha.variables = e.vars.map(([clave, etiqueta]) => ({ clave, etiqueta, _manual: true }));
-      this.ficha.constantes = (e.consts || []).map(([clave, etiqueta, valor]) => ({ clave, etiqueta, valor, _manual: true }));
-      this.ficha.formula = e.f; this.ficha.unidad = e.unidad; this.verGuiaFormulas = false; this.validarFormula(); this.avisar('Ejemplo cargado: ajuste nombres, meta y límite.');
     },
     get nombresFormula() { return [...this.ficha.variables, ...(this.ficha.constantes || [])].map(v => v.clave).filter(Boolean); },
     async validarFormula() {
@@ -108,23 +112,23 @@ SIGT.modulos.indicadores = () => ({
       try {
         const f = this.ficha, id = f.id;
         await this.api(id ? `/api/indicadores/${id}` : '/api/indicadores', { method: id ? 'PUT' : 'POST', body: this.cuerpoFicha(f) });
-        this.modal = false; this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.'); await this.cargarIndicadores();
+        this.modal = false; this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.'); await this.refrescarIndicadores();
       } catch { }
       this.busy = false;
     },
     async alternarActivo(i) {
       const accion = i.activo ? 'archivar' : 'restaurar';
       if (i.activo && !confirm(`¿Archivar ${i.codigo}? Dejará de aparecer para cargar datos; el historial se conserva.`)) return;
-      try { await this.api(`/api/indicadores/${i.id}`, { method: 'PUT', body: this.cuerpoFicha({ ...i, activo: !i.activo }) }); this.avisar(`Indicador ${i.activo ? 'archivado' : 'restaurado'}.`); await this.cargarIndicadores(); } catch { }
+      try { await this.api(`/api/indicadores/${i.id}`, { method: 'PUT', body: this.cuerpoFicha({ ...i, activo: !i.activo }) }); this.avisar(`Indicador ${i.activo ? 'archivado' : 'restaurado'}.`); await this.refrescarIndicadores(); } catch { }
     },
     async eliminarFicha(i) {
       const msg = i.n_mediciones ? `${i.codigo} tiene ${i.n_mediciones} carga(s) registradas: no se borrará, se archivará para conservar la trazabilidad. ¿Continuar?` : `¿Eliminar definitivamente el indicador ${i.codigo}?`;
       if (!confirm(msg)) return;
-      try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.cargarIndicadores(); } catch { }
+      try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.refrescarIndicadores(); } catch { }
     },
     elegirRef() {
       const c = this.catalogos.find(c => c.tipo === 'proceso' && c.valor === this.ficha.ref_nombre);
       if (c && c.detalle && !this.ficha.ref_detalle) this.ficha.ref_detalle = c.detalle;
     },
-    get sugerenciasPersonas() { return [...new Set(this.usuarios.map(u => u.nombre.split(' (')[0]))]; },
+    get sugerenciasPersonas() { return [...new Set(this.opcionesUsuarios.map(u => u.nombre.split(' (')[0]))]; },
 });

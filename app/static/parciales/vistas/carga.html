@@ -121,6 +121,13 @@
               </div>
             </div>
 
+            <div x-show="calc && calc.ok && !calc.requiere_analisis" x-transition class="card">
+              <div class="card-b space-y-2">
+                <label class="lbl" for="carga-observacion">Observación o comentario <span class="font-normal text-slate-500">(opcional)</span></label>
+                <textarea id="carga-observacion" class="inp" rows="2" maxlength="4000" :disabled="bloqueado" x-model="f.analisis" placeholder="Si lo desea, deje una observación sobre este resultado."></textarea>
+              </div>
+            </div>
+
             <button class="btn btn-p btn-lg" x-show="!bloqueado" :disabled="!puedeEnviar() || busy" @click="enviar()" ><span x-text="medActual && medActual.estado==='observado' ? 'Reenviar para revisión' : 'Enviar carga'"></span><span class="btn-flecha">→</span></button>
           </div>
         </template>

@@ -29,7 +29,7 @@ SIGT.modulos.nucleo = () => ({
       this.user = d.usuario; this.params = d.parametros;
       this.aplicarEjercicios(d.ejercicios.ejercicios); this.ejVigente = d.ejercicios.vigente; this.ejSel = d.ejercicio;
       this.indicadores = d.indicadores; this.areas = d.areas || [];
-      this.bandejaTotal = d.bandeja || []; this.catalogos = d.catalogos || []; this.usuarios = d.usuarios || [];
+      this.bandejaN = d.bandeja_total || 0; this.bandejaEj = d.bandeja_ejercicios || []; this.catalogos = d.catalogos || []; this.usuarios = [];
       this.marcha = d.marcha || null; this.resumenInicio = d.resumen || null; this._inicioListo = true;   // la pantalla de inicio ya tiene sus datos
       for (const cargar of this.ganchos.ingreso) await cargar.call(this);   // lo que no viene en el arranque (p. ej. valores por defecto)
       await this.go(VISTA_INICIAL);
@@ -40,7 +40,8 @@ SIGT.modulos.nucleo = () => ({
     // Toda llamada a la API pasa por aquí: siempre termina en datos válidos o en un Error con un mensaje claro en español
     // (sin conexión, tiempo agotado, respuesta que no es JSON, error del servidor…), ya mostrado al usuario salvo `silencioso`.
     async api(url, opt = {}, silencioso = false) {
-      const o = { credentials: 'same-origin', ...opt };
+      const { conTotal, ...resto } = opt;   // conTotal: devuelve {items, total} con el total de `X-Total-Count`
+      const o = { credentials: 'same-origin', ...resto };
       if (o.body && typeof o.body !== 'string' && !(o.body instanceof FormData)) { o.body = JSON.stringify(o.body); o.headers = { 'Content-Type': 'application/json' }; }
       const falla = (msg, estado) => { if (!silencioso) this.avisar(msg, true); return Object.assign(new Error(msg), { avisado: true, estado }); };
       const control = new AbortController(), plazo = setTimeout(() => control.abort(), 60000);
@@ -56,8 +57,36 @@ SIGT.modulos.nucleo = () => ({
         if (r.status === 401 && this.user) { this.user = null; this.avisar('Su sesión expiró.', true); throw Object.assign(new Error(msg), { avisado: true, estado: 401 }); }
         throw falla(msg, r.status);
       }
-      try { return await r.json(); } catch { throw falla('La respuesta del servidor no es válida. Recargue la página.', r.status); }
+      try {
+        const datos = await r.json();
+        return conTotal ? { items: datos, total: Number(r.headers.get('X-Total-Count')) || datos.length } : datos;
+      } catch { throw falla('La respuesta del servidor no es válida. Recargue la página.', r.status); }
     },
+    // ------------------------------------------------------------ paginación (en el servidor)
+    // Cada lista larga pide solo su página (`limite`/`desde`) y recibe el total en `X-Total-Count`: nunca se descarga todo.
+    // El estado de cada lista vive en pag[clave] = {pagina, por, total}; el paginador (componentes/paginador.html) lo usa.
+    pag: {},
+    pg(k) { if (!this.pag[k]) this.pag[k] = { pagina: 1, por: 25, total: 0 }; return this.pag[k]; },   // siempre vía el proxy reactivo (con ||= la 1.ª vez devolvería el objeto crudo)
+    // Pide la página `pagina` de la lista `k` en `url` (que puede traer ya otros filtros) y deja actualizado su estado.
+    async pedirPagina(k, url, pagina = 1) {
+      const p = this.pg(k), n = Math.max(1, pagina);
+      const r = await this.api(url + (url.includes('?') ? '&' : '?') + `limite=${p.por}&desde=${(n - 1) * p.por}`, { conTotal: true });
+      p.total = r.total;
+      const ultima = this.totalPaginas(k);
+      if (r.items.length === 0 && n > 1 && n > ultima) return this.pedirPagina(k, url, ultima);   // la última página quedó vacía (se borraron registros)
+      p.pagina = n; return r.items;
+    },
+    totalPaginas(k) { const p = this.pg(k); return Math.max(1, Math.ceil(p.total / p.por)); },
+    rangoPagina(k) { const p = this.pg(k); return p.total ? `${(p.pagina - 1) * p.por + 1}–${Math.min(p.pagina * p.por, p.total)} de ${p.total}` : ''; },
+    // Números de página a mostrar: primera, última y las vecinas de la actual, con «…» en los saltos
+    botonesPagina(k) {
+      const t = this.totalPaginas(k), a = this.pg(k).pagina, set = new Set([1, t, a - 1, a, a + 1]), r = [];
+      let prev = 0;
+      for (const n of [...set].filter(n => n >= 1 && n <= t).sort((x, y) => x - y)) { if (n - prev > 1) r.push({ key: 'e' + n, gap: true }); r.push({ key: 'n' + n, n }); prev = n; }
+      return r;
+    },
+    irPagina(k, n) { if (n >= 1 && n <= this.totalPaginas(k) && n !== this.pg(k).pagina) return this[CARGADORES[k]](n); },
+    cambiarPorPagina(k, v) { this.pg(k).por = Number(v); return this[CARGADORES[k]](1); },
     // Barra de progreso global: se muestra si alguna petición tarda más de 0,2 s
     iniciarCarga() { this.pendientes++; if (!this._tc) this._tc = setTimeout(() => { this.cargando = this.pendientes > 0; }, 200); },
     terminarCarga() { if (--this.pendientes <= 0) { this.pendientes = 0; clearTimeout(this._tc); this._tc = null; this.cargando = false; } },
@@ -96,7 +125,7 @@ SIGT.modulos.nucleo = () => ({
         historial: ver('historial', r === 'jefe' ? 'Mis cargas' : 'Todas las cargas', r === 'jefe' ? 'Historial' : 'Cargas'),
         reportes: ver('reportes', 'Reportes', 'Reportes'),
         panel: ver('panel', 'Panel de control', 'Panel'),
-        bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaTotal.length),
+        bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaN),
         recordatorios: ver('recordatorios', 'Recordatorios de carga', 'Avisos'),
         ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
         presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presup.'),

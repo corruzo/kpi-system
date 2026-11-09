@@ -40,7 +40,7 @@ SIGT.modulos.inicio = () => ({
     // Tareas pendientes del usuario, de la más urgente a la menos urgente
     tareas() {
       const t = [], n = this.pendientesTotal();
-      if (this.esRevisor && this.bandeja.length) t.push({ id: 'bandeja', n: this.bandeja.length, texto: 'cargas del ejercicio esperan su aprobación', boton: 'Revisar' });
+      if (this.esRevisor && this.bandejaDelEjercicio) t.push({ id: 'bandeja', n: this.bandejaDelEjercicio, texto: 'cargas del ejercicio esperan su aprobación', boton: 'Revisar' });
       if (n && (this.user.rol === 'jefe' || this.user.rol === 'admin')) t.push({ id: 'carga', n, texto: 'períodos pendientes de cargar en este ejercicio', boton: 'Cargar' });
       for (const o of this.otrosEjercicios()) t.push({ ejercicio: o.ejercicio, id: 'otro:' + o.ejercicio, n: o.n, texto: `pendientes en el ejercicio ${o.etiqueta} (ya terminado)`, boton: 'Ver ese ejercicio' });
       const r = this.resumenInicio;

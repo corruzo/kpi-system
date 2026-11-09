@@ -40,6 +40,6 @@
           </div>
         </template>
         <div class="card p-8 text-center text-sm text-slate-500" x-show="!historial.length">No hay cargas que coincidan.</div>
-        <button class="btn btn-s w-full" x-show="histMas" @click="cargarHistorial(false)">Cargar más</button>
+        <div x-data="{ k: 'historial' }"><!--#incluir parciales/componentes/paginador.html--></div>
       </div>
     </section>

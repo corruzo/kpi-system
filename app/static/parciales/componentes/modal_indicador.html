@@ -2,7 +2,7 @@
   <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="modal" x-transition.opacity>
     <form class="sheet max-h-[94vh] w-full max-w-3xl" @submit.prevent="guardarFicha()" @keydown.escape.window="modal=false">
       <div class="card-h"><div><h2 class="text-lg font-bold" x-text="ficha.id ? 'Editar indicador' : 'Nuevo indicador'"></h2><p class="text-xs text-slate-500">Toque <span class="info !h-4 !w-4 !text-[10px]">i</span> junto a cada campo para ver su explicación.</p></div>
-        <div class="flex gap-2"><button type="button" class="btn btn-s btn-sm" @click="verGuiaFormulas=true">Guía de fórmulas</button><button type="button" class="btn btn-s btn-sm" @click="modal=false" aria-label="Cerrar">✕</button></div></div>
+        <div class="flex gap-2"><button type="button" class="btn btn-s btn-sm" @click="modal=false" aria-label="Cerrar">✕</button></div></div>
       <div class="card-b space-y-4 overflow-y-auto">
         <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="fichaBloqueada">Este indicador tiene <b x-text="ficha.n_mediciones"></b> carga(s). Por trazabilidad no se puede cambiar la frecuencia ni las claves de variables y constantes; sí la meta, la fórmula y los textos (quedan en la bitácora y no alteran el histórico).</p>
 

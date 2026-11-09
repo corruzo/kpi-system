@@ -77,7 +77,7 @@ SIGT.modulos.carga = () => ({
       this.busy = true;
       try {
         const vals = Object.fromEntries(this.ind.variables.map(v => { const x = this.f.valores[v.clave]; return [v.clave, x === '' || x === undefined || x === null ? null : Number(x)]; }));
-        await this.api('/api/mediciones', { method: 'POST', body: { indicador_id: this.ind.id, periodo: this.f.periodo, valores: vals, analisis: this.f.analisis, plan_mejora: this.f.plan_mejora } });
+        await this.api('/api/mediciones', { method: 'POST', body: { indicador_id: this.ind.id, periodo: this.f.periodo, valores: vals, analisis: this.f.analisis, plan_mejora: this.calc.requiere_analisis ? this.f.plan_mejora : '' } });
         this.avisar('Carga enviada correctamente.');
         const per = this.f.periodo;
         await this.cargarIndicadores(); await this.refrescarPeriodos(); this.f.periodo = per; this.cambiarPeriodo();

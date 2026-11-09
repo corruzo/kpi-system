@@ -57,8 +57,22 @@ def eliminar_area(db: Session, usuario: Usuario, area_id: int) -> None:
 
 
 # ---------------------------------------------------------------- usuarios
-def listar_usuarios(db: Session) -> list[Usuario]:
-    return list(db.scalars(select(Usuario).order_by(Usuario.nombre)))
+def _usuarios_filtrados(q, buscar: str | None):
+    if buscar and buscar.strip():
+        patron = "%" + buscar.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        q = q.where(func.lower(Usuario.nombre + " " + Usuario.username).like(patron, escape="\\"))
+    return q
+
+
+def listar_usuarios(db: Session, *, buscar: str | None = None, desde: int = 0, limite: int | None = None) -> list[Usuario]:
+    q = _usuarios_filtrados(select(Usuario).order_by(Usuario.nombre, Usuario.id), buscar)
+    if limite is not None:
+        q = q.offset(max(desde, 0)).limit(max(1, min(limite, 500)))
+    return list(db.scalars(q))
+
+
+def contar_usuarios(db: Session, buscar: str | None = None) -> int:
+    return db.scalar(_usuarios_filtrados(select(func.count(Usuario.id)), buscar)) or 0
 
 
 def _validar_rol_y_area(db: Session, rol: str, area_id: int | None) -> None:
@@ -115,19 +129,25 @@ def editar_usuario(db: Session, admin: Usuario, usuario_id: int, datos) -> Usuar
     return u
 
 
-def ids_con_historial(db: Session) -> set[int]:
+def ids_con_historial(db: Session, ids: list[int] | None = None) -> set[int]:
     """Usuarios que figuran en algún registro (bitácora, cargas, revisiones, notas, ejercicios o presupuestos). A esos no se
     les puede borrar sin romper la trazabilidad: se inhabilitan."""
     consultas = [select(Bitacora.usuario_id), select(Medicion.cargado_por_id), select(Medicion.revisado_por_id),
                  select(NotaAuditoria.usuario_id), select(Ejercicio.creado_por_id), select(Ejercicio.cerrado_por_id),
                  select(Ejercicio.reabierto_por_id), select(Presupuesto.actualizado_por_id)]
+    if ids is not None:   # solo los usuarios de la página: cada consulta se acota con su propio filtro
+        columnas = [Bitacora.usuario_id, Medicion.cargado_por_id, Medicion.revisado_por_id, NotaAuditoria.usuario_id,
+                    Ejercicio.creado_por_id, Ejercicio.cerrado_por_id, Ejercicio.reabierto_por_id, Presupuesto.actualizado_por_id]
+        consultas = [select(c).where(c.in_(ids)) for c in columnas]
     return {i for i in db.scalars(union(*consultas)) if i is not None}
 
 
-def ultimos_ingresos(db: Session) -> dict[int, object]:
+def ultimos_ingresos(db: Session, ids: list[int] | None = None) -> dict[int, object]:
     """{usuario_id: fecha de su último ingreso}, en una sola consulta (para el soporte a usuarios)."""
-    filas = db.execute(select(Bitacora.usuario_id, func.max(Bitacora.fecha)).where(Bitacora.accion == "INICIO_SESION")
-                       .group_by(Bitacora.usuario_id))
+    q = select(Bitacora.usuario_id, func.max(Bitacora.fecha)).where(Bitacora.accion == "INICIO_SESION")
+    if ids is not None:
+        q = q.where(Bitacora.usuario_id.in_(ids))
+    filas = db.execute(q.group_by(Bitacora.usuario_id))
     return {uid: fecha for uid, fecha in filas if uid is not None}
 
 

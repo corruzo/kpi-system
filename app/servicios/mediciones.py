@@ -1,6 +1,6 @@
 """Cargas de indicadores: cálculo, envío, revisión del gerente/auditor, reapertura y notas de auditoría."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, presupuesto, semaforo
@@ -107,6 +107,21 @@ def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, area_id=N
            semaforo_=None, ejercicio=None, desde=0, limite=100) -> list[Medicion]:
     q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
          .offset(max(desde, 0)).limit(max(1, min(limite, 500))))
+    return list(db.scalars(_filtrar(q, u, estado, indicador_id, area_id, periodo, semaforo_, ejercicio)))
+
+
+def contar(db: Session, u: Usuario, *, estado=None, indicador_id=None, area_id=None, periodo=None, semaforo_=None, ejercicio=None) -> int:
+    q = select(func.count(Medicion.id)).join(Indicador)
+    return db.scalar(_filtrar(q, u, estado, indicador_id, area_id, periodo, semaforo_, ejercicio)) or 0
+
+
+def resumen_por_ejercicio(db: Session, u: Usuario, estado: str) -> list[tuple[int, int]]:
+    """[(ejercicio, cantidad)] de las cargas en un estado (p. ej. las que esperan aprobación), en una sola consulta."""
+    q = acceso.restringir(select(Medicion.ejercicio, func.count(Medicion.id)).join(Indicador).where(Medicion.estado == estado), u)
+    return sorted(db.execute(q.group_by(Medicion.ejercicio)).all(), reverse=True)
+
+
+def _filtrar(q, u, estado, indicador_id, area_id, periodo, semaforo_, ejercicio):
     q = acceso.restringir(q, u)
     if area_id:
         q = q.where(Indicador.area_id == area_id)
@@ -114,7 +129,7 @@ def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, area_id=N
                            (Medicion.semaforo, semaforo_), (Medicion.ejercicio, ejercicio)):
         if valor:
             q = q.where(columna == valor)
-    return list(db.scalars(q))
+    return q
 
 
 # ---------------------------------------------------------------- revisión

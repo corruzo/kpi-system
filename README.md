@@ -55,8 +55,13 @@ Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/
 | Rol | Capacidades |
 |---|---|
 | Encargado de proceso | Carga rápida de su área; resultado y semáforo en vivo; análisis y plan de mejora obligatorios si hay Alerta/Crítico (validado en servidor); reenvío de cargas devueltas. |
-| Gerente / Auditor SGC | Bandeja de aprobación, notas de auditoría, panel de análisis, exportación CSV. |
+| Gerente / Auditor SGC | Bandeja de aprobación, notas de auditoría, panel de análisis, exportación CSV y **gestión de indicadores** (crear, editar, archivar y eliminar fichas, incluidos los archivados). |
 | Administrador SGC | Fichas de indicadores, áreas, usuarios (alta, roles, restablecer clave, inhabilitar, eliminar), bitácora. |
+
+## Listas paginadas y observación en verde
+- **Paginación en el servidor:** bitácora, historial, bandeja, indicadores, usuarios y recordatorios aceptan `desde`/`limite` y devuelven el total en la cabecera `X-Total-Count` (recordatorios: campo `total`). Los filtros (acción, usuario, estado, área, texto…) se aplican en la base de datos y el paginador (`parciales/componentes/paginador.html`, `pedirPagina` en `nucleo.js`) solo pide la página visible. `/api/arranque` ya no envía la bandeja ni los usuarios completos: solo cantidades (`bandeja_total`, `bandeja_ejercicios`); `GET /api/mediciones/resumen-ejercicios` da las cantidades por ejercicio. Las consultas de estados y cargas de `/api/indicadores` se acotan a los indicadores de la página.
+- **Observación opcional:** si la carga queda en verde se ofrece una «Observación o comentario» opcional (se guarda en el campo `analisis`); en alerta y crítico el análisis y el plan de mejora siguen siendo obligatorios.
+- **Gestión de indicadores:** `POST/PUT/DELETE /api/indicadores`, el código sugerido y la validación/prueba de fórmulas aceptan a `gerente` y `admin`; `GET /api/indicadores?gestion=true` incluye los archivados para ellos y `GET /api/usuarios/opciones` entrega los encargados disponibles. Importar fichas, usuarios y áreas siguen siendo solo del administrador.
 
 ## Reglas y seguridad
 - Semáforo «mayor es mejor»: verde ≥ meta, amarillo ≥ límite, rojo < límite; el inverso es simétrico.

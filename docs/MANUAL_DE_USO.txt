@@ -113,6 +113,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
 2.7 SEMÁFORO (distinto del presupuesto)
     Es la clasificación ISO 9001 del resultado según la META y el LÍMITE CRÍTICO de la ficha:
         Verde = Cumple | Amarillo = Alerta | Rojo = Crítico.
+    Si queda en Verde, aparece un cuadro OPCIONAL "Observación o comentario" (puede dejarse vacío).
     Si queda en Alerta o Crítico, el encargado DEBE escribir el análisis y el plan de mejora (mínimo 10
     caracteres cada uno). El semáforo y el presupuesto son dos lecturas complementarias: el semáforo
     mide contra la meta de calidad; el presupuesto mide contra lo presupuestado para ese período.
@@ -136,7 +137,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
    Acción                                              Encargado de proceso   Gerente/Auditor   Administrador
    -------------------------------------------------   ------------   ---------------   -------------
    Crear áreas, usuarios, parámetros, logo, listas          -               -                 SI
-   Crear / editar / archivar / eliminar indicadores         -               -                 SI
+   Crear / editar / archivar / eliminar indicadores         -              SI                 SI
    Crear el período fiscal                                  -               -                 SI
    Ingresar / modificar el PRESUPUESTO                      -              SI                 SI
    Cargar el dato real                                  Solo su área        -            Cualquier área
@@ -153,7 +154,7 @@ Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y 
 
 Menú de cada rol (lo que ve en pantalla):
    Encargado:          Inicio · Carga del mes · Mis cargas · Reportes
-   Gerente:       Inicio · Bandeja · Todas las cargas · Panel · Período y presupuesto · Reportes · Cierre de años
+   Gerente:       Inicio · Bandeja · Recordatorios · Todas las cargas · Panel · Indicadores · Período y presupuesto · Reportes · Cierre de años
    Administrador: Inicio (Puesta en marcha) y tres grupos:
                     CONFIGURAR: Organización y equipo · Indicadores · Período y presupuesto
                     OPERAR:     Cargar datos · Bandeja de aprobación · Todas las cargas
@@ -313,8 +314,8 @@ Primero las áreas, después las personas.
 PASO 2.  INDICADORES  (menú: Configurar > Indicadores)
 ----------------------------------------------------------------------------------------------------
   1. Pulse "+ Nuevo indicador" (se desactiva mientras no existan áreas).
-  2. Complete el formulario (cada campo tiene un botón "i" que lo explica; el botón "Guía de
-     fórmulas" muestra funciones y ejemplos listos):
+  2. Complete el formulario (cada campo tiene un botón "i" que lo explica, incluida la fórmula).
+     Esta pantalla la usan el administrador y el gerente / auditor:
 
      1 · IDENTIFICACIÓN
         Identificación NC-16   Lo asigna el sistema (prefijo del área + consecutivo, ej. CAL-03): no se escribe
@@ -528,7 +529,7 @@ PASO 5.  CARGA MENSUAL
     Cada registro guarda: fecha, usuario y rol, acción, entidad, indicador y área afectados, detalle
     y huella.
     - "Verificar integridad": recorre toda la cadena y confirma que ningún registro fue alterado.
-    - Filtros por acción y por usuario; "Cargar más" para ver anteriores.
+    - Filtros por acción y por usuario; la lista está PAGINADA (botones de página y "Por página": 10, 25, 50 o 100).
     - "Descargar Excel": exporta la bitácora.
     - El reinicio de fábrica es la única operación que vacía la bitácora.
 
@@ -893,3 +894,13 @@ indicador. Los que más deben aparecen primero.
 Para que se abra Outlook: en Windows, Configuración → Aplicaciones → Aplicaciones predeterminadas → «Correo electrónico»
 (o «MAILTO») → elegir Outlook. El sistema no envía el correo por sí mismo: lo envía usted desde su Outlook.
 Los indicadores sin encargado asignado se avisan aparte (nadie recibe recordatorio por ellos).
+
+
+----------------------------------------------------------------------------------------------------
+LISTAS PAGINADAS
+----------------------------------------------------------------------------------------------------
+La bitácora, el historial de cargas, la bandeja de aprobación, la lista de Indicadores, los usuarios y los
+recordatorios muestran una PÁGINA a la vez (25 registros por defecto; se cambia con "Por página"). Debajo de
+cada lista aparece el rango mostrado ("1–25 de 240") y los botones para ir a otra página. Los filtros y la
+búsqueda se aplican sobre todos los registros, no solo sobre la página visible. Al entrar al sistema solo se
+descargan cantidades; cada lista pide únicamente lo que se ve.

@@ -1,0 +1,18 @@
+<!-- Paginador de una lista. Se usa dentro de un contenedor con x-data="{ k: 'clave' }" (ver CARGADORES en constantes.js). -->
+<nav class="flex flex-wrap items-center justify-between gap-3 text-sm" x-show="pg(k).total > 0" aria-label="Paginación">
+  <div class="flex flex-wrap items-center gap-3 text-slate-600">
+    <span x-text="rangoPagina(k)"></span>
+    <label class="flex items-center gap-1.5">Por página
+      <select class="inp !w-auto !py-1.5" :value="pg(k).por" @change="cambiarPorPagina(k, $event.target.value)" aria-label="Registros por página">
+        <template x-for="n in [10, 25, 50, 100]" :key="n"><option :value="n" x-text="n" :selected="n === pg(k).por"></option></template>
+      </select></label>
+  </div>
+  <div class="flex items-center gap-1" x-show="totalPaginas(k) > 1">
+    <button type="button" class="btn btn-s btn-sm" :disabled="pg(k).pagina <= 1 || busy" @click="irPagina(k, pg(k).pagina - 1)" aria-label="Página anterior">‹</button>
+    <template x-for="b in botonesPagina(k)" :key="b.key">
+      <span><span x-show="b.gap" class="px-1 text-slate-400">…</span>
+        <button type="button" x-show="!b.gap" class="btn btn-sm min-w-[2.25rem]" :class="b.n === pg(k).pagina ? 'btn-p' : 'btn-s'" :disabled="busy" @click="irPagina(k, b.n)" x-text="b.n" :aria-current="b.n === pg(k).pagina ? 'page' : null"></button></span>
+    </template>
+    <button type="button" class="btn btn-s btn-sm" :disabled="pg(k).pagina >= totalPaginas(k) || busy" @click="irPagina(k, pg(k).pagina + 1)" aria-label="Página siguiente">›</button>
+  </div>
+</nav>

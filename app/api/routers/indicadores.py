@@ -1,6 +1,6 @@
 """Indicadores: fichas técnicas (consulta, alta, edición, baja), períodos de carga, ficha por ejercicio y fórmulas."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from ... import schemas
@@ -9,16 +9,23 @@ from ...errores import Invalido
 from ...models import Usuario
 from ...servicios import indicadores, parametros
 from .. import serializadores as ser
-from ..deps import AnioConsulta, IdConsulta, IdRuta, escritura, get_db, requiere, usuario_actual
+from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, con_total, escritura, get_db, requiere, usuario_actual
 
 router = APIRouter(prefix="/api", tags=["indicadores"])
-solo_admin = requiere("admin")
+# El administrador y el gerente / auditor gestionan las fichas (crear, editar, archivar y eliminar).
+solo_admin = requiere("gerente", "admin")
 
 
 @router.get("/indicadores")
-def listar(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
-    """Indicadores con sus períodos pendientes del ejercicio pedido (y cuántos quedan en otros ejercicios)."""
-    return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u, ejercicio)]
+def listar(ejercicio: AnioConsulta = None, gestion: bool = False, q: str | None = None, area_id: IdConsulta = None,
+           frecuencia: str | None = None, activo: bool | None = None, desde: Desde = 0, limite: Limite | None = None,
+           response: Response = None, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+    """Indicadores con sus períodos pendientes del ejercicio pedido (y cuántos quedan en otros ejercicios).
+    Con `limite` se pagina (el total va en `X-Total-Count`); `gestion` incluye los archivados para quien gestiona fichas."""
+    filtros = {"gestion": gestion, "q": q, "area_id": area_id, "frecuencia": frecuencia, "activo": activo}
+    if limite is not None:
+        con_total(response, indicadores.contar(db, u, **filtros))
+    return [ser.indicador_con_pendientes(*fila) for fila in indicadores.listar(db, u, ejercicio, desde=desde, limite=limite, **filtros)]
 
 
 @router.get("/indicadores/codigo-sugerido")

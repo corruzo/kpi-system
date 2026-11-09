@@ -17,10 +17,13 @@ def obtener_visible(db: Session, u: Usuario, indicador_id: int) -> Indicador:
     return acceso.exigir_visible(u, db.get(Indicador, indicador_id))
 
 
-def estados_de_todos(db: Session) -> dict[int, dict[str, str]]:
-    """{indicador_id: {período: estado}} de todas las cargas, en una sola consulta."""
+def estados_de_todos(db: Session, ids: list[int] | None = None) -> dict[int, dict[str, str]]:
+    """{indicador_id: {período: estado}} de las cargas (de los indicadores `ids`, si se dan), en una sola consulta."""
     por_indicador: dict[int, dict[str, str]] = {}
-    for indicador_id, periodo, estado in db.execute(select(Medicion.indicador_id, Medicion.periodo, Medicion.estado)):
+    q = select(Medicion.indicador_id, Medicion.periodo, Medicion.estado)
+    if ids is not None:
+        q = q.where(Medicion.indicador_id.in_(ids))
+    for indicador_id, periodo, estado in db.execute(q):
         por_indicador.setdefault(indicador_id, {})[periodo] = estado
     return por_indicador
 
@@ -36,18 +39,46 @@ def _dividir_pendientes(ind: Indicador, pendientes: list[str], ejercicio: int) -
     return aqui, otros
 
 
-def listar(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
+def _consulta(u: Usuario, *, gestion: bool, q: str | None, area_id: int | None, frecuencia: str | None, activo: bool | None):
+    """Indicadores visibles y filtrados. En gestión (administrador y gerente/auditor) se incluyen los archivados."""
+    consulta = select(Indicador)
+    if not (gestion and u.rol in ("admin", "gerente")):
+        consulta = acceso.restringir(consulta, u)
+    if q and q.strip():
+        patron = "%" + q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        consulta = consulta.join(Area).where(func.lower(Indicador.codigo + " " + Indicador.nombre + " " + Area.nombre).like(patron, escape="\\"))
+    if area_id:
+        consulta = consulta.where(Indicador.area_id == area_id)
+    if frecuencia:
+        consulta = consulta.where(Indicador.frecuencia == frecuencia)
+    if activo is not None:
+        consulta = consulta.where(Indicador.activo.is_(activo))
+    return consulta
+
+
+def contar(db: Session, u: Usuario, *, gestion=False, q=None, area_id=None, frecuencia=None, activo=None) -> int:
+    base = _consulta(u, gestion=gestion, q=q, area_id=area_id, frecuencia=frecuencia, activo=activo).order_by(None)
+    return db.scalar(select(func.count()).select_from(base.subquery())) or 0
+
+
+def listar(db: Session, u: Usuario, ejercicio: int | None = None, *, gestion=False, q=None, area_id=None, frecuencia=None,
+           activo=None, desde=0, limite=None) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
     """(indicador, cargas registradas, pendientes del ejercicio, pendientes de otros ejercicios) de los indicadores
-    visibles para el usuario. Sin `ejercicio` se usa el vigente."""
-    q = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
-    cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).group_by(Medicion.indicador_id)).all())
+    visibles para el usuario, con filtros y paginación opcionales. Sin `ejercicio` se usa el vigente. Las cargas y los
+    estados se consultan solo de los indicadores devueltos (no de toda la tabla)."""
+    consulta = _consulta(u, gestion=gestion, q=q, area_id=area_id, frecuencia=frecuencia, activo=activo).order_by(Indicador.codigo)
+    if limite is not None:
+        consulta = consulta.offset(max(desde, 0)).limit(max(1, min(limite, 500)))
+    inds = list(db.scalars(consulta))
+    ids = [i.id for i in inds]
+    cargas = dict(db.execute(select(Medicion.indicador_id, func.count(Medicion.id)).where(Medicion.indicador_id.in_(ids))
+                             .group_by(Medicion.indicador_id)).all()) if ids else {}
     hoy = calendario.hoy()
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
-    filas, estados = [], estados_de_todos(db)
-    for i in db.scalars(q):
-        pendientes = calendario.periodos_pendientes(i.frecuencia, hoy, estados.get(i.id, {}), i.creado_en.date())
-        filas.append((i, cargas.get(i.id, 0), *_dividir_pendientes(i, pendientes, anio)))
-    return filas
+    estados = estados_de_todos(db, ids) if ids else {}
+    return [(i, cargas.get(i.id, 0),
+             *_dividir_pendientes(i, calendario.periodos_pendientes(i.frecuencia, hoy, estados.get(i.id, {}), i.creado_en.date()), anio))
+            for i in inds]
 
 
 def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int | None = None) -> dict:

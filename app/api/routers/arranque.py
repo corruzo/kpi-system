@@ -6,6 +6,7 @@ sigue pasando por su propia regla de acceso (un encargado de proceso recibe solo
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from ...dominio import calendario
 from ...models import Usuario
 from ...servicios import mediciones, parametros
 from .. import serializadores as ser
@@ -31,14 +32,17 @@ def arranque(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: U
     ej = r_ejercicios.listar(detalle=False, db=db, u=u)
     sel = elegir_ejercicio(ej["ejercicios"], ej["vigente"], ejercicio)
     datos = {"usuario": ser.usuario(u), "parametros": parametros.resumen(db), "ejercicios": ej, "ejercicio": sel,
-             "indicadores": r_indicadores.listar(ejercicio=sel, db=db, u=u)}
+             "indicadores": []}
+    if u.rol in ("jefe", "admin"):   # quienes cargan datos eligen entre sus indicadores; los demás los piden paginados en «Indicadores»
+        datos["indicadores"] = r_indicadores.listar(ejercicio=sel, db=db, u=u)
     if u.rol != "jefe":
         datos["areas"] = r_org.listar_areas(db=db)
     if u.rol in ("gerente", "admin"):
-        datos["bandeja"] = [ser.medicion(m) for m in mediciones.listar(db, u, estado="enviado", limite=100)]
+        # solo cantidades: la lista de cargas por aprobar se pide paginada al abrir la bandeja
+        datos["bandeja_total"] = mediciones.contar(db, u, estado="enviado")
+        datos["bandeja_ejercicios"] = [{"ejercicio": e, "etiqueta": calendario.etiqueta_ejercicio(e), "n": n} for e, n in mediciones.resumen_por_ejercicio(db, u, "enviado")]
         datos["resumen"] = r_ejercicios.tablero(ejercicio=sel, db=db)["resumen"]   # lo que muestra la pantalla de inicio
+        datos["catalogos"] = r_org.listar_catalogos(db=db)
     if u.rol == "admin":
         datos["marcha"] = r_presupuestos.puesta_en_marcha(db=db)
-        datos["catalogos"] = r_org.listar_catalogos(db=db)
-        datos["usuarios"] = r_org.listar_usuarios(db=db)
     return datos

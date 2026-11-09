@@ -1,4 +1,4 @@
-/* Textos de ayuda, funciones de fórmula y ejemplos (contenido editable sin tocar la lógica). */
+/* Textos de ayuda (contenido editable sin tocar la lógica). */
 const AYUDA = {
   codigo: ['Identificación NC-16', 'El sistema asigna el código solo (prefijo del área + consecutivo, p. ej. <b>CAL-03</b>): no se escribe a mano, así nunca se repite. Es el identificador del indicador en su ficha NC-16, en las cargas, los reportes y la bitácora, y no se puede cambiar después.'],
   encargado: ['Encargado de proceso', 'La única persona que verá este indicador y cargará sus datos cada período. Otros encargados de la misma área <b>no</b> lo ven. Debe pertenecer al área y estar activo.'],
@@ -13,7 +13,7 @@ const AYUDA = {
   limite: ['Límite crítico', 'Frontera entre <b>alerta</b> (amarillo) y <b>crítico</b> (rojo). Mayor es mejor: rojo si resultado &lt; límite. Menor es mejor: rojo si resultado &gt; límite. Entre la meta y el límite el semáforo es amarillo.'],
   variables: ['Variables', 'Son los datos base que el encargado digita cada período (ej. <i>solicitudes gestionadas</i> y <i>recibidas</i>). La <b>clave</b> es el nombre corto que se usa dentro de la fórmula y se genera sola. Con «Opciones» puede agregar un texto de ayuda, una unidad, un valor por defecto si queda vacía, o permitir negativos.'],
   constantes: ['Constantes', 'Valores fijos que intervienen en la fórmula y que el encargado <b>no</b> digita: horas por turno, días hábiles, tarifa, factor de conversión… Cambiarlas aquí afecta las cargas futuras; las anteriores conservan su valor.'],
-  formula: ['Fórmula', 'Escriba cómo se calcula el resultado usando las claves. Admite <b>+ − × ÷</b>, <b>^</b> (potencia), <b>%</b>, paréntesis, comparaciones (&gt; &lt; &gt;= &lt;= == !=), <b>and / or / not</b> y funciones (botón «Guía de fórmulas»). Para evitar dividir entre cero use <code>si(b &gt; 0, a / b * 100, 0)</code> o <code>div(a, b, 0)</code>.'],
+  formula: ['Fórmula', 'Escriba cómo se calcula el resultado usando las claves. Admite <b>+ − × ÷</b>, <b>^</b> (potencia), <b>%</b>, paréntesis, comparaciones (&gt; &lt; &gt;= &lt;= == !=), <b>and / or / not</b> y funciones. Para evitar dividir entre cero use <code>si(b &gt; 0, a / b * 100, 0)</code> o <code>div(a, b, 0)</code>.'],
   fuente: ['Fuente de los datos', 'De dónde salen los datos (ERP, informe de producción, laboratorio…) para que la medición sea verificable en auditoría.'],
   notas: ['Método y observaciones', 'Aclaraciones del cálculo, exclusiones, criterios o responsables. Aparece en la ficha técnica y en el reporte Excel.'],
   activo: ['Activo', 'Un indicador archivado deja de aparecer para cargar datos, pero su historial se conserva. Puede restaurarlo cuando quiera.'],
@@ -28,26 +28,3 @@ const AYUDA = {
   carga: ['¿Cómo cargar un indicador?', '<ol class="list-decimal space-y-1 pl-5"><li>Elija el <b>indicador</b> y el <b>período</b> (los pendientes aparecen arriba).</li><li>Digite solo los <b>datos base</b>; el resultado se calcula solo.</li><li>Si el semáforo es <b>amarillo o rojo</b>, escriba el análisis y el plan de mejora (obligatorio por ISO 9001).</li><li>Pulse <b>Enviar carga</b>. El Gerente / Auditor la aprobará o la devolverá con observaciones.</li></ol>'],
   semaforo: ['Semáforo', '<b class="text-green-700">Cumple</b>: alcanza la meta. <b class="text-amber-700">Alerta</b>: entre la meta y el límite crítico. <b class="text-red-700">Crítico</b>: peor que el límite crítico. En alerta y crítico debe documentar análisis y plan de mejora.'],
 };
-const FUNC_DOC = [
-  ['si(cond, a, b)', 'Si la condición se cumple da a; si no, b. Solo evalúa la rama elegida, por eso protege divisiones.', 'si(recibidas > 0, gestionadas / recibidas * 100, 100)'],
-  ['div(a, b, d)', 'División segura: si b es 0 devuelve d (0 si se omite).', 'div(gestionadas, recibidas, 0) * 100'],
-  ['pct(a, b)', 'Porcentaje a / b × 100 (0 si b es 0).', 'pct(conformes, analizados)'],
-  ['min(…) / max(…)', 'Menor / mayor de varios valores.', 'min(100, ejecutado / plan * 100)'],
-  ['sum(…) / avg(…)', 'Suma / promedio de varios valores.', 'avg(turno_a, turno_b, turno_c)'],
-  ['abs(x)', 'Valor absoluto.', 'abs(real - plan)'],
-  ['round(x, n)', 'Redondea a n decimales.', 'round(a / b, 1)'],
-  ['floor(x) / ceil(x)', 'Redondea hacia abajo / arriba.', 'ceil(horas / 8)'],
-  ['sqrt(x)', 'Raíz cuadrada.', 'sqrt(varianza)'],
-  ['clamp(x, lo, hi)', 'Limita x entre lo y hi.', 'clamp(avance, 0, 100)'],
-  ['a if cond else b', 'Forma alternativa de «si».', '100 if fallas == 0 else 0'],
-];
-const EJEMPLOS = [
-  { t: 'Porcentaje de cumplimiento (con división segura)', d: 'Cumplidos entre totales; si no hubo solicitudes se considera 100 %.', f: 'si(recibidas > 0, gestionadas / recibidas * 100, 100)', vars: [['gestionadas', 'Solicitudes gestionadas'], ['recibidas', 'Solicitudes recibidas']], unidad: '%' },
-  { t: 'Disponibilidad de equipos', d: 'Horas disponibles sobre horas calendario.', f: '(horas_calendario - horas_parada) / horas_calendario * 100', vars: [['horas_calendario', 'Horas calendario'], ['horas_parada', 'Horas de parada']], unidad: '%' },
-  { t: 'Promedio ponderado', d: 'Cada línea pesa según su volumen.', f: '(linea_a * tm_a + linea_b * tm_b) / (tm_a + tm_b)', vars: [['linea_a', 'Rendimiento línea A'], ['linea_b', 'Rendimiento línea B'], ['tm_a', 'TM línea A'], ['tm_b', 'TM línea B']], unidad: '%' },
-  { t: 'Índice de frecuencia de accidentes', d: 'Accidentes por millón de horas-hombre (la constante evita escribir 1.000.000 a mano).', f: 'accidentes * factor / horas_hombre', vars: [['accidentes', 'Accidentes con tiempo perdido'], ['horas_hombre', 'Horas-hombre trabajadas']], consts: [['factor', 'Factor por millón de horas', 1000000]], unidad: 'cantidad' },
-  { t: 'Variación porcentual (admite negativos)', d: 'Cambio respecto al período anterior; marque «permite negativos» en las variables si aplica.', f: 'si(anterior != 0, (actual - anterior) / anterior * 100, 0)', vars: [['actual', 'Valor actual'], ['anterior', 'Valor anterior']], unidad: '%' },
-  { t: 'Cumplimiento topado en 100 %', d: 'Nunca supera 100 % aunque se sobreproduzca.', f: 'min(100, producido / presupuestado * 100)', vars: [['producido', 'TM producidas'], ['presupuestado', 'TM presupuestadas']], unidad: '%' },
-  { t: 'Puntaje por rangos (escalonado)', d: 'Convierte un porcentaje en una nota de 0 a 100.', f: 'si(avance >= 95, 100, si(avance >= 85, 70, si(avance >= 70, 40, 0)))', vars: [['avance', 'Avance (%)']], unidad: 'cantidad' },
-  { t: 'Costo unitario con tarifa fija', d: 'Usa una constante que el encargado no ve ni digita.', f: '(horas * tarifa + materiales) / tm', vars: [['horas', 'Horas trabajadas'], ['materiales', 'Materiales (USD)'], ['tm', 'TM producidas']], consts: [['tarifa', 'Tarifa por hora (USD)', 4.5]], unidad: 'USD' },
-];

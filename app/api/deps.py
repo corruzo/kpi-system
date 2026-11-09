@@ -1,7 +1,7 @@
 """Dependencias de FastAPI: sesión de base de datos, usuario autenticado, permisos por rol y bloqueo de escritura."""
 from typing import Annotated
 
-from fastapi import Depends, Path, Query, Request
+from fastapi import Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from .. import security
@@ -21,8 +21,13 @@ AnioConsulta = Annotated[int | None, Query(ge=2000, le=2100)]
 Desde = Annotated[int, Query(ge=0, le=10_000_000)]
 Limite = Annotated[int, Query(ge=1, le=500)]
 
-__all__ = ["AnioConsulta", "AnioRuta", "Desde", "IdConsulta", "IdRuta", "Limite", "escritura", "get_db", "origen_cliente",
+__all__ = ["con_total", "AnioConsulta", "AnioRuta", "Desde", "IdConsulta", "IdRuta", "Limite", "escritura", "get_db", "origen_cliente",
            "requiere", "usuario_actual"]
+
+
+def con_total(response: Response, total: int) -> None:
+    """Informa en `X-Total-Count` cuántos registros hay en total (para paginar sin descargarlos todos)."""
+    response.headers["X-Total-Count"] = str(total)
 
 
 def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:

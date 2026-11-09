@@ -6,7 +6,7 @@
       <div class="card"><div class="card-b grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="sm:col-span-2"><label class="lbl" for="rec-plantilla">Mensaje</label>
           <select id="rec-plantilla" class="inp" x-model="rec.plantilla"><template x-for="(p, k) in PLANTILLAS" :key="k"><option :value="k" x-text="p.titulo"></option></template></select></div>
-        <label class="flex items-end gap-2 pb-3 text-sm font-medium"><input type="checkbox" class="h-5 w-5" x-model="rec.soloConDeuda"> Solo con pendientes</label>
+        <label class="flex items-end gap-2 pb-3 text-sm font-medium"><input type="checkbox" class="h-5 w-5" x-model="rec.soloConDeuda" @change="cargarRecordatorios(1)"> Solo con pendientes</label>
       </div></div>
 
       <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900" x-show="recSinCorreo"><b x-text="recSinCorreo"></b> encargado(s) con pendientes no tienen correo registrado: agréguelo en <button type="button" class="font-bold underline" @click="go('org')">Organización y equipo</button> (editar usuario).</p>
@@ -39,5 +39,6 @@
           </div>
         </div>
       </template></template>
+      <div x-data="{ k: 'recordatorios' }"><!--#incluir parciales/componentes/paginador.html--></div>
       <p class="px-2 text-xs text-slate-500">Si al pulsar el botón no se abre Outlook, en Windows vaya a <i>Configuración → Aplicaciones → Aplicaciones predeterminadas → Correo electrónico (o enlace MAILTO)</i> y elija Outlook; o use «Copiar mensaje». Cada aviso queda registrado en la bitácora.</p>
     </section>
