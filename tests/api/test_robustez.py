@@ -105,3 +105,46 @@ def test_un_usuario_nuevo_y_su_posicion_se_listan_sin_error(client):
     area = crear_area(client)
     crear_usuario(client, "jefe", area)
     assert all({"rol", "ambito", "miembro", "pendiente"} <= u.keys() for u in client.get("/api/usuarios").json())
+
+
+def _consultas(client, url):
+    from sqlalchemy import event
+
+    from app.database import engine
+    n = []
+
+    def contar(*_):
+        n.append(1)
+    event.listen(engine, "before_cursor_execute", contar)
+    try:
+        assert client.get(url).status_code == 200, url
+    finally:
+        event.remove(engine, "before_cursor_execute", contar)
+    return len(n)
+
+
+def test_el_arranque_y_los_listados_no_tienen_consultas_por_fila(client):
+    """Sin N+1: agregar indicadores, cargadores y personas no aumenta el número de consultas de las rutas calientes."""
+    from conftest import crear_indicador, persona
+    nodo = crear_area(client)
+    jefe = persona(client, "Jefe", ambito=[nodo])
+    crear_indicador(client, nodo)
+    persona(client, "Analista", miembro=[nodo])        # línea base con al menos una fila de cada cosa (con 0 filas se omiten consultas)
+    como_jefe = ["/api/arranque", "/api/indicadores", "/api/indicadores?gestion=true&limite=50", "/api/mediciones?limite=50",
+                 "/api/bandeja", "/api/recordatorios"]
+    como_dev = ["/api/arranque", "/api/unidades", "/api/usuarios?limite=50", "/api/roles", "/api/indicadores?limite=50"]
+    entrar(client, jefe)
+    antes_j = {u: _consultas(client, u) for u in como_jefe}
+    entrar(client, "admin", "clave-admin-123")
+    antes_d = {u: _consultas(client, u) for u in como_dev}
+    for _ in range(4):
+        crear_indicador(client, nodo)
+    for _ in range(3):
+        persona(client, "Analista", miembro=[nodo])
+    entrar(client, "admin", "clave-admin-123")
+    for u, base in antes_d.items():
+        assert (ahora := _consultas(client, u)) <= base + 1, f"Desarrollador {u}: de {base} a {ahora} consultas al agregar filas"
+    entrar(client, jefe)
+    for u, base in antes_j.items():
+        assert (ahora := _consultas(client, u)) <= base + 1, f"Jefe {u}: de {base} a {ahora} consultas al agregar filas"
+    assert _consultas(client, "/api/arranque") <= 25
