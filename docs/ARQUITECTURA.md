@@ -71,3 +71,16 @@ Desarrollador da o quita el rol Coordinador; el rol Desarrollador es inmutable y
 - **CDN**: estáticos con huella `s-maxage` de un año; HTML y `/api/publico` con `s-maxage` corto y `stale-while-revalidate`.
 - **Interfaz**: sin `backdrop-filter`; animaciones de 0,18 s solo en opacidad/desplazamiento.
 - **Base de datos**: listados sin consultas por fila; el número de consultas de las rutas calientes no crece con las filas.
+
+## Plan gratuito (Vercel Hobby + Supabase Free): cómo se cuida
+
+| Recurso gratuito | Riesgo | Medida |
+|---|---|---|
+| **Supabase: salida de datos (5 GB/mes)** | traer cosas pesadas en cada petición | El **logo** (base64, hasta ~800 KB) ya no viaja con los parámetros: antes se descargaba en cada arranque, cada 30 s por instancia y en la pantalla de ingreso. Solo se lee al servir `/api/logo` (con caché de 60 s en memoria y de un año en el navegador/CDN). |
+| **Supabase: conexiones y latencia** | cada consulta es un viaje de red desde Vercel | Menos consultas por petición: «quién es y qué puede» pasó de 3 a 1–2 (el Desarrollador, 0 extra); el arranque bajó de 31 a 24 (Desarrollador), de 23 a 17 (gerente/jefe) y de 14 a 10 (gerente general). Con Vercel se usa `NullPool` + el *pooler* de Supabase (puerto 6543). |
+| **Supabase: 500 MB de base** | crecimiento de la bitácora | Registros pequeños (JSON) y sin imágenes; el respaldo diario por GitHub Actions es externo y **mantiene activo el proyecto** (Supabase pausa los gratuitos tras 7 días sin actividad). |
+| **Vercel: invocaciones y ancho de banda** | cada archivo estático despertaba la función | Estáticos con huella y `s-maxage` de un año (los sirve la CDN, no la función); HTML y `/api/publico` con `s-maxage` corto; gzip. |
+| **Vercel: 10 s por función (Hobby)** | operaciones largas | Lo pesado (respaldo completo, restauración) se hace con la línea de comandos o el flujo de GitHub Actions, no con el botón, si la base crece. |
+| **Memoria de la función** | cargar objetos completos «por si acaso» | `Medicion.notas`, `Indicador.responsable` e `Indicador.cargadores` ya no se traen siempre: se piden en bloque solo en las listas que los muestran. La bandeja decide qué le toca a cada persona con una consulta liviana (columnas sueltas) y solo carga completas las de la página pedida. |
+
+Regla práctica: antes de agregar una pantalla o ruta, `tests/api/test_robustez.py` comprueba que el número de consultas no crezca con las filas.

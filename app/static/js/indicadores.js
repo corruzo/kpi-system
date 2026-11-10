@@ -71,11 +71,6 @@ SIGT.modulos.indicadores = () => ({
     slug: t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(\d)/, 'v$1').slice(0, 30),
     autoClave(v) { if (!this.fichaBloqueada && !v._manual) { v.clave = this.slug(v.etiqueta); this.validarFormula(); } },
     mover(idx, d) { const a = this.ficha.variables, j = idx + d; if (j < 0 || j >= a.length) return; [a[idx], a[j]] = [a[j], a[idx]]; },
-    semaforoAyuda() {
-      const f = this.ficha, u = f.unidad;
-      return f.sentido === 'mayor' ? `Verde: ≥ ${f.nivel_optimo} · Amarillo: entre ${f.limite} y ${f.nivel_optimo} · Rojo: < ${f.limite} (${u})`
-        : `Verde: ≤ ${f.nivel_optimo} · Amarillo: entre ${f.nivel_optimo} y ${f.limite} · Rojo: > ${f.limite} (${u})`;
-    },
     insertar(t, atras = 0) {
       const el = this.$refs.formula, f = this.ficha.formula || '';
       const a = el ? el.selectionStart : f.length, b = el ? el.selectionEnd : f.length;

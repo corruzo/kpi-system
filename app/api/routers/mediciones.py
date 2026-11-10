@@ -57,9 +57,9 @@ def bandeja(ejercicio: AnioConsulta = None, desde: Desde = 0, limite: Limite = 1
             db: Session = Depends(get_db), u: Usuario = Depends(aprueba)):
     """Cargas enviadas que a ESTA persona le corresponde aprobar: es el superior más cercano de quien cargó, o el
     Coordinador SGC (respaldo). Nunca incluye cargas propias."""
-    todas = mediciones.bandeja(db, u, ejercicio)
-    con_total(response, len(todas))
-    return [ser.medicion(m) for m in todas[desde:desde + limite]]
+    total, pagina = mediciones.bandeja(db, u, ejercicio, desde, limite)
+    con_total(response, total)
+    return [ser.medicion(m) for m in pagina]
 
 
 @router.get("/bandeja/resumen")

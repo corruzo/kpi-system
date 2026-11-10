@@ -14,8 +14,6 @@ from ..errores import Conflicto, Invalido, NoEncontrado
 from ..models import NIVEL_DEL_PADRE, NIVELES, Indicador, Unidad, Usuario, UsuarioUnidad
 from . import auditoria
 
-NOMBRE_NIVEL = {"gerencia": "Gerencia", "departamento": "Departamento", "jefatura": "Jefatura"}
-
 
 # ---------------------------------------------------------------- consulta
 def todas(db: Session) -> list[Unidad]:

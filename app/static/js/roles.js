@@ -2,6 +2,7 @@
    (lo aplica el servidor); aquí solo se elige el NIVEL: Ninguno · Ver · Ver y modificar (o Ninguno · Sí). Nunca muestra permisos técnicos. */
 SIGT.modulos.roles = () => ({
     roles: [], catalogoP: { grupos: [], permisos: [] }, rolForm: null, rolQ: '', rolCopia: { id: null, nombre: '' },
+    vistaRoles: 'matriz', mat: {}, matCerrados: {},   // matriz estilo SAP: mat[rol.id] = copia editable de sus permisos
 
     ganchos: {
       entrar: { roles() { return this.cargarRoles(); } },
@@ -11,7 +12,34 @@ SIGT.modulos.roles = () => ({
     async cargarRoles() {
       const [roles, cat] = await Promise.all([this.api('/api/roles'), this.api('/api/permisos')]);
       this.roles = roles; this.catalogoP = cat; this.rolForm = null; this.rolCopia = { id: null, nombre: '' };
+      this.mat = Object.fromEntries(roles.map(r => [r.id, { ...r.permisos }]));
     },
+    // ------------------------------------------------------------ matriz de roles (como la matriz de autorizaciones de SAP)
+    // Filas = permisos (agrupados por módulo), columnas = roles, celda = nivel: «—» sin acceso · «Ver» · «Mod.» (ver y modificar).
+    // Cada clic recorre los niveles que ese permiso admite, hasta el máximo que quien edita puede conceder.
+    celda(r, p) { return this.mat[r.id]?.[p.codigo] || ''; },
+    celdaEditable(r, p) { return r.editable && !!p.tope; },
+    textoCelda(v, p) { return !v ? '—' : v === 'ver' ? 'Ver' : (p.niveles.length > 1 ? 'Mod.' : 'Sí'); },
+    claseCelda(v) { return !v ? 'border-slate-200 bg-white text-slate-300' : v === 'ver' ? 'border-brand/30 bg-brand-light text-cobalt' : 'border-green-300 bg-green-50 text-green-800'; },
+    ciclar(r, p) {
+      if (!this.celdaEditable(r, p)) return;
+      const o = this.opcionesNivel(p).map(x => x[0]), v = o[(o.indexOf(this.celda(r, p)) + 1) % o.length], m = this.mat[r.id];
+      if (!v) delete m[p.codigo]; else { m[p.codigo] = v; this.implicarEn(m, p); }
+    },
+    implicarEn(m, p) { for (const c of p.implica) { const q = this.catalogoP.permisos.find(x => x.codigo === c); if (q && !m[c]) { m[c] = q.niveles[0]; this.implicarEn(m, q); } } },
+    sucia(r) { const a = this.mat[r.id] || {}, b = r.permisos; return Object.keys(a).length !== Object.keys(b).length || Object.keys(a).some(k => a[k] !== b[k]); },
+    descartarCol(r) { this.mat[r.id] = { ...r.permisos }; },
+    async guardarCol(r) {
+      this.busy = true;
+      try { await this.api(`/api/roles/${r.id}`, { method: 'PUT', body: { nombre: r.nombre, descripcion: r.descripcion, permisos: this.mat[r.id] } }); this.avisar('Rol «' + r.nombre + '» guardado. Rige desde la siguiente petición de cada persona.'); await this.cargarRoles(); } catch { }
+      this.busy = false;
+    },
+    get hayCambiosMatriz() { return this.roles.some(r => this.sucia(r)); },
+    // Filas planas de la matriz: encabezado de cada módulo y, si está abierto, sus permisos
+    get filasMatriz() {
+      return this.gruposVisibles().flatMap(g => [{ k: 'g:' + g, g, n: this.permisosDe(g).length }, ...(this.matCerrados[g] ? [] : this.permisosDe(g).map(p => ({ k: p.codigo, p })))]);
+    },
+    alternarGrupo(g) { this.matCerrados[g] = !this.matCerrados[g]; },
     nuevoRol() { this.rolForm = { id: null, nombre: '', descripcion: '', permisos: {}, editable: true, de_sistema: false, motivo: '' }; this.rolQ = ''; this.$nextTick(() => document.getElementById('rol-nombre')?.focus()); },
     editarRol(r) { this.rolForm = { id: r.id, nombre: r.nombre, descripcion: r.descripcion, permisos: { ...r.permisos }, editable: r.editable, de_sistema: r.de_sistema, motivo: r.motivo, usuarios: r.usuarios }; this.rolQ = ''; this.$nextTick(() => document.getElementById('rol-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); },
     // Niveles que ofrece cada permiso, hasta el máximo que quien edita puede conceder (nadie concede lo que no tiene)
@@ -46,7 +74,6 @@ SIGT.modulos.roles = () => ({
       }
       return frases.length ? frases : ['Este rol no puede hacer nada todavía.'];
     },
-    get puedeLeerTodo() { return !!this.rolForm && ['indicadores.ver'].every(c => this.rolForm.permisos[c]); },
     async guardarRol() {
       const f = this.rolForm; this.busy = true;
       try {

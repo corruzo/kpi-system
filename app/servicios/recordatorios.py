@@ -4,7 +4,7 @@ El aviso en sí lo envía la persona desde su Outlook (la interfaz abre un corre
 calcula quién debe y se deja constancia en la bitácora. Alcance: únicamente indicadores del ÁMBITO de quien consulta
 (su nodo y lo que cuelga de él) y, por tanto, únicamente las personas que los cargan."""
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from ..dominio import calendario
 from ..errores import Invalido, NoEncontrado
@@ -27,7 +27,7 @@ def pendientes_por_persona(db: Session, u: Usuario) -> dict:
     """Períodos vencidos sin cargar (o devueltos para corregir) de los indicadores activos del ámbito de `u`, agrupados
     por cada persona que los carga. Un indicador con varios cargadores aparece en cada uno de ellos."""
     hoy = calendario.hoy()
-    inds = list(db.scalars(select(Indicador).where(acceso.condicion_ambito(u)).order_by(Indicador.codigo)))
+    inds = list(db.scalars(select(Indicador).where(acceso.condicion_ambito(u)).options(selectinload(Indicador.cargadores)).order_by(Indicador.codigo)))
     estados = indicadores.estados_de_todos(db, [i.id for i in inds]) if inds else {}
     por_persona: dict[int, list[dict]] = {}
     personas: dict[int, Usuario] = {}

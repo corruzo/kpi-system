@@ -20,7 +20,7 @@ SIGT.modulos.meta = () => ({
     },
 
     async cargarMetas() {
-      if (this.puede('ejercicios.ver')) { const r = await this.api('/api/ejercicios'); this.aplicarEjercicios(r.ejercicios); }
+      // los ejercicios ya vienen en el arranque (y se refrescan al crear uno): no se vuelven a pedir cada vez
       if (!this.presDesc.creado) { this.pres = null; return; }
       const q = this.presArea ? '?nodo_id=' + this.presArea : '';
       this.pres = await this.api(`/api/ejercicios/${this.presAnio}/metas` + q);

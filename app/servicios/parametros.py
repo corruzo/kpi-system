@@ -19,7 +19,8 @@ _ultima_lectura = 0.0
 
 def leer(db: Session) -> dict:
     """Parámetros guardados; además fija el mes de inicio del ejercicio en el calendario."""
-    valores = {p.clave: p.valor for p in db.scalars(select(Parametro))}
+    # el logo (imagen en base64, hasta ~800 KB) NO se trae aquí: se leería en cada arranque, cada 30 s por instancia y en el ingreso
+    valores = {p.clave: p.valor for p in db.scalars(select(Parametro).where(Parametro.clave != "logo"))}
     try:
         calendario.configurar(int(valores.get("ejercicio_inicio", 1)))
     except ValueError:
@@ -39,7 +40,7 @@ def refrescar(forzar: bool = False) -> None:
 def crear_faltantes(db: Session) -> None:
     """Crea los parámetros que no existan. En una base nueva el ejercicio inicia en octubre (práctica de la
     empresa); si ya hay cargas se conserva el calendario por año natural."""
-    existentes = {p.clave for p in db.scalars(select(Parametro))}
+    existentes = set(db.scalars(select(Parametro.clave)))
     hay_datos = bool(db.scalar(select(func.count(Medicion.id))))
     por_defecto = {"empresa": "TRIPOLIVEN, C.A.", "gerencia_emisora": "Gerencia de Normalización y Calidad",
                    "codigo_formato": "NC-16-7",

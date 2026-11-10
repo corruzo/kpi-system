@@ -47,8 +47,7 @@ def catalogo(c: Catalogo) -> dict:
 def indicador(i: Indicador, u: Usuario | None = None) -> dict:
     """Con `u`, agrega la relación de esa persona con el indicador (la interfaz muestra así solo los botones que aplican)."""
     d = {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "nodo_id": i.nodo_id, "area": i.nodo.nombre,
-         "nivel": i.nodo.nivel, "responsable_id": i.responsable_id, "responsable": i.responsable.nombre if i.responsable else None,
-         "cargadores": [x.id for x in i.cargadores], "cargadores_info": [{"id": x.id, "nombre": x.nombre} for x in i.cargadores],
+         "nivel": i.nodo.nivel, "responsable_id": i.responsable_id,
          "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
          "formula": i.formula, "variables": i.variables, "constantes": i.constantes or [], "decimales": i.precision,
          "fuente": i.fuente or "", "notas": i.notas or "", "nivel_optimo": i.nivel_optimo, "limite": i.limite,
@@ -56,7 +55,9 @@ def indicador(i: Indicador, u: Usuario | None = None) -> dict:
          "ref_nombre": i.ref_nombre or "", "ref_detalle": i.ref_detalle or "", "sigla": i.sigla or "",
          "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
          "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
-    if u is not None:
+    if u is not None:   # solo donde se muestra la asignación (el panel y los reportes no la necesitan: no se consulta)
+        d.update(responsable=i.responsable.nombre if i.responsable else None, cargadores=[x.id for x in i.cargadores],
+                 cargadores_info=[{"id": x.id, "nombre": x.nombre} for x in i.cargadores])
         total = acceso.alcance_total(u)
         d.update(soy_responsable=total or acceso.es_responsable(u, i), soy_cargador=acceso.puede_cargar(u, i),
                  en_ambito=acceso.en_ambito(u, i))

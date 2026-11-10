@@ -17,7 +17,7 @@ Los permisos y el ámbito se leen UNA vez por petición (`preparar`) y quedan en
 """
 from dataclasses import dataclass, field
 
-from sqlalchemy import Select, and_, false, or_, select, true
+from sqlalchemy import Select, and_, false, literal, or_, select, true, union_all
 from sqlalchemy.orm import Session, object_session
 
 from .. import permisos as cat
@@ -53,20 +53,21 @@ def preparar(db: Session, u: Usuario) -> Contexto:
     rol = u.rol
     if rol is None:
         ctx = Contexto()
+    elif rol.clave == DESARROLLADOR:   # lo ve todo: ni sus permisos ni su posición se leen de la base (cero consultas)
+        ctx = Contexto(permisos=cat.completos(tecnicos=True), clave=rol.clave, rol=rol.nombre, raiz=bool(u.ambito_raiz))
     else:
-        concedidos = {p.permiso: p.nivel for p in rol.permisos if cat.existe(p.permiso)}
-        if rol.clave == DESARROLLADOR:
-            concedidos = cat.completos(tecnicos=True)             # inmutable: no depende de lo guardado en la base
-        elif rol.clave == COORDINADOR:
+        # permisos del rol y posición de la persona en UNA sola consulta (UNION): un viaje a la base en vez de dos
+        filas = db.execute(union_all(
+            select(literal("p").label("k"), RolPermiso.permiso.label("a"), RolPermiso.nivel.label("b"), literal(0).label("c")).where(RolPermiso.rol_id == rol.id),
+            select(literal("e"), UsuarioUnidad.tipo, Unidad.ruta, Unidad.id).join(Unidad, Unidad.id == UsuarioUnidad.unidad_id)
+            .where(UsuarioUnidad.usuario_id == u.id))).all()
+        concedidos = {a: b for k, a, b, _ in filas if k == "p" and cat.existe(a)}
+        if rol.clave == COORDINADOR:
             concedidos = {**{c: cat.POR_CODIGO[c].minimo for c in cat.MINIMOS_DEL_COORDINADOR}, **concedidos}
-        if rol.clave != DESARROLLADOR:
-            concedidos = {c: n for c, n in concedidos.items() if not cat.POR_CODIGO[c].tecnico}   # lo técnico es solo del Desarrollador
-        enlaces = [] if rol.clave else db.execute(   # los roles de sistema ven todo: no necesitan su posición
-            select(UsuarioUnidad.tipo, Unidad.id, Unidad.ruta).join(Unidad, Unidad.id == UsuarioUnidad.unidad_id)
-            .where(UsuarioUnidad.usuario_id == u.id)).all()
+        concedidos = {c: n for c, n in concedidos.items() if not cat.POR_CODIGO[c].tecnico}   # lo técnico es solo del Desarrollador
         ctx = Contexto(permisos=concedidos, clave=rol.clave, rol=rol.nombre, raiz=bool(u.ambito_raiz),
-                       ambito=tuple((i, r) for t, i, r in enlaces if t == "ambito"),
-                       miembro=tuple((i, r) for t, i, r in enlaces if t == "miembro"))
+                       ambito=tuple((c, b) for k, a, b, c in filas if k == "e" and a == "ambito" and not rol.clave),
+                       miembro=tuple((c, b) for k, a, b, c in filas if k == "e" and a == "miembro" and not rol.clave))
     u.acceso = ctx
     return ctx
 
@@ -82,11 +83,6 @@ def contexto(u: Usuario) -> Contexto:
 def puede(u: Usuario, permiso: str, nivel: str | None = None) -> bool:
     p = cat.POR_CODIGO[permiso]           # un código inexistente es un error de programación: KeyError
     return cat.alcanza(contexto(u).permisos.get(permiso), nivel or p.minimo)
-
-
-def exigir(u: Usuario, permiso: str, nivel: str | None = None) -> None:
-    if not puede(u, permiso, nivel):
-        raise Prohibido(SIN_PERMISO)
 
 
 def pendiente(u: Usuario) -> bool:
@@ -326,9 +322,3 @@ def aprobadores_de(ruta_del_nodo: str, autor_id: int, mapa: Aprobadores) -> set[
     else:
         elegibles = mapa.raiz - {autor_id}
     return (elegibles | mapa.siempre) - {autor_id}
-
-
-def puede_aprobar(db: Session, u: Usuario, ind: Indicador, autor_id: int, mapa: Aprobadores | None = None) -> bool:
-    if u.id == autor_id or not puede(u, "cargas.aprobar"):
-        return False
-    return u.id in aprobadores_de(ind.nodo.ruta, autor_id, mapa or mapa_aprobadores(db))

@@ -1,11 +1,11 @@
 """Cargas de indicadores: cálculo, envío, aprobación jerárquica, reapertura y notas de auditoría."""
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from ..dominio import calendario, formulas, meta, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
-from ..models import Indicador, Medicion, NotaAuditoria, Usuario, ahora
+from ..models import Indicador, Medicion, NotaAuditoria, Unidad, Usuario, ahora
 from . import acceso, auditoria, ejercicios, indicadores, metas
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
@@ -107,7 +107,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
 # ---------------------------------------------------------------- consulta
 def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, nodo_id=None, periodo=None,
            semaforo_=None, ejercicio=None, desde=0, limite=100) -> list[Medicion]:
-    q = (select(Medicion).join(Indicador).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
+    q = (select(Medicion).join(Indicador).options(selectinload(Medicion.notas)).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
          .offset(max(desde, 0)).limit(max(1, min(limite, 500))))
     return list(db.scalars(_filtrar(q, u, estado, indicador_id, nodo_id, periodo, semaforo_, ejercicio)))
 
@@ -135,27 +135,43 @@ def _filtrar(q, u, estado, indicador_id, nodo_id, periodo, semaforo_, ejercicio)
 
 
 # ---------------------------------------------------------------- bandeja: lo que a cada quien le toca aprobar
-def bandeja(db: Session, u: Usuario, ejercicio: int | None = None) -> list[Medicion]:
-    """Cargas enviadas que ESTA persona puede aprobar según la regla jerárquica (ver `acceso.aprobadores_de`): es el
-    aprobador más cercano hacia arriba de quien cargó, o un rol de sistema. Nunca incluye las propias."""
+def _bandeja_ids(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[int, int]]:
+    """[(id de la carga, ejercicio)] de las cargas enviadas que ESTA persona puede aprobar según la regla jerárquica (ver
+    `acceso.aprobadores_de`), de la más reciente a la más antigua. Nunca incluye las propias. Consulta liviana: solo columnas
+    sueltas, no objetos completos (la bandeja del arranque solo necesita contarlas)."""
     if not acceso.puede(u, "cargas.aprobar"):
         return []
-    q = (select(Medicion).join(Indicador).where(Medicion.estado == "enviado", Medicion.cargado_por_id != u.id)
+    q = (select(Medicion.id, Medicion.ejercicio, Medicion.cargado_por_id, Unidad.ruta)
+         .join(Indicador, Indicador.id == Medicion.indicador_id).join(Unidad, Unidad.id == Indicador.nodo_id)
+         .where(Medicion.estado == "enviado", Medicion.cargado_por_id != u.id)
          .order_by(Medicion.cargado_en.desc(), Medicion.id.desc()))
-    q = q.where(acceso.condicion_ambito(u) if not acceso.alcance_total(u) else Indicador.id.is_not(None))
+    total = acceso.alcance_total(u)
+    if not total:
+        q = q.where(acceso.condicion_ambito(u))
     if ejercicio:
         q = q.where(Medicion.ejercicio == ejercicio)
-    candidatas = list(db.scalars(q))
-    if acceso.alcance_total(u) or not candidatas:
-        return candidatas
+    filas = db.execute(q).all()
+    if total or not filas:
+        return [(i, e) for i, e, _, _ in filas]
     mapa = acceso.mapa_aprobadores(db)
-    return [m for m in candidatas if u.id in acceso.aprobadores_de(m.indicador.nodo.ruta, m.cargado_por_id, mapa)]
+    return [(i, e) for i, e, autor, ruta in filas if u.id in acceso.aprobadores_de(ruta, autor, mapa)]
+
+
+def bandeja(db: Session, u: Usuario, ejercicio: int | None = None, desde: int = 0, limite: int = 100) -> tuple[int, list[Medicion]]:
+    """(total, página) de la bandeja de `u`: primero se decide cuáles le tocan (consulta liviana) y solo se cargan completas las
+    de la página pedida."""
+    ids = [i for i, _ in _bandeja_ids(db, u, ejercicio)]
+    pagina = ids[desde:desde + limite]
+    if not pagina:
+        return len(ids), []
+    por_id = {m.id: m for m in db.scalars(select(Medicion).where(Medicion.id.in_(pagina)).options(selectinload(Medicion.notas)))}
+    return len(ids), [por_id[i] for i in pagina]
 
 
 def bandeja_por_ejercicio(db: Session, u: Usuario) -> list[tuple[int, int]]:
     cuenta: dict[int, int] = {}
-    for m in bandeja(db, u):
-        cuenta[m.ejercicio] = cuenta.get(m.ejercicio, 0) + 1
+    for _, e in _bandeja_ids(db, u):
+        cuenta[e] = cuenta.get(e, 0) + 1
     return sorted(cuenta.items(), reverse=True)
 
 

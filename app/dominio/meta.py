@@ -3,9 +3,6 @@
 Funciones puras (sin BD ni HTTP).
 """
 
-REPARTOS = ("igual", "repetir")
-
-
 def repartir(valor: float, n: int, modo: str, decimales: int = 6) -> list[float]:
     """Valor anual → un valor por período.
 

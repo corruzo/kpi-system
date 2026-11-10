@@ -27,7 +27,6 @@ def ahora() -> datetime:
 
 NIVELES = ("gerencia", "departamento", "jefatura")   # del más alto al más bajo; la empresa (raíz) es implícita
 NIVEL_DEL_PADRE = {"gerencia": None, "departamento": "gerencia", "jefatura": "departamento"}
-CLAVES_DE_SISTEMA = ("desarrollador", "coordinador")
 
 
 class Unidad(Base):
@@ -211,8 +210,10 @@ class Indicador(Base):
     nivel_optimo_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
     limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
     nodo: Mapped[Unidad] = relationship(lazy="joined")
-    responsable: Mapped[Usuario | None] = relationship(lazy="joined")
-    cargadores: Mapped[list[Usuario]] = relationship(secondary="indicador_cargadores", lazy="selectin", order_by="Usuario.nombre")
+    # responsable y cargadores NO se traen siempre (cada carga, panel o reporte arrastraba esas consultas): se piden explícitamente
+    # (`indicadores.CON_ASIGNACION`) donde se muestran
+    responsable: Mapped[Usuario | None] = relationship()
+    cargadores: Mapped[list[Usuario]] = relationship(secondary="indicador_cargadores", order_by="Usuario.nombre")
 
     @property
     def precision(self) -> int:
@@ -260,8 +261,7 @@ class Medicion(Base):
     indicador: Mapped[Indicador] = relationship(lazy="joined")
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id], lazy="joined")
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id], lazy="joined")
-    notas: Mapped[list["NotaAuditoria"]] = relationship(
-        back_populates="medicion", order_by="NotaAuditoria.id", lazy="selectin")
+    notas: Mapped[list["NotaAuditoria"]] = relationship(back_populates="medicion", order_by="NotaAuditoria.id")   # se piden con selectinload donde se muestran
 
     @property
     def precision(self) -> int:

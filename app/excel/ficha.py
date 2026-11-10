@@ -51,17 +51,6 @@ def _par(ws, fila, c1, etiqueta, c2, c3, valor, alto=None, mono=False):
         ws.row_dimensions[fila].height = alto
     return v
 
-
-def _titulos(ws, fila, textos, desde=1):
-    for j, t in enumerate(textos, desde):
-        c = ws.cell(fila, j, t)
-        c.font = fuente(True, 9, blanca=True)
-        c.fill = relleno_negro()
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = BORDE
-    ws.row_dimensions[fila].height = 30
-
-
 def _nombre_hoja(ind, usados: set[str]) -> str:
     base = re.sub(r"[\\/*?:\[\]]", "", ind.sigla or ind.codigo)[:28] or ind.codigo
     nombre, n = base, 2

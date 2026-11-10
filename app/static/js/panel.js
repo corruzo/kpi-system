@@ -77,8 +77,6 @@ SIGT.modulos.panel = () => ({
       ];
     },
     celdaClase: c => c ? ({ verde: 'bg-green-500 text-white', amarillo: 'bg-amber-400 text-slate-900', rojo: 'bg-red-500 text-white' }[c.semaforo]) : 'bg-slate-100 text-slate-300',
-    tendTxt(t) { return !t ? '—' : `${t.delta > 0 ? '▲' : t.delta < 0 ? '▼' : '='} ${nf(Math.abs(t.delta), 2)}`; },
-    tendClase(t) { return !t || t.mejora === null ? 'text-slate-400' : t.mejora ? 'text-green-700' : 'text-red-700'; },
     pctTxt: v => v === null || v === undefined ? '—' : nf(v, 1) + '%',
 
     // ------------------------------------------------------------ rankings y tabla
