@@ -1,55 +1,12 @@
     <!-- ============ ORGANIZACIÓN ============ -->
-    <section data-vista="org" x-show="view==='org'" class="space-y-4">
-      <div><p class="eyebrow">Paso 1 de la puesta en marcha</p><h1 class="page-title">Organización y equipo</h1><p class="text-sm text-slate-600">Primero las áreas, después las personas. Los parámetros y las listas de apoyo se configuran una sola vez.</p></div>
+    <section data-vista="config" x-show="view==='config'" class="space-y-4">
+      <div><p class="eyebrow">Se configura una sola vez</p><h1 class="page-title">Configuración</h1><p class="text-sm text-slate-600">Datos de la empresa, listas de apoyo de la ficha, respaldo y zona de peligro. La estructura de la empresa, los roles y las personas tienen su propia sección.</p></div>
       <div class="pill-nav !flex-wrap sm:!flex-nowrap" role="tablist">
-        <template x-for="t in [['equipo','1 · Áreas y usuarios'],['empresa','Empresa y logo'],['listas','Listas de apoyo'],['avanzado','Avanzado']]" :key="t[0]"><button class="pill flex-1 justify-center" :class="orgTab===t[0] && 'pill-on'" role="tab" :aria-selected="orgTab===t[0]" @click="orgTab=t[0]" x-text="t[1]"></button></template>
+        <template x-for="t in configTabs" :key="t[0]"><button class="pill flex-1 justify-center" :class="orgTab===t[0] && 'pill-on'" role="tab" :aria-selected="orgTab===t[0]" @click="orgTab=t[0]" x-text="t[1]"></button></template>
       </div>
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-5" x-show="orgTab==='equipo'">
-        <div class="card lg:col-span-2 self-start">
-          <div class="card-h"><h2 class="font-semibold">Áreas</h2><span class="text-xs text-slate-500" x-text="areas.length"></span></div>
-          <div class="card-b space-y-3">
-            <form class="flex gap-2" @submit.prevent="guardarArea()">
-              <input class="inp" x-model="areaForm.nombre" :placeholder="areaForm.id ? 'Renombrar área' : 'Nueva área (ej. Producción)'" required minlength="2">
-              <button class="btn btn-p" :disabled="busy" x-text="areaForm.id ? 'Guardar' : 'Agregar'"></button>
-              <button type="button" class="btn btn-s" x-show="areaForm.id" @click="areaForm={id:null,nombre:''}">✕</button>
-            </form>
-            <ul class="divide-y divide-slate-100">
-              <template x-for="a in areas" :key="a.id"><li class="flex items-center justify-between gap-2 py-2.5"><span class="text-sm font-medium" x-text="a.nombre"></span>
-                <span class="flex gap-1"><button class="btn btn-s btn-sm" @click="areaForm={id:a.id,nombre:a.nombre}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarArea(a)">Eliminar</button></span></li></template>
-            </ul>
-            <p class="py-4 text-center text-sm text-slate-500" x-show="!areas.length">Cree primero las áreas de la empresa.</p>
-          </div>
-        </div>
-        <div class="card lg:col-span-3 self-start">
-          <div class="card-h"><h2 class="font-semibold">Usuarios</h2><span class="flex flex-wrap gap-2"><button class="btn btn-s btn-sm" :disabled="busy" @click="desbloquearAccesos()" title="Levanta el bloqueo por intentos fallidos de ingreso">Desbloquear accesos</button><button class="btn btn-p btn-sm" @click="nuevoUsuario()">+ Nuevo usuario</button></span></div>
-          <div class="border-b border-slate-100 p-3"><input class="inp" type="search" x-model="usrQ" @input.debounce.400ms="cargarUsuarios(1)" placeholder="Buscar por nombre o usuario" aria-label="Buscar usuario"></div>
-          <ul class="divide-y divide-slate-100">
-            <template x-for="x in usuarios" :key="x.id"><li class="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap" :class="!x.activo && 'bg-slate-50'">
-              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600" x-text="iniciales(x)"></span>
-              <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" :class="!x.activo && 'text-slate-500'" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + rolNombre(x) + (x.area ? ' · ' + x.area : '') + (x.activo ? '' : ' · inhabilitado')"></span><span class="block truncate text-[11px] text-slate-400" x-show="x.email" x-text="x.email"></span><span class="block truncate text-[11px] text-slate-400" x-text="ultimoIngreso(x)"></span></span>
-              <span class="flex w-full flex-wrap gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
-                <button class="btn btn-s btn-sm" @click="editarUsuario(x)">Editar</button>
-                <button class="btn btn-s btn-sm" x-show="x.id !== user.id" @click="abrirSoporte(x)" :aria-expanded="soporte===x.id">Soporte</button>
-                <button class="btn btn-s btn-sm" x-show="x.id !== user.id" :disabled="busy" @click="alternarUsuario(x)" x-text="x.activo ? 'Inhabilitar' : 'Habilitar'"></button>
-                <button class="btn btn-d btn-sm" x-show="x.id !== user.id" :disabled="busy || !x.puede_eliminarse" @click="eliminarUsuario(x)" :title="x.puede_eliminarse ? 'Eliminar definitivamente' : 'Tiene actividad registrada: solo puede inhabilitarse'">Eliminar</button>
-              </span>
-              <div class="basis-full rounded-2xl bg-slate-50 p-3 sm:ml-[3.25rem]" x-show="soporte===x.id && x.id !== user.id" x-transition>
-                <div class="eyebrow mb-2">Soporte a este usuario</div>
-                <div class="flex flex-wrap gap-2">
-                  <button class="btn btn-s btn-sm" @click="editarUsuario(x); generarClave()">Generar clave temporal</button>
-                  <button class="btn btn-s btn-sm" :disabled="busy" @click="cerrarSesiones(x)">Cerrar sus sesiones</button>
-                  <button class="btn btn-s btn-sm" @click="verActividad(x)">Ver su actividad</button>
-                </div>
-              </div>
-            </li></template>
-          </ul>
-          <div class="border-t border-slate-100 p-3" x-data="{ k: 'usuarios' }"><!--#incluir parciales/componentes/paginador.html--></div>
-          <p class="p-6 text-center text-sm text-slate-500" x-show="!usuarios.length">No hay usuarios que coincidan.</p>
-        </div>
-      </div>
-    
+
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="card min-w-0 lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2>Logo de la empresa</h2><button type="button" class="info" @click="toggleAyuda('logo')" aria-label="Ayuda: logo">i</button></div>
+        <div class="card min-w-0 lg:col-span-2" x-show="orgTab==='empresa' && puede('parametros.gestionar')"><div class="card-h"><h2>Logo de la empresa</h2><button type="button" class="info" @click="toggleAyuda('logo')" aria-label="Ayuda: logo">i</button></div>
           <div class="card-b flex flex-wrap items-center gap-5">
             <div class="flex h-24 w-full max-w-[12rem] shrink-0 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-2"><img x-show="logoUrl" :src="logoUrl" alt="Logo actual" class="max-h-20 max-w-full object-contain"><span x-show="!logoUrl" class="text-xs text-slate-400">Sin logo</span></div>
             <div class="min-w-0 flex-1 basis-56 space-y-2">
@@ -57,7 +14,7 @@
               <div class="flex flex-wrap gap-2"><label class="btn btn-p btn-sm cursor-pointer"><input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" @change="subirLogo($event)"><span x-text="logoUrl ? 'Cambiar logo' : 'Subir logo'"></span></label><button class="btn btn-d btn-sm" x-show="params.logo_url" @click="quitarLogo()">Quitar</button></div>
               <div class="ayuda" x-show="ay==='logo'">Use una imagen con fondo transparente (PNG) o blanco, preferiblemente horizontal. Se guarda en la base de datos, así que no depende del servidor.</div>
             </div></div></div>
-        <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa'"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='empresa' && puede('parametros.gestionar')"><div class="card-h"><h2 class="font-semibold">Parámetros del sistema</h2></div>
           <form class="card-b space-y-3" @submit.prevent="guardarParametros()">
             <div><label class="lbl">Empresa</label><input class="inp" x-model="parForm.empresa" required maxlength="120"></div>
             <div><label class="lbl">Gerencia emisora de las fichas</label><input class="inp" x-model="parForm.gerencia_emisora" maxlength="150"></div>
@@ -82,27 +39,27 @@
               <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
             <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
           </div></div>
-        <div class="card self-start lg:col-span-2" x-show="orgTab==='avanzado'"><div class="card-h"><h2 class="font-semibold">Respaldo de la base de datos</h2></div>
+        <div class="card self-start lg:col-span-2" x-show="orgTab==='avanzado' && puedeAlguno(['respaldo.exportar','respaldo.restaurar'])"><div class="card-h"><h2 class="font-semibold">Respaldo de la base de datos</h2></div>
           <div class="card-b grid grid-cols-1 gap-4 md:grid-cols-2">
-            <form class="space-y-3 rounded-2xl border border-slate-200 p-4" @submit.prevent="descargarRespaldo()">
+            <form class="space-y-3 rounded-2xl border border-slate-200 p-4" x-show="puede('respaldo.exportar')" @submit.prevent="descargarRespaldo()">
               <h3 class="font-semibold">Exportar</h3>
               <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, metas y bitácora). Solo se abre con la frase de paso que escriba: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
               <div><label class="lbl" for="frase-resp">Frase de paso (mínimo 12 caracteres)</label><input id="frase-resp" type="password" class="inp" x-model="respFrase" minlength="12" maxlength="200" autocomplete="new-password" required></div>
               <button class="btn btn-p" :disabled="busy || respFrase.length < 12">Descargar respaldo cifrado</button>
             </form>
-            <form class="space-y-3 rounded-2xl border border-amber-300 bg-amber-50/50 p-4" @submit.prevent="restaurarRespaldo()">
+            <form class="space-y-3 rounded-2xl border border-amber-300 bg-amber-50/50 p-4" x-show="puede('respaldo.restaurar')" @submit.prevent="restaurarRespaldo()">
               <h3 class="font-semibold">Importar (restaurar)</h3>
               <p class="text-sm text-slate-700"><b>Reemplaza todos los datos actuales</b> por los del archivo (también la bitácora y los usuarios). Si algo falla, no se cambia nada. Al terminar deberá volver a ingresar. Le conviene descargar un respaldo antes.</p>
               <div><label class="lbl" for="arch-resp">Archivo de respaldo (.sigtbak)</label><input id="arch-resp" type="file" accept=".sigtbak" class="inp" @change="restaurar.archivo = $event.target.files[0] || null" required></div>
               <div><label class="lbl" for="frase-rest">Frase de paso del respaldo</label><input id="frase-rest" type="password" class="inp" x-model="restaurar.frase" maxlength="200" autocomplete="off" required></div>
-              <div><label class="lbl" for="pass-rest">Su contraseña de administrador</label><input id="pass-rest" type="password" class="inp" x-model="restaurar.password" maxlength="128" autocomplete="current-password" required></div>
+              <div><label class="lbl" for="pass-rest">Su contraseña</label><input id="pass-rest" type="password" class="inp" x-model="restaurar.password" maxlength="128" autocomplete="current-password" required></div>
               <div><label class="lbl" for="conf-rest">Escriba <b>RESTAURAR</b> para confirmar</label><input id="conf-rest" class="inp" x-model="restaurar.confirmacion" autocomplete="off" required></div>
               <button class="btn btn-d" :disabled="busy || !restaurar.archivo || restaurar.frase.length < 12 || !restaurar.password || restaurar.confirmacion.trim() !== 'RESTAURAR'">Restaurar y reemplazar todo</button>
             </form>
           </div></div>
-        <div class="card self-start border-red-200 lg:col-span-2" x-show="orgTab==='avanzado'" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
+        <div class="card self-start border-red-200 lg:col-span-2" x-show="orgTab==='avanzado' && puede('sistema.reiniciar')" data-tour="org-reinicio"><div class="card-h"><h2 class="font-semibold text-red-800">Zona de peligro</h2></div>
           <div class="card-b flex flex-wrap items-center justify-between gap-3">
-            <p class="min-w-[16rem] flex-1 text-sm text-slate-700">Borra <b>todos</b> los datos del sistema: indicadores, cargas, áreas, usuarios, listas, parámetros, logo y la <b>bitácora</b>. Solo se conserva su cuenta de administrador para que pueda volver a entrar. <b>No se puede deshacer.</b></p>
+            <p class="min-w-[16rem] flex-1 text-sm text-slate-700">Borra <b>todos</b> los datos del sistema: indicadores, cargas, estructura, personas, roles definidos, listas, parámetros, logo y la <b>bitácora</b>. Solo se conservan su cuenta de Desarrollador y los roles de sistema para que pueda volver a entrar. <b>No se puede deshacer.</b></p>
             <button class="btn btn-d" @click="abrirReinicio()">Borrar todos los datos…</button>
           </div></div>
       </div>

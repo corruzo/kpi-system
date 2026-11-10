@@ -3,58 +3,71 @@
 ## Capas (la dependencia va siempre hacia abajo)
 
 ```
- navegador (Alpine.js, módulos en app/static/js)        ← solo presentación; nunca decide permisos
+ navegador (Alpine.js, módulos en app/static/js)   ← solo presentación; nunca decide permisos
         │  HTTPS, cookie de sesión HttpOnly
  app/main.py            middleware: CSRF/origen, cabeceras de seguridad, Cache-Control, Vary
- app/api/routers/*      HTTP: valida entrada (schemas.py), declara el rol exigido (deps.requiere), traduce errores
+ app/api/routers/*      HTTP: valida entrada (schemas.py), declara el permiso exigido (deps.requiere_permiso), traduce errores
  app/api/serializadores salida JSON explícita (nunca se devuelve un modelo tal cual)
- app/servicios/*        reglas de negocio y transacciones; no conocen HTTP
+ app/servicios/*        reglas de negocio y transacciones; no conocen HTTP. acceso.py es el motor de permisos
  app/dominio/*          lógica pura sin base de datos: calendario fiscal, fórmulas, semáforo, meta
+ app/permisos.py        catálogo único de permisos
  app/models.py          esquema (SQLAlchemy 2) — la verdad del modelo de datos
  migrations/versions    única vía para cambiar el esquema (Alembic); `alembic check` impide divergencias
 ```
 
 ## Reglas de ingeniería
 
-1. **Un solo lugar para cada decisión de acceso.** Qué indicadores ve cada rol lo decide `servicios/acceso.py`
-   (`restringir` para consultas, `exigir_visible` para un registro). Ningún servicio filtra por rol por su cuenta.
-2. **Aislamiento estricto del encargado de proceso.** Cada indicador tiene un único `encargado_id`; el encargado solo ve y
-   carga lo que se le asignó (aunque comparta área con otro). Lo no visible responde **404**, no 403, para no revelar que
-   existe. Cubierto por `tests/api/test_aislamiento.py` (incluye un barrido que exige sesión en *toda* ruta `/api/*`).
-3. **La base garantiza lo que el código promete**: claves foráneas, `CHECK`, índices en todas las FK, RLS activada en Supabase
-   y roles `anon`/`authenticated` sin permisos (el único camino a los datos es esta aplicación).
-4. **Bitácora inmutable y encadenada** (SHA-256 del registro anterior; trigger en PostgreSQL contra UPDATE/DELETE).
-5. **Escrituras serializadas**: dependencia `escritura` (bloqueo asesor 727001 en PostgreSQL / candado en SQLite) → la cadena
-   de la bitácora y los consecutivos (códigos de indicador) no se corrompen con peticiones simultáneas.
-6. **Errores de negocio tipados** (`errores.py`): los servicios lanzan `Invalido/Conflicto/NoEncontrado/Prohibido`; la API los
-   convierte en JSON. Nada de `except Exception` silenciosos.
-7. **Sin dependencias en tiempo de ejecución fuera del servidor**: Tailwind compilado, Alpine y Chart.js se sirven locales.
-   La CSP conserva `unsafe-eval`/`unsafe-inline` solo porque Alpine los necesita.
-8. **Caché**: toda respuesta `/api/*` lleva `Cache-Control: no-store` y `Vary: Cookie` (salvo `/api/publico`, 60 s, sin datos de
-   usuario, y el logo versionado). Al cerrar sesión se borran las preferencias locales.
+1. **Un solo lugar para cada decisión de acceso.** `servicios/acceso.py` (con el catálogo `permisos.py`) decide qué puede ver y hacer cada
+   persona: `puede`, `ambito`, `indicadores_visibles` (consultas), `exigir_visible`, `exigir_modificable`, `exigir_cargable`,
+   `exigir_asignacion`, `aprobadores_de`. Ninguna ruta ni servicio filtra por rol por su cuenta.
+2. **Toda ruta declara su permiso** (`requiere_permiso("codigo")`, o es de cuenta propia / pública). `tests/api/test_barrido_permisos.py`
+   recorre TODAS las rutas × cada rol de prueba y falla si alguna queda sin declarar o si el catálogo y las rutas divergen;
+   `docs/PERMISOS.md` se genera de ambos (`python -m app.permisos_doc`) y una prueba lo valida.
+3. **404 / 403:** lo que la persona no puede ver responde 404 (no revela que existe); lo que ve pero no puede hacer, 403.
+4. **Permisos leídos una vez por petición** (`acceso.preparar` en `deps.usuario_actual`: usuario + rol, permisos y posición) y guardados en
+   `usuario.acceso`; un cambio de permisos rige desde la siguiente petición. Sin N+1 en las rutas calientes (probado en `test_robustez`).
+5. **La base garantiza lo que el código promete:** claves foráneas, `CHECK`, `NOT NULL`, únicos, índices en toda FK, RLS en Supabase y
+   roles `anon`/`authenticated` sin permisos (el único camino a los datos es esta aplicación).
+6. **Bitácora inmutable y encadenada** (SHA-256 del registro anterior; trigger en PostgreSQL contra UPDATE/DELETE).
+7. **Escrituras serializadas**: dependencia `escritura` (bloqueo asesor en PostgreSQL / candado en SQLite).
+8. **Errores de negocio tipados** (`errores.py`): `Invalido/Conflicto/NoEncontrado/Prohibido`; la API los convierte en JSON.
+9. **Sin dependencias en tiempo de ejecución fuera del servidor**: Tailwind compilado, Alpine y Chart.js locales. La CSP conserva
+   `unsafe-eval`/`unsafe-inline` solo porque Alpine los necesita.
+10. **Caché**: toda respuesta `/api/*` lleva `Cache-Control: no-store` y `Vary: Cookie` (salvo `/api/publico` y el logo versionado).
 
-## Datos y roles
+## Modelo organizacional y de permisos
 
-| Rol (interno) | Nombre en pantalla | Ve | Hace |
-|---|---|---|---|
-| `jefe` | Encargado de proceso | Solo sus indicadores asignados | Carga datos y corrige devoluciones |
-| `gerente` | Gerente / Auditor SGC | Todo lo activo | Aprueba/devuelve, presupuesta, analiza |
-| `admin` | Administrador SGC | Todo (incluso archivados) | Configura, soporte, respaldos |
+| Tabla | Qué guarda |
+|---|---|
+| `unidades` | árbol `gerencia → departamento → jefatura` (`padre_id`, `ruta` materializada «/1/4/9/»; el subárbol es un prefijo de ruta) |
+| `roles`, `rol_permisos` | roles (de sistema: `desarrollador`, `coordinador`) y su nivel por permiso del catálogo |
+| `usuarios` | cuenta; `rol_id` nulo = pendiente de asignación; `ambito_raiz` = ámbito en toda la empresa |
+| `usuario_unidades` | nodos de la persona: `ambito` (ve el nodo y lo que cuelga) o `miembro` (solo lo sitúa; el analista) |
+| `indicadores` | ficha; `nodo_id` (cualquier nivel), `responsable_id`; `nivel_optimo` / `limite` (semáforo) |
+| `indicador_cargadores` | quién carga cada indicador (1..n) |
+| `metas`, `mediciones` | meta por período; carga real con foto de la ficha y de la meta vigentes |
 
-El valor interno `jefe` se conserva (restricción `ck_usuarios_rol` y sesiones existentes); solo cambia el texto mostrado.
+**Visibilidad de un indicador** = su nodo está dentro de algún ámbito de la persona **o** es su responsable **o** es su cargador **o** la
+persona tiene alcance global (Desarrollador, Coordinador SGC, ámbito en la raíz). Solo baja por el árbol. **Modificar** = ser su
+responsable; **cargar** = ser su cargador (los roles de sistema, alcance total). **Crear / asignar / fijar metas** = a sí mismo o a
+personas *debajo* (miembro de un nodo del ámbito, o con ámbito en un nodo inferior; los pares no están debajo).
+
+**Aprobación:** aprobadores elegibles = personas con `cargas.aprobar` cuyo ámbito cubre el nodo del indicador; se toma el nivel más cercano
+hacia arriba que tenga al menos uno distinto del autor (cualquiera de ese nivel aprueba) y se suman siempre los roles de sistema.
+
+**Anti-escalada** (`servicios/roles.py`, `servicios/personas.py`): nadie edita su propio rol ni se asigna a sí mismo; nadie concede un permiso
+(o nivel) que no tiene; los permisos técnicos no se conceden a ningún rol; el Coordinador no ve ni toca a un Desarrollador y solo un
+Desarrollador da o quita el rol Coordinador; el rol Desarrollador es inmutable y se da/quita solo con el procedimiento explícito
+(`POST /api/usuarios/{id}/desarrollador`, que reconfirma la contraseña); el sistema nunca queda sin Desarrollador activo.
 
 ## Calidad automatizada
 
-`make verificar` ejecuta lo mismo que el CI (`.github/workflows/ci.yml`): ruff, pytest en SQLite **y** PostgreSQL 16, migraciones
-desde cero + `alembic check`, CSS compilado al día y `pip-audit` de dependencias. `.pre-commit-config.yaml` lo corre antes de
-cada commit/push. Despliegue: Vercel despliega la rama `master`; las migraciones se aplican al arrancar.
+`make verificar` ejecuta lo mismo que el CI (`.github/workflows/ci.yml`): ruff, pytest en SQLite **y** PostgreSQL 16, migraciones desde cero +
+`alembic check`, CSS compilado al día y `pip-audit`. Despliegue: Vercel despliega la rama `master`; las migraciones se aplican al arrancar.
 
 ## Rendimiento
-- **Una petición de arranque** (`GET /api/arranque`) entrega usuario, parámetros, ejercicios, indicadores, áreas, bandeja, listas y
-  resumen de inicio según el rol (reutiliza los mismos routers, así cada dato conserva su regla de acceso). Antes eran ~10
-  peticiones, varias encadenadas: en un servidor remoto cada una paga su viaje de red.
-- **CDN**: estáticos con huella `s-maxage` de un año; el HTML y `/api/publico` con `s-maxage` corto y `stale-while-revalidate`,
-  para que la CDN de Vercel los sirva sin despertar la función de Python.
-- **Interfaz**: sin `backdrop-filter` ni `blur` de pantalla completa (costosos de pintar en móviles), animaciones de entrada de
-  0,18 s solo en opacidad/desplazamiento y sin muelles, observadores del DOM limitados a atributos.
-- **Base de datos**: listados sin consultas por fila (p. ej. ejercicios: una consulta, no una por año).
+- **Una petición de arranque** (`GET /api/arranque`) entrega usuario con sus permisos, parámetros, ejercicios, indicadores que carga, nodos
+  visibles, bandeja y resumen **solo si la persona tiene el permiso**; una cuenta sin rol recibe únicamente su perfil y la marca.
+- **CDN**: estáticos con huella `s-maxage` de un año; HTML y `/api/publico` con `s-maxage` corto y `stale-while-revalidate`.
+- **Interfaz**: sin `backdrop-filter`; animaciones de 0,18 s solo en opacidad/desplazamiento.
+- **Base de datos**: listados sin consultas por fila; el número de consultas de las rutas calientes no crece con las filas.

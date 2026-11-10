@@ -28,6 +28,9 @@
   <script defer src="/static/js/ficha_tecnica.js"></script>
   <script defer src="/static/js/reportes.js"></script>
   <script defer src="/static/js/organizacion.js"></script>
+  <script defer src="/static/js/estructura.js"></script>
+  <script defer src="/static/js/roles.js"></script>
+  <script defer src="/static/js/personas.js"></script>
   <script defer src="/static/js/importacion.js"></script>
   <script defer src="/static/js/recordatorios.js"></script>
   <script defer src="/static/js/bitacora.js"></script>
@@ -67,7 +70,14 @@
 <!--#incluir parciales/ingreso.html-->
 
 <!-- ===================== APLICACIÓN ===================== -->
-<template x-if="user">
+<template x-if="user && user.pendiente">
+<div class="min-h-screen">
+  <main class="mx-auto max-w-6xl px-4 py-8">
+    <!--#incluir parciales/vistas/pendiente.html-->
+  </main>
+  <!--#incluir parciales/componentes/modal_clave.html-->
+</template>
+<template x-if="user && !user.pendiente">
 <div class="min-h-screen">
   <!--#incluir parciales/barra_lateral.html-->
   <div class="lg:pl-72">
@@ -94,6 +104,12 @@
 
     <!--#incluir parciales/vistas/fichas.html-->
 
+    <!--#incluir parciales/vistas/estructura.html-->
+
+    <!--#incluir parciales/vistas/roles.html-->
+
+    <!--#incluir parciales/vistas/personas.html-->
+
     <!--#incluir parciales/vistas/organizacion.html-->
 
     <!--#incluir parciales/vistas/reportes.html-->
@@ -113,6 +129,7 @@
   <!--#incluir parciales/componentes/guia_bienvenida.html-->
   <!--#incluir parciales/componentes/modal_indicador.html-->
   <!--#incluir parciales/componentes/modal_usuario.html-->
+  <!--#incluir parciales/componentes/modales_personas.html-->
   <!--#incluir parciales/componentes/modal_reinicio.html-->
   <!--#incluir parciales/componentes/modal_clave.html-->
 </div>

@@ -1,7 +1,7 @@
-/* Recordatorios de carga (administrador y gerente): quién tiene períodos pendientes y aviso por correo con un mensaje ya redactado.
+/* Recordatorios de carga (permiso recordatorios.enviar): quién tiene períodos pendientes y aviso por correo con un mensaje ya redactado.
    El correo se abre en el programa de correo de la computadora (Outlook, si es el predeterminado) mediante un enlace mailto:
    con destinatario, asunto y texto listos; la persona solo pulsa «Enviar». */
-const ENLACE_APP = 'https://sgctpv.vercel.app';   // dirección que reciben los encargados en el mensaje
+const ENLACE_APP = location.origin;   // dirección de esta misma aplicación: la que reciben en el mensaje
 
 SIGT.modulos.recordatorios = () => ({
     rec: { data: null, cargando: false, plantilla: 'amable', abierto: null, soloConDeuda: true },
@@ -11,7 +11,7 @@ SIGT.modulos.recordatorios = () => ({
       salida() { this.rec = { data: null, cargando: false, plantilla: 'amable', abierto: null, soloConDeuda: true }; },
     },
 
-    // Mensajes prescritos. {nombre}, {lista}, {enlace} y {remitente} se sustituyen por los datos de cada encargado.
+    // Mensajes prescritos. {nombre}, {lista}, {enlace} y {remitente} se sustituyen por los datos de cada persona.
     PLANTILLAS: {
       amable: {
         titulo: 'Recordatorio amable',
@@ -30,7 +30,7 @@ SIGT.modulos.recordatorios = () => ({
       },
     },
 
-    // Pide una página de encargados (el filtro «solo con pendientes» y los totales los calcula el servidor)
+    // Pide una página de personas (el filtro «solo con pendientes» y los totales los calcula el servidor)
     async cargarRecordatorios(pagina = 1) {
       this.rec.cargando = true;
       try {
@@ -40,11 +40,11 @@ SIGT.modulos.recordatorios = () => ({
       } catch { }
       this.rec.cargando = false;
     },
-    get recLista() { return this.rec.data?.encargados || []; },
+    get recLista() { return this.rec.data?.personas || []; },
     get recDeben() { return this.rec.data?.deben || 0; },
     get recSinCorreo() { return this.rec.data?.sin_correo || 0; },
 
-    // Texto con los pendientes de un encargado: un renglón por indicador (máx. 8, y los períodos de cada uno acotados)
+    // Texto con los pendientes de una persona: un renglón por indicador (máx. 8, y los períodos de cada uno acotados)
     textoPendientesDe(e) {
       const filas = e.indicadores.slice(0, 8).map(i => {
         const nombres = i.periodos.slice(0, 6).map(p => p.etiqueta + (p.devuelto ? ' (devuelta)' : ''));

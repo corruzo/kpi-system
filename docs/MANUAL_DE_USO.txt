@@ -1,906 +1,404 @@
 ====================================================================================================
 SPE TPV  -  MANUAL DE USO COMPLETO
-Sistema de Gestión de la Calidad: indicadores de gestión bajo ISO 9001:2015
+Indicadores de gestión bajo ISO 9001:2015 · Tripoliven, C.A.
 ====================================================================================================
 
-Este manual explica TODO el sistema, de principio a fin, sin suponer conocimientos previos:
-cómo instalarlo, cómo ponerlo en marcha, cómo registrar datos cada mes, cómo revisarlos, cómo
-auditarlos, cómo modificar y cómo eliminar. Está pensado para leerse en orden la primera vez y
-consultarse por secciones después.
+Este manual explica TODO el sistema sin suponer conocimientos previos: cómo se organiza, quién ve y
+hace qué, cómo se pone en marcha, cómo se carga y aprueba cada mes, cómo se audita, cómo se
+modifica y qué no se puede borrar. Léalo en orden la primera vez y consúltelo por secciones después.
 
 ÍNDICE
-  1.  La idea central en un minuto (el flujo anual de 5 pasos)
-  2.  Conceptos que hay que entender (período fiscal, presupuesto, real, semáforo, estados)
-  3.  Quién puede hacer qué (roles)
+  1.  La idea central en un minuto
+  2.  Conceptos que hay que entender
+  3.  Quién puede hacer qué: roles, permisos, estructura y asignación
   4.  Instalación y puesta en servicio técnica
-  5.  PUESTA EN MARCHA paso a paso (administrador)
-        Paso 0. Entrar por primera vez y definir el mes de inicio del año fiscal
-        Paso 1. Organización y equipo (áreas y usuarios)
-        Paso 2. Indicadores (fichas técnicas)
-        Paso 3. Crear el período fiscal
-        Paso 4. Presupuestar cada indicador
-        Paso 5. Carga mensual (arranca la operación)
-  6.  OPERACIÓN MENSUAL
-        6.1 El encargado de proceso carga su dato real
-        6.2 El gerente / auditor revisa, aprueba o devuelve
-        6.3 Corregir una carga devuelta o un error ya aprobado
-  7.  Cómo se compara lo real contra lo presupuestado (dónde verlo)
-  7B. PANEL DE CONTROL (rangos, filtros, gráficos, rankings)
-  8.  AUDITORÍA: cómo se audita el sistema
-  9.  MODIFICAR: tabla "quiero cambiar X, ¿cómo?"
- 10.  ELIMINAR, ARCHIVAR y lo que NO se puede borrar (y por qué)
+  5.  PUESTA EN MARCHA paso a paso
+  6.  OPERACIÓN MENSUAL (cargar, aprobar, corregir)
+  7.  Dónde ver lo real contra la meta · Panel de control
+  8.  Auditoría: cómo se audita el sistema
+  9.  MODIFICAR: «quiero cambiar X, ¿cómo?»
+ 10.  ELIMINAR, ARCHIVAR y lo que NO se puede borrar
  11.  Cierre del año y apertura del siguiente
  12.  Importar fichas y datos históricos desde Excel
  13.  Reportes y su verificación
- 14.  Reinicio de fábrica (borrar todo)
- 15.  Mantenimiento: usuarios, claves, respaldos, actualizaciones
+ 14.  Reinicio de fábrica y reinicio a la versión 2
+ 15.  Mantenimiento: cuentas, claves, respaldos, actualizaciones
  16.  Problemas frecuentes y qué hacer
- 17.  Ejemplo completo con números (área de Producción)
+ 17.  Ejemplo completo con números
  18.  Glosario
-
 
 ====================================================================================================
 1. LA IDEA CENTRAL EN UN MINUTO
 ====================================================================================================
 
-El sistema funciona SIEMPRE en el mismo orden. Cuando el administrador entra, la primera pantalla
-("Puesta en marcha") le muestra estos 5 pasos con su estado (Listo / Siguiente paso / Más adelante):
+SPE TPV funciona como funciona físicamente la empresa:
 
-   PASO 1   Organización y equipo   -> crear las áreas de la empresa y las personas (usuarios).
-   PASO 2   Indicadores             -> crear la ficha de cada indicador de gestión.
-   PASO 3   Período fiscal          -> abrir el año de gestión (ej. 2026-2027).
-   PASO 4   Presupuesto             -> decir cuánto se espera lograr en cada indicador y período.
-   PASO 5   Carga mensual           -> cada mes, cada encargado de proceso ingresa su dato real; el sistema
-                                       lo COMPARA con lo presupuestado para ese mes; el gerente lo
-                                       aprueba.
+    Cada gerente ve toda su gerencia, cada jefe ve toda su jefatura y quien carga datos
+    solo ve lo que carga. VER baja por el árbol; MODIFICAR es solo lo asignado personalmente.
 
-Regla de oro: cada paso necesita el anterior.
-   - Sin período fiscal creado no se puede presupuestar ni cargar datos.
-   - Sin presupuesto para un período, el encargado no puede cargar el dato real de ese período
-     (no habría con qué compararlo).
+Cada año de gestión (ejercicio fiscal) se sigue este flujo:
 
-Al terminar el año: se verifica, se CIERRA (queda archivado en solo lectura) y se crea el siguiente.
+    1. Estructura y personas   El Desarrollador crea las cuentas. El Coordinador SGC arma la
+                               estructura (gerencias, departamentos, jefaturas), define los roles
+                               y asigna a cada persona su rol, su posición e indicadores.
+    2. Indicadores             Se crea la ficha de cada indicador, con su nodo, su responsable y
+                               quienes lo cargan.
+    3. Período fiscal          Se abre el año (octubre a septiembre, configurable).
+    4. Meta                    Se fija cuánto se espera lograr en cada período.
+    5. Carga mensual           El cargador digita el dato real; el sistema calcula el resultado,
+                               el semáforo y lo compara con la meta.
+    6. Aprobación              Su superior directo lo aprueba o lo devuelve con observaciones.
+    7. Cierre del año          Se verifica, se cierra (queda en solo lectura) y se abre el siguiente.
 
+Todo cambio importante queda en una bitácora que nadie puede alterar.
 
 ====================================================================================================
 2. CONCEPTOS QUE HAY QUE ENTENDER
 ====================================================================================================
 
-2.1 PERÍODO FISCAL (también llamado "ejercicio")
-    Es el año de gestión de la empresa. Puede empezar en cualquier mes (el administrador lo define
-    una sola vez). Se identifica por el año en que TERMINA:
-        - Si empieza en octubre: el ejercicio 2026-2027 va de octubre 2026 a septiembre 2027.
-        - Si empieza en enero:   el ejercicio 2026 va de enero a diciembre de 2026.
-    Hay que CREARLO explícitamente (Paso 3). Los datos de períodos fiscales distintos nunca se mezclan
-    en pantalla: el selector de la parte superior elige cuál se ve.
-
-2.2 INDICADOR (ficha técnica)
-    Define QUÉ se mide: nombre, área responsable, unidad (%, TM, días, USD...), frecuencia, sentido
-    (mayor es mejor / menor es mejor), fórmula, variables (los datos que digita el encargado) y el
-    semáforo (meta y límite crítico).
-
-2.3 FRECUENCIA
-    Mensual, bimestral, trimestral, cuatrimestral, semestral, anual o eventual.
-    La frecuencia decide cuántos "períodos" tiene el año para ese indicador:
-        mensual = 12 períodos     trimestral = 4     semestral = 2     anual = 1  (etc.)
-    "Eventual" = se carga cuando ocurre; NO se presupuesta (no tiene calendario fijo).
-
-2.4 PRESUPUESTO
-    Es el valor del RESULTADO que se espera lograr en cada período. Ejemplos:
-        - Cumplimiento del plan de producción (%): presupuesto 96 en cada mes.
-        - Producción de caliza (TM): presupuesto de 1.200 TM al año = 100 TM por mes.
-    Se guarda por período de la frecuencia del indicador y queda fijo: es "lo que se presupuestó al
-    inicio". Se puede ingresar de tres maneras (ver Paso 4):
-        a) Período por período (mes por mes, trimestre por trimestre).
-        b) Un valor ANUAL repartido en partes iguales (para totales: TM, ventas, USD).
-        c) Un valor ANUAL repetido en cada período (para porcentajes, promedios y tiempos).
-
-2.5 DATO REAL y RESULTADO
-    Cada mes el encargado digita las VARIABLES del indicador (ej. "TM producidas" y "TM presupuestadas"). El
-    sistema calcula el RESULTADO con la fórmula (ej. real / plan * 100 = 90 %).
-
-2.6 COMPARACIÓN REAL vs. PRESUPUESTO
-    Para cada carga el sistema muestra:
-        - Presupuestado   (lo que se esperaba)
-        - Real            (el resultado calculado)
-        - Diferencia      (real - presupuestado, con signo)
-        - % de lo presupuestado, y si CUMPLE o NO ALCANZA según el sentido del indicador:
-              mayor es mejor -> cumple si real >= presupuesto
-              menor es mejor -> cumple si real <= presupuesto
-    El presupuesto se COPIA a la carga en el momento de cargar: aunque después cambie algo, esa
-    carga conserva el presupuesto con que se hizo (reproducibilidad para auditoría).
-
-2.7 SEMÁFORO (distinto del presupuesto)
-    Es la clasificación ISO 9001 del resultado según la META y el LÍMITE CRÍTICO de la ficha:
-        Verde = Cumple | Amarillo = Alerta | Rojo = Crítico.
-    Si queda en Verde, aparece un cuadro OPCIONAL "Observación o comentario" (puede dejarse vacío).
-    Si queda en Alerta o Crítico, el encargado DEBE escribir el análisis y el plan de mejora (mínimo 10
-    caracteres cada uno). El semáforo y el presupuesto son dos lecturas complementarias: el semáforo
-    mide contra la meta de calidad; el presupuesto mide contra lo presupuestado para ese período.
-
-2.8 ESTADOS DE UNA CARGA
-    ENVIADO ("En revisión")  El encargado la envió; espera al gerente. No se puede modificar.
-    APROBADO                 Aceptada. Cuenta en el panel y en los reportes.
-    OBSERVADO ("Devuelto")   El gerente la devolvió con una observación; el encargado corrige y REENVÍA
-                             (queda versión 2, 3...).
-    Regla de segregación de funciones: nadie puede aprobar ni devolver una carga que hizo él mismo.
-
-2.9 ESTADOS DE UN PERÍODO FISCAL
-    Sin crear -> Vigente (en curso) -> Terminado (pasó su último día, sigue abierto) -> Cerrado
-    (archivado en solo lectura). Un cerrado puede REABRIRSE (solo el administrador, con motivo).
-
+ * Estructura (árbol): Empresa → Gerencia → Departamento → Jefatura. Una gerencia cuelga de la empresa,
+   un departamento de una gerencia y una jefatura de un departamento. Los nombres no se repiten entre
+   hermanos. Mover un nodo mueve todo lo que cuelga de él. No se borra un nodo con hijos, personas o
+   indicadores.
+ * Ámbito de una persona: el nodo (o los nodos: un jefe puede tener dos jefaturas) que ve completos,
+   con todo lo que cuelga de él. «Trabaja en»: solo sitúa a la persona (el analista): no le da
+   visibilidad, pero la deja «debajo» de quien tiene ese nodo en su ámbito. Sin ámbito, la persona solo
+   ve lo que se le asignó.
+ * Indicador: ficha técnica (fórmula, variables, frecuencia, semáforo) que cuelga de un nodo de CUALQUIER
+   nivel (los propios de un gerente cuelgan de su gerencia). Tiene un RESPONSABLE (el «dueño»: único que
+   modifica la ficha) y uno o varios CARGADORES (quienes digitan el dato). Por defecto el responsable
+   también carga.
+ * Código del indicador: lo asigna el sistema (prefijo del nodo + consecutivo, p. ej. CAL-03) y no cambia.
+ * Período fiscal (ejercicio): el año de gestión. Hay que crearlo antes de fijar metas o cargar datos.
+ * META: lo que se espera lograr en un período. Se compara contra el
+   real. Los indicadores «eventuales» (se cargan cuando ocurren) no llevan meta.
+ * NIVEL ÓPTIMO: umbral de la zona verde del semáforo. LÍMITE CRÍTICO: frontera entre amarillo y rojo.
+   Mayor es mejor: verde si resultado ≥ nivel óptimo, amarillo si ≥ límite, rojo si menor. Menor es
+   mejor: lo contrario. Ejemplo: «Nivel óptimo (verde ≥ 90)», «Límite crítico (rojo < 80)» y, para un
+   período, «Meta de octubre: 85». Son tres conceptos distintos: nunca se confunden.
+ * Real: el dato que se carga y el resultado de la fórmula.
+ * Semáforo: verde (cumple), amarillo (alerta), rojo (crítico). En amarillo y rojo el análisis y el plan
+   de mejora son obligatorios (ISO 9001:2015, 9.1.3 y 10.2); en verde, la observación es opcional.
+ * Estados de una carga: En revisión (enviada) → Aprobada, o Devuelta (con observación, para corregir).
+ * Bitácora: registro inalterable y encadenado (SHA-256) de todo lo que ocurre.
 
 ====================================================================================================
-3. QUIÉN PUEDE HACER QUÉ
+3. QUIÉN PUEDE HACER QUÉ: ROLES, PERMISOS, ESTRUCTURA Y ASIGNACIÓN
 ====================================================================================================
 
-   Acción                                              Encargado de proceso   Gerente/Auditor   Administrador
-   -------------------------------------------------   ------------   ---------------   -------------
-   Crear áreas, usuarios, parámetros, logo, listas          -               -                 SI
-   Crear / editar / archivar / eliminar indicadores         -              SI                 SI
-   Crear el período fiscal                                  -               -                 SI
-   Ingresar / modificar el PRESUPUESTO                      -              SI                 SI
-   Cargar el dato real                                  Solo su área        -            Cualquier área
-   Aprobar / devolver cargas                                -              SI            SI (no las propias)
-   Reabrir una carga aprobada / notas de auditoría          -              SI                 SI
-   Ver panel de análisis                                    -              SI                 SI
-   Ver historial de cargas                              Solo su área      Todas              Todas
-   Descargar reportes Excel                             Solo su área      Todas              Todas
-   Verificar autenticidad de un reporte                     -              SI                 SI
-   Cerrar / reabrir un período fiscal                       -               -                 SI
-   Importar históricos desde Excel                          -               -                 SI
-   Ver y verificar la Bitácora                              -               -                 SI
-   Reinicio de fábrica                                      -               -                 SI
+3.1 Dos roles de sistema
+  DESARROLLADOR (Sistemas/TI): todo, incluido lo técnico (bitácora, respaldos, soporte, cuentas, reinicio).
+     Su rol es inmutable: nadie lo edita ni le quita permisos. El sistema nunca queda sin un Desarrollador
+     activo. Solo otro Desarrollador puede designar o retirar a un Desarrollador (con su contraseña).
+  COORDINADOR SGC (Normalización): todo lo funcional, nada técnico. Define los roles, arma la estructura y
+     asigna a cada persona su rol, su posición en el árbol y sus indicadores. NO puede: tocar a un
+     Desarrollador, darse permisos técnicos, dar un permiso que él mismo no tiene, ni cambiar su propio
+     rol o permisos. Su rol nunca puede quedar sin los permisos mínimos para gestionar roles y personas.
 
-Menú de cada rol (lo que ve en pantalla):
-   Encargado:          Inicio · Carga del mes · Mis cargas · Reportes
-   Gerente:       Inicio · Bandeja · Recordatorios · Todas las cargas · Panel · Indicadores · Período y presupuesto · Reportes · Cierre de años
-   Administrador: Inicio (Puesta en marcha) y tres grupos:
-                    CONFIGURAR: Organización y equipo · Indicadores · Período y presupuesto
-                    OPERAR:     Cargar datos · Bandeja de aprobación · Todas las cargas
-                    ANALIZAR:   Panel de control · Reportes
-                    CONTROL:    Cierre de años · Importar · Bitácora
-   (En el celular la barra inferior muestra las 4 primeras secciones y el botón "Más" abre el resto.)
+3.2 Roles que define el Coordinador
+  Nombre libre (Gerente general, Gerente, Jefe, Analista…). Cada rol es un conjunto de permisos del
+  catálogo; el Coordinador elige solo el NIVEL de cada uno: Ninguno / Ver / Ver y modificar (o Ninguno / Sí
+  cuando solo tiene sentido una acción). «Ver y modificar» incluye «Ver». El ALCANCE de cada permiso es fijo
+  y lo aplica el sistema. Los permisos técnicos no aparecen en la pantalla del Coordinador. Un rol se puede
+  crear, renombrar, duplicar y borrar (si nadie lo usa). Una persona tiene UN rol.
+  El catálogo completo, con su alcance y las rutas que protege, está en docs/PERMISOS.md.
 
+3.3 Cuenta nueva = sin acceso
+  El Desarrollador crea la cuenta (nombre, usuario, correo, clave temporal). La persona puede ingresar,
+  pero solo ve la pantalla «Su cuenta está pendiente de asignación» (puede cambiar su contraseña y cerrar
+  sesión). Hasta que el Coordinador SGC le asigne rol, ámbito e indicadores no accede a nada.
+
+3.4 Ejemplos
+  | Persona                    | Ámbito                | Ve                                  | Modifica                    |
+  | Gerente general            | la raíz (todo)        | absolutamente todo                  | solo sus indicadores        |
+  | Gerente de RRHH            | Gerencia RRHH         | RRHH y sus departamentos            | solo los asignados a él     |
+  | Jefe con 2 jefaturas       | esas 2 jefaturas      | ambas, completas                    | solo los asignados a él     |
+  | Analista                   | ninguno (trabaja en…) | solo lo que le asignaron            | solo eso                    |
+  La visibilidad SOLO BAJA: un jefe no ve los indicadores propios de su gerente.
+  El Gerente general se construye solo con la pantalla de Roles: un rol de solo «Ver» sobre todo lo
+  funcional (incluidas metas y reportes) más modificar/cargar sobre lo asignado, y ámbito en la raíz.
+
+3.5 Qué es «ver», «modificar», «cargar» y «asignar»
+  VER un indicador: su nodo está en un ámbito de la persona, o es su responsable, o es su cargador, o la
+     persona tiene alcance global (Desarrollador, Coordinador, ámbito en la raíz).
+  MODIFICAR (editar, archivar, eliminar la ficha): solo su responsable. CARGAR datos: solo sus cargadores.
+  Si alguien ve algo que no puede modificar, el sistema responde «no tiene permiso» (403); lo que no ve,
+  responde como si no existiera (404).
+  CREAR/ASIGNAR indicadores y FIJAR METAS: a sí mismo o a personas que están DEBAJO en la estructura
+  (miembros de un nodo de su ámbito, o con ámbito en un nodo inferior; los pares no están debajo). El
+  Coordinador SGC y el Desarrollador no tienen esa restricción.
+
+3.6 Quién aprueba una carga
+  El revisor es el superior directo. Regla exacta: entre las personas con el permiso «Aprobar» cuyo ámbito
+  cubre el nodo del indicador, se toma el nivel más cercano hacia arriba que tenga al menos una distinta
+  de quien cargó; si en ese nivel hay varias (dos jefes en la misma jefatura), cualquiera puede aprobar.
+  El Coordinador SGC es respaldo y puede aprobar siempre. NADIE aprueba una carga propia (segregación de
+  funciones). La Bandeja de cada persona muestra solo lo que a ella le toca aprobar.
 
 ====================================================================================================
 4. INSTALACIÓN Y PUESTA EN SERVICIO TÉCNICA
 ====================================================================================================
 
-Esta sección es para quien instala el sistema (responsable técnico o de TI).
-
-4.1 REQUISITOS
-    - Python 3.12 o superior.
-    - Node.js solo si va a modificar estilos (Tailwind) o actualizar librerías de interfaz.
-    - Base de datos: SQLite (desarrollo, automático) o PostgreSQL (producción; se recomienda
-      Supabase).
-
-4.2 DESARROLLO LOCAL (para probar en su computador)
-    1) Entre a la carpeta del proyecto e instale las dependencias:
-           pip install -r requirements-dev.txt
-    2) Arranque definiendo el primer administrador (solo hace falta la primera vez, con la base vacía):
-           SIGT_ADMIN_USER=admin SIGT_ADMIN_PASSWORD=una-clave-larga python run.py
-       (la clave debe tener al menos 10 caracteres; los datos quedan en data/sigt.db)
-    3) Abra el navegador en  http://localhost:8000  e ingrese con ese usuario y clave.
-    4) Pruebas automáticas:    pytest
-       Revisión de estilo:     ruff check .
-    5) Si cambia clases de Tailwind en los HTML:  npm install  y  npm run build:css
-       (el CSS compilado va incluido en el repositorio).
-       Si actualiza la librería de animación (Motion):  npm run build:motion
-
-4.3 PRODUCCIÓN CON SUPABASE (PostgreSQL)
-    1) En Supabase: Project Settings > Database > Connection string (URI). Use el "Session pooler"
-       (puerto 5432) para un servidor persistente, o el "Transaction pooler" (6543) en plataformas
-       serverless.
-    2) Defina estas variables de entorno:
-         SIGT_ENV=production            Cookies seguras, HSTS, sin /docs; exige SIGT_SECRET y base de datos.
-         SIGT_DATABASE_URL              URI de Supabase (postgresql://...?sslmode=require).
-         SIGT_SECRET                    32 o más caracteres aleatorios (firma de sesiones y cifrado de la
-                                        contraseña de reportes). NO la pierda ni la cambie después.
-         SIGT_ADMIN_USER / SIGT_ADMIN_PASSWORD   Solo para crear el primer administrador con la base
-                                        vacía (clave de 10+ caracteres). Elimine la clave después.
-         SIGT_TRUST_PROXY=1             Si hay proxy o balanceador delante (para ver la IP real).
-         SIGT_EJERCICIO_INICIO          (opcional) mes de inicio del año fiscal para una base nueva.
-    3) Despliegue con Docker:
-           docker build -t spe-tpv .
-           docker run -p 8000:8000 --env-file .env spe-tpv
-       Healthcheck: GET /healthz.  Sirva SIEMPRE detrás de HTTPS.
-    4) Migraciones de base de datos (Alembic): el esquema solo cambia con migraciones versionadas
-       (carpeta migrations/versions). Antes de arrancar una versión nueva ejecute:
-           alembic upgrade head
-       (con las mismas variables de entorno). El Dockerfile ya lo hace al iniciar. En producción la
-       aplicación solo VERIFICA que la base esté al día y, si no, responde 503 diciendo qué hacer;
-       con SIGT_AUTO_MIGRATE=1 migra sola al arrancar. En Vercel migra sola (SIGT_AUTO_MIGRATE=0 lo
-       desactiva).
-       La migración 0004 (esta versión) agrega: tabla de presupuestos, datos de creación del período
-       fiscal y el presupuesto copiado en cada carga. Los años que ya tenían cargas quedan como
-       períodos fiscales creados y abiertos: no se pierde ni se bloquea nada.
-       IMPORTANTE: la migración 0003 cifra la contraseña de los reportes con SIGT_SECRET; ejecútela
-       con la misma SIGT_SECRET que usa la aplicación.
-    5) Ingrese como administrador y siga la pantalla "Puesta en marcha" (sección 5 de este manual).
-
-4.4 VERCEL
-    vercel.json + api/index.py ejecutan la app como función serverless. Variables obligatorias
-    (Project > Settings > Environment Variables): SIGT_ENV=production, SIGT_SECRET,
-    SIGT_DATABASE_URL (use el POOLER de Supabase, no db.<proyecto>.supabase.co, que es solo IPv6),
-    SIGT_ADMIN_USER, SIGT_ADMIN_PASSWORD. Tras cambiar variables hay que REDESPLEGAR. Si falla,
-    revise Deployments > Logs: el mensaje indica la variable que falta.
-
-4.5 CREAR OTRO ADMINISTRADOR POR LÍNEA DE COMANDOS
-    Con la base ya creada:   python -m app.crear_admin
-    (desde la interfaz, un administrador también puede crear otros administradores).
-
-4.6 SEGURIDAD INCORPORADA (para que sepa qué esperar)
-    - Contraseñas con PBKDF2-SHA256, mínimo 10 caracteres. Cambiar o restablecer una clave cierra
-      las sesiones anteriores de ese usuario. La sesión dura 10 horas.
-    - Bloqueo por intentos fallidos (se desbloquea solo a los 15 minutos).
-    - La contraseña de los reportes se guarda CIFRADA.
-    - Bitácora de solo inserción con cadena de huellas SHA-256 (nadie puede alterarla sin que se note).
-    - Las fórmulas se evalúan con un intérprete restringido (no ejecutan código arbitrario).
-
+Ver README.md (variables, Docker, Vercel, Supabase) y docs/OPERACION.md (respaldos, restauración y
+reinicio a la versión 2). En resumen:
+  1. Base PostgreSQL (Supabase) y variables: SIGT_ENV=production, SIGT_DATABASE_URL, SIGT_SECRET
+     (32+ caracteres), SIGT_TRUST_PROXY=1.
+  2. SIGT_ADMIN_USER y SIGT_ADMIN_PASSWORD (≥ 10 caracteres) solo para el primer arranque con la base
+     vacía: crean al primer DESARROLLADOR. Elimine la contraseña del entorno después.
+  3. «alembic upgrade head» (en Vercel corre solo al arrancar). Siempre bajo HTTPS.
+  4. Ingrese como Desarrollador y siga «Puesta en marcha».
 
 ====================================================================================================
-5. PUESTA EN MARCHA PASO A PASO (ADMINISTRADOR)
+5. PUESTA EN MARCHA PASO A PASO
 ====================================================================================================
 
-Al iniciar sesión como administrador se abre "PUESTA EN MARCHA": una portada y cinco tarjetas
-numeradas. La tarjeta resaltada con la etiqueta "Siguiente paso" es la que toca hacer; cada tarjeta
-tiene un botón grande que lo lleva directo a la pantalla correspondiente y, debajo del texto, un
-resumen en vivo (por ejemplo "2 área(s) · 1 encargado(s) de proceso", "5 indicador(es)", "3 de 5 indicadores
-presupuestados"). Cuando un paso se completa se marca con ✓ y la tarjeta se pone verde. Cuando
-los cinco están listos aparece "El sistema está en marcha".
+La pantalla «Puesta en marcha» (Inicio del Desarrollador) muestra los pasos y su estado:
 
-La primera vez que entra también se muestra una GUÍA DE BIENVENIDA (recorrido emergente). Puede omitirla y repetirla cuando quiera desde el menú de su perfil
-(arriba a la derecha) > "Ver guía de uso".
+ Paso 1. CUENTAS Y COORDINADOR SGC  (Desarrollador · menú Configurar > Personas)
+    «+ Nueva cuenta»: usuario (minúsculas, números, punto, guion), nombre, correo (opcional, para los
+    recordatorios), clave temporal (botón «Generar»: cópiela y entréguela; pida que la cambien al ingresar).
+    Cree al Coordinador SGC y asígnele ese rol: Personas > Soporte técnico no, sino «Rol y posición»
+    (el Desarrollador puede dar el rol Coordinador SGC; el Coordinador no).
 
-----------------------------------------------------------------------------------------------------
-PASO 0.  ENTRAR POR PRIMERA VEZ Y DEFINIR EL MES DE INICIO DEL AÑO FISCAL
-----------------------------------------------------------------------------------------------------
-Hágalo ANTES de presupuestar. Cambiarlo después puede estar bloqueado (ver más abajo).
+ Paso 2. ESTRUCTURA DE LA EMPRESA  (Coordinador SGC · Configurar > Estructura de la empresa)
+    Cree las gerencias; en cada una «+ Departamento»; en cada departamento «+ Jefatura». Renombrar, Mover
+    (a otro padre del nivel que corresponde) y Eliminar (si está vacío). Se ve cuántas personas e
+    indicadores tiene cada nodo.
 
-  1. Abra la dirección del sistema en el navegador.
-  2. Escriba el usuario y la contraseña de administrador (los definidos en SIGT_ADMIN_USER /
-     SIGT_ADMIN_PASSWORD) y pulse "Ingresar".
-  3. Menú "Organización y equipo" > pestaña "Empresa y logo".
-  4. En "Parámetros del sistema" complete:
-        Empresa                          Nombre que sale en pantallas y reportes.
-        Gerencia emisora de las fichas   Aparece en la ficha técnica.
-        Código del formato               Ej. NC-16-7.
-        Inicio del ejercicio fiscal      Mes en que empieza el año de gestión. Una base nueva
-                                         arranca en OCTUBRE. Si su año es enero-diciembre, elija Enero.
-        Bloquear los reportes Excel      (opcional) con contraseña de 6+ caracteres.
-  5. Pulse "Guardar parámetros".
-  6. (Opcional) En la misma pestaña, suba el logo (PNG, JPG o WebP; se ajusta a 600 px).
+ Paso 3. ROLES Y PERSONAS  (Coordinador SGC · Configurar > Roles y permisos y Personas)
+    Roles: «+ Nuevo rol» (o «Duplicar»). La matriz de permisos está agrupada por módulo, con buscador y la
+    descripción y el alcance fijo de cada permiso. Al elegir un permiso se agregan los que necesita para
+    servir. Abajo se resume en lenguaje natural lo que el rol podrá hacer.
+    Personas: botón «Rol y posición» (rol; «Toda la empresa» para el ámbito en la raíz; por cada nodo
+    «Ve» o «Trabaja en») con «¿Qué verá con esto?» para verificar ANTES de guardar; y «Indicadores»
+    (responsable y cargador). Cada cambio queda en la bitácora y rige desde la siguiente petición.
 
-  Si más adelante necesita cambiar el mes de inicio, el sistema lo RECHAZA cuando: hay períodos
-  fiscales cerrados (reábralos antes), hay cargas que no son mensuales, o ya hay PRESUPUESTOS
-  ingresados (desalinearían los períodos). Por eso se define primero.
+ Paso 4. INDICADORES  (quien tenga «Crear indicadores» · Configurar > Indicadores)
+    «+ Nuevo indicador»: Asignación (nodo, responsable, cargadores: solo a usted o a personas debajo),
+    identificación, proceso y responsables de la ficha, medición (unidad, frecuencia, sentido, decimales),
+    semáforo (Nivel óptimo y Límite crítico, y topes opcionales), variables, constantes, fórmula con
+    validador y probador, y documentación. El código lo da el sistema.
 
-----------------------------------------------------------------------------------------------------
-PASO 1.  ORGANIZACIÓN Y EQUIPO  (menú: Configurar > Organización y equipo > "1 · Áreas y usuarios")
-----------------------------------------------------------------------------------------------------
-Primero las áreas, después las personas.
+ Paso 5. PERÍODO FISCAL  (quien tenga «Crear ejercicios» · Configurar > Período y metas)
+    Cree el ejercicio (p. ej. 2026-2027: octubre 2026 a septiembre 2027).
 
-  A) CREAR LAS ÁREAS
-     1. En la tarjeta "Áreas", escriba el nombre (ej. Producción) en el campo.
-     2. Pulse "Agregar". Repita con cada departamento (Calidad, Mantenimiento, Ventas...).
-     - Nombre mínimo 2 caracteres y único.
-     - Para RENOMBRAR: botón "Editar" de esa área; el campo pasa a "Renombrar área"; pulse
-       "Guardar" (o la ✕ para cancelar).
-     - Para ELIMINAR: botón "Eliminar" (pide confirmación). Un área con indicadores o usuarios
-       asignados NO se puede eliminar (primero muévalos o desactívelos).
+ Paso 6. META  (quien tenga «Cargar metas» · Período y metas)
+    Para cada indicador, escriba la meta de cada período, o un valor anual con «Mismo valor» (porcentajes,
+    promedios, tiempos) o «Partes iguales» (totales: toneladas, dólares), y pulse «Aplicar» y «Guardar meta».
+    Solo se fijan las de indicadores propios y las de quienes están debajo (el Coordinador, todas).
+    «Copiar del año anterior» trae las metas a los que aún no las tienen. Un período con dato real ya no
+    admite cambiar su meta.
 
-  B) CREAR LOS USUARIOS
-     1. En la tarjeta "Usuarios", pulse "+ Nuevo usuario".
-     2. Complete:
-          Usuario        3 a 40 caracteres: minúsculas, números, punto, guion, guion bajo. NO se puede
-                         cambiar después.
-          Nombre completo  Mínimo 3 caracteres.
-          Rol            Encargado de proceso, Gerente / Auditor SGC, o Administrador SGC.
-          Área           Obligatoria SOLO para el Encargado de proceso (su área; los indicadores concretos se le asignan en la ficha).
-          Contraseña inicial  Mínimo 10 caracteres. Entréguesela a la persona; puede cambiarla desde su
-                         menú de perfil > "Cambiar contraseña".
-     3. Guarde.
-     Mínimo recomendado: UN encargado de proceso por cada área que tenga indicadores y AL MENOS UN gerente / auditor
-     (quien aprueba; recuerde que nadie aprueba lo que cargó él mismo).
-  Este paso queda "Listo" cuando existe al menos un área y un encargado de proceso con área asignada.
+ Paso 7. CARGA MENSUAL  (cargadores · Operar > Cargar datos)
 
-  C) (Opcional) LISTAS DE APOYO - pestaña "Listas de apoyo"
-     Procesos (con su objetivo), Objetivos organizacionales, Gerencias y Cargos. Se ofrecen como
-     sugerencias al crear indicadores. Escriba el elemento y pulse "Agregar"; "Editar" / "Quitar" por
-     elemento. También pueden llegar desde la importación de Excel.
-
-----------------------------------------------------------------------------------------------------
-PASO 2.  INDICADORES  (menú: Configurar > Indicadores)
-----------------------------------------------------------------------------------------------------
-  1. Pulse "+ Nuevo indicador" (se desactiva mientras no existan áreas).
-  2. Complete el formulario (cada campo tiene un botón "i" que lo explica, incluida la fórmula).
-     Esta pantalla la usan el administrador y el gerente / auditor:
-
-     1 · IDENTIFICACIÓN
-        Identificación NC-16   Lo asigna el sistema (prefijo del área + consecutivo, ej. CAL-03): no se escribe
-                               a mano, no se repite y no se puede cambiar. Aparece con la insignia NC-16 en
-                               todas las pantallas y en el encabezado de los Excel.
-        Nombre *               Nombre completo del indicador.
-        Objetivo del indicador Para qué se mide ESTE indicador (lo ve el encargado al cargar).
-        Sigla                  Abreviatura para la fórmula documentada (ej. SP).
-        Área responsable *     Departamento dueño del indicador.
-        Encargado de proceso * La ÚNICA persona que ve y carga este indicador (debe ser de esa área). Dos encargados
-                               de la misma área NO ven los indicadores del otro.
-     2 · PROCESO, OBJETIVO Y RESPONSABLES  (datos de la ficha técnica en papel)
-     3 · MEDICIÓN
-        Unidad *               %, días, horas, TM, kg, USD, cantidad... (o escriba otra).
-        Frecuencia *           Mensual ... Anual o Eventual. DETERMINA cuántos períodos se
-                               presupuestan y cargan. No podrá cambiarse una vez que haya cargas.
-        Decimales              0 a 6; el resultado se redondea antes de evaluar el semáforo.
-        Sentido de la meta *   Mayor es mejor / Menor es mejor. También decide cuándo el real
-                               "cumple" el presupuesto.
-     4 · METAS Y SEMÁFORO
-        Meta *                 Desde dónde el indicador cumple (verde).
-        Límite crítico *       Frontera entre Alerta (amarillo) y Crítico (rojo).
-        Topes (opcional)       Acotan el otro extremo de cada franja (columnas Mín./Máx. de la ficha).
-        NOTA: la meta es del SEMÁFORO. Lo que se espera lograr cada período (el presupuesto) NO se
-        escribe aquí: se ingresa en el Paso 4, para cada año.
-     5 · VARIABLES (1 a 12): los datos que digitará el encargado cada período. Escriba la etiqueta
-        visible (ej. "Producción real (kg)"); la clave se genera sola. Opciones por variable: texto de
-        ayuda, unidad, opcional (con valor por defecto) y permitir negativos. Botones ↑ ↓ ordenan y
-        ✕ quita.
-     6 · CONSTANTES (opcional): valores fijos de la fórmula que el encargado NO ve (horas por turno,
-        tarifa, factor...).
-     7 · FÓRMULA: ej.  real / plan * 100.  Se valida mientras escribe. Hay botones para insertar
-        variables, operadores y funciones (si, div, pct, min, max, sum, avg, abs, round, sqrt,
-        clamp). Use  si(plan > 0, real / plan * 100, 0)  o  div(real, plan, 0)  para evitar dividir
-        entre cero. Pruebe la fórmula con números de ejemplo en "Probar con valores de ejemplo":
-        muestra resultado y semáforo ANTES de guardar.
-     8 · DOCUMENTACIÓN: fuente de los datos, método y observaciones, casilla "Indicador activo".
-  3. Pulse "Guardar indicador" (se activa solo con una fórmula válida).
-  Este paso queda "Listo" cuando existe al menos un indicador activo.
-
-  Otros botones de la lista de indicadores:
-     Ver ficha      Abre la ficha técnica en pantalla (imprimible y exportable al formato del SGC).
-     Editar         Abre el formulario de edición.
-     Duplicar       Copia la ficha como nueva ("... (copia)"); debe darle un código nuevo.
-     Archivar / Restaurar   Un indicador archivado deja de aparecer para cargar; su historial se
-                    conserva.
-     Eliminar       Si NO tiene cargas lo borra (y borra su presupuesto); si tiene, lo ARCHIVA.
-
-----------------------------------------------------------------------------------------------------
-PASO 3.  CREAR EL PERÍODO FISCAL  (menú: Configurar > Período y presupuesto)
-----------------------------------------------------------------------------------------------------
-  Opción rápida: en la tarjeta 3 de "Puesta en marcha" pulse "Crear el período 2026-2027".
-  Opción desde la pantalla de presupuesto:
-  1. Menú "Período y presupuesto". Arriba, en la portada azul, hay un botón por cada año:
-        "2026-2027 ✓"           ya creado.
-        "2027-2028 · sin crear" falta crearlo.
-  2. Pulse el año que quiere crear. Aparece "El período fiscal ... aún no existe", con sus fechas
-     (ej. 1 oct 2026 - 30 sep 2027).
-  3. Pulse el botón grande "Crear período fiscal 2026-2027".
-  4. Listo: el año aparece con ✓ en el selector de la cabecera y se habilita el presupuesto.
-  - Un período solo se puede crear una vez. Solo el administrador crea períodos.
-  - Se ofrecen el año vigente, el siguiente y todos los que ya existen (con datos o creados).
-  - Queda en la Bitácora (acción EJERCICIO_CREADO).
-
-----------------------------------------------------------------------------------------------------
-PASO 4.  PRESUPUESTAR CADA INDICADOR  (menú: Configurar > Período y presupuesto)
-----------------------------------------------------------------------------------------------------
-  La pueden hacer el administrador y el gerente.
-  1. En "Período y presupuesto" elija el año (botón en la portada azul).
-  2. Arriba verá "2 de 5 indicadores con presupuesto completo", una barra de avance y filtros:
-        Todos · Faltan datos · Completos      y el selector de Área.
-  3. Toque un indicador para abrirlo. Verá una casilla por cada período de su frecuencia:
-        mensual:    Oct., Nov., ... Sep. (12 casillas)
-        trimestral: T1, T2, T3, T4        (4 casillas)       anual: 1 casilla, etc.
-  4. Escriba lo presupuestado en cada casilla, O use el atajo "Valor para todo el año":
-        - Escriba el VALOR ANUAL.
-        - Elija "Cómo repartirlo":
-            "Mismo valor en cada período"  -> para %, promedios, tiempos, índices
-                                              (ej. meta de 96 % cada mes: pone 96 en las 12 casillas).
-            "Dividir en partes iguales"    -> para totales: TM, ventas, USD
-                                              (ej. 1.200 TM al año: pone 100 en cada mes).
-        - Pulse "Aplicar": solo RELLENA las casillas; todavía no guarda nada. Puede ajustar alguna
-          (por ejemplo un mes de parada de planta con presupuesto menor).
-  5. Pulse "Guardar presupuesto". Aparece "Presupuesto de PRO-01 guardado."; el indicador se marca ✓
-     cuando todos sus períodos tienen valor.
-  6. Repita con cada indicador. "Copiar del año anterior" (arriba) copia el presupuesto del ejercicio
-     previo a los indicadores que aún no tienen el de este año (útil al abrir un año nuevo).
-  - Los indicadores EVENTUALES no aparecen: no se presupuestan.
-  - Un período que YA tiene dato real cargado queda bloqueado (🔒): su presupuesto no se puede
-    cambiar (se compara contra lo presupuestado "al inicio").
-  - Un período fiscal CERRADO es de solo lectura.
-  - Todo cambio queda en la Bitácora (PRESUPUESTO_GUARDADO), con el valor anterior y el nuevo.
-  - Si cambia la frecuencia de un indicador (solo posible sin cargas), su presupuesto se borra y hay
-    que ingresarlo otra vez (los períodos ya no son los mismos).
-  Este paso queda "Listo" cuando TODOS los indicadores presupuestables tienen su presupuesto completo.
-
-----------------------------------------------------------------------------------------------------
-PASO 5.  CARGA MENSUAL
-----------------------------------------------------------------------------------------------------
-  Con el paso 4 hecho, los encargados ya pueden cargar. Avíseles (usuario y clave inicial). Este paso queda
-  "Listo" en cuanto existe la primera carga del ejercicio. A partir de aquí el administrador solo
-  supervisa (sección 6).
-
+ Antes de entregar el sistema: Configuración > Empresa y logo (nombre, código del formato, inicio del
+ ejercicio fiscal, contraseña de los reportes) y Listas de apoyo (procesos, objetivos, gerencias, cargos).
+ El inicio del ejercicio no puede cambiarse cuando ya hay metas, cargas no mensuales o ejercicios cerrados.
 
 ====================================================================================================
 6. OPERACIÓN MENSUAL
 ====================================================================================================
 
-6.1 EL ENCARGADO DE PROCESO CARGA SU DATO REAL  (menú: Carga del mes)
-    1. Ingrese con su usuario. La pantalla de Inicio muestra "Qué hacer ahora" (períodos pendientes).
-    2. Pulse "Carga del mes" (o el botón de un pendiente, p. ej. "PRO-01 · Octubre 2026").
-    3. Elija el INDICADOR y el PERÍODO. Se ofrecen los períodos del ejercicio elegido que ya
-       empezaron. Si a un período le falta el presupuesto, lo dice ("— sin presupuesto") y no deja
-       cargarlo; avise al administrador o al gerente.
-    4. Digite los DATOS del período (una casilla por variable). Al escribir, el sistema calcula
-       solo el RESULTADO y el SEMÁFORO.
-    5. Más abajo aparece el cuadro de PRESUPUESTADO / REAL / DIFERENCIA:
-          Presupuestado   96 %
-          Real            90 %
-          Diferencia      -6   (93,8 % de lo presupuestado · no alcanza)
-       En verde si cumple el presupuesto, en rojo si no.
-    6. Si el semáforo es Alerta o Crítico, escriba el ANÁLISIS (qué causó la desviación) y el PLAN DE
-       MEJORA (acciones, responsable y fecha). Mínimo 10 caracteres cada uno. Sin esto no se envía.
-    7. Pulse "Enviar carga". Queda "En revisión". Ya no se puede modificar.
-    - Avisos que puede ver: "El período fiscal de este mes todavía no ha sido creado" o "Este período
-      aún no tiene presupuesto" (pida al administrador/gerente completarlo), "Carga devuelta"
-      (corrija y reenvíe), "Ejercicio cerrado" (solo lectura).
-    - "Mis cargas": historial con filtros; toque una tarjeta para ver valores, análisis, plan,
-      presupuesto contra real, quién la cargó y cuándo, versión y notas.
+6.1 El cargador carga su dato
+  Operar > Cargar datos. Elija el indicador (solo aparecen los que usted carga) y el período (los
+  pendientes aparecen resaltados). Digite los datos base; el resultado y el semáforo se calculan solos y
+  se compara con la META del período. Si el semáforo es amarillo o rojo, escriba el análisis y el plan de
+  mejora. Pulse «Enviar carga». Sin meta del período, o con el período fiscal sin crear o cerrado, no se
+  puede cargar (el aviso lo explica). Si un indicador tiene varios cargadores, el primero que carga un
+  período lo envía; el otro ve que ya fue cargado.
 
-6.2 EL GERENTE / AUDITOR REVISA  (menú: Bandeja de aprobación)
-    1. Entre a "Bandeja de aprobación": lista de cargas "En revisión".
-    2. Toque una carga para ver sus datos, el análisis, el plan y la comparación con el presupuesto.
-    3. Pulse "Aprobar formalmente", o "Devolver con observación" escribiendo el MOTIVO (obligatorio,
-       mínimo 5 caracteres).
-    4. No puede revisar cargas que usted mismo hizo.
-    - "Todas las cargas": historial completo con filtros; desde allí puede agregar NOTAS DE AUDITORÍA a
-      cualquier carga y REABRIR una carga ya aprobada (botón "Reabrir carga", con motivo).
-    - "Panel de control": ver sección 7B.
+6.2 El superior directo revisa
+  Operar > Bandeja de aprobación: solo las cargas que le corresponde aprobar. «Aprobar» o «Devolver» (con
+  el motivo, obligatorio). La bandeja nunca incluye cargas propias. Si no hay aprobador en el nivel más
+  cercano, la carga sube al siguiente; el Coordinador SGC siempre puede aprobar.
 
-6.3 CORREGIR UNA CARGA
-    - Carga DEVUELTA: el encargado abre ese indicador/período, ve la observación, corrige y pulsa
-      "Reenviar para revisión" (versión 2, 3...). El presupuesto con que se cargó la primera vez se
-      CONSERVA.
-    - Error en una carga ya APROBADA: el gerente (o el administrador) abre la carga en "Todas las
-      cargas", pulsa "Reabrir carga" y escribe el motivo. La carga pasa a "Devuelta" y se corrige como arriba.
-    - NO existe "borrar una carga" a propósito (trazabilidad ISO). Toda corrección deja versiones y
-      bitácora.
+6.3 Corregir
+  Carga devuelta: el cargador la corrige y la reenvía (versión +1; conserva la meta con que nació).
+  Error en una carga ya aprobada: quien le corresponde aprobarla (o el Coordinador) la reabre desde
+  Cargas con el motivo; vuelve a quedar «Devuelta». Todo queda en la bitácora.
 
+6.4 Recordatorios
+  Operar > Recordatorios de carga: personas de SU ÁMBITO con períodos pendientes (y las devueltas).
+  «Enviar aviso» abre en Outlook un correo ya redactado con el nombre y lo que falta; usted solo pulsa
+  «Enviar». La persona debe tener correo registrado. Cada aviso queda en la bitácora.
 
 ====================================================================================================
-7. DÓNDE VER LO REAL CONTRA LO PRESUPUESTADO
+7. DÓNDE VER LO REAL CONTRA LA META · PANEL DE CONTROL
 ====================================================================================================
-   - Carga del mes ........ cuadro Presupuestado / Real / Diferencia en vivo mientras se digita.
-   - Mis cargas / Todas las cargas ... en cada tarjeta ("Ppto. 96 % · no alcanza") y, al abrirla, el
-                            detalle con diferencia y porcentaje.
-   - Bandeja ............... el gerente ve la comparación antes de aprobar.
-   - Panel de control ...... cumplimiento del presupuesto por período, real contra presupuesto por indicador y rankings.
-   - Ficha técnica ......... filas "Presupuesto" y "Real vs. presupuesto" por período, y la línea en el
-                            gráfico de valores.
-   - API ................... cada medición trae "presupuesto" y "vs_presupuesto" {presupuesto,
-                            desviacion, porcentaje, cumple}.
 
-
-====================================================================================================
-7B. PANEL DE CONTROL  (gerente y administrador; menú Analizar > Panel de control)
-====================================================================================================
-    Una sola pantalla para ver TODO, de todos los modos. Todo se recalcula al instante con los filtros.
-
-    RANGO DE FECHAS: botones rápidos "Este mes", "Últimos 3 meses", "Últimos 6 meses", "Ejercicio elegido" (el de la parte
-      superior), "Ejercicio anterior" y "Todo (5 años)"; o escriba las fechas exactas en "Desde" y "Hasta" (máximo 60 meses).
-    VER POR: Mensual, Bimestral, Trimestral, Cuatrimestral, Semestral o Anual (las mismas frecuencias de los indicadores). Cada
-      período de un indicador se ubica en la vista según el mes en que CIERRA (un trimestre aparece en su último mes).
-      NOTA: no existe vista semanal porque ningún indicador se mide con esa frecuencia (la más corta es mensual).
-    FILTROS: Área, Frecuencia del indicador (mensual…eventual), Seguimiento (proceso / objetivo / proveedor), un Indicador
-      concreto y "Solo cargas aprobadas". "Restablecer" los quita. El panel recuerda sus filtros la próxima vez.
-
-    QUÉ MUESTRA
-      Indicadores clave (con la variación frente al rango anterior de igual duración):
-        Indicadores y mediciones · Cumplimiento (% de mediciones en verde) · Cumplen el presupuesto · Real vs. presupuesto
-        (promedio de real ÷ presupuestado) · Carga al día · Cargas a tiempo (dentro de 10 días tras el cierre del período; las
-        importadas desde Excel no cuentan) · Por aprobar y devueltas · Tiempo de aprobación.
-      Gráficos:
-        1. Evolución del semáforo por período (cumple / alerta / crítico, al 100 %).
-        2. Estado actual: la última medición de cada indicador.
-        3. Cumplimiento del presupuesto por período (períodos que cumplen y no alcanzan, y su %).
-        4. Estado de las cargas por período: aprobadas, en revisión, devueltas y sin cargar.
-        5. Comparativo por Área, Gerencia, Tipo de seguimiento, Frecuencia o Proceso/objetivo, midiendo semáforo o presupuesto.
-        6. Tendencia de UN indicador: resultado, presupuesto, meta y límite crítico.
-        7. Puntualidad de la carga por responsable (retraso promedio en días).
-      Requiere atención: críticos, en alerta y empeorando, períodos sin cargar y cargas devueltas.
-      Rankings: indicadores más rezagados, mejor desempeño y mayor desviación del presupuesto.
-      Mapa de calor: semáforo de cada indicador en cada período de la vista.
-      Tabla de todos los indicadores: ordenable (toque el encabezado); toque un indicador para abrir su ficha.
-    SALIDAS: "Exportar tabla (CSV)" (abre en Excel) e "Imprimir".
-
+ * Cargar datos: al digitar, «Meta del período» y la diferencia en vivo.
+ * Cargas > detalle de cada carga: meta, diferencia y porcentaje.
+ * Ficha técnica: tabla «Real vs. meta» por período del ejercicio.
+ * Reporte Excel (Analizar > Reportes): hojas Resumen, «Real vs Meta», Matriz del ejercicio, Mediciones,
+   Plan de mejora e Indicadores.
+ * PANEL DE CONTROL (Analizar > Panel de control): rangos de fechas (mes, 3 y 6 meses, ejercicio, anterior,
+   5 años), vista por mes, bimestre, trimestre, cuatrimestre, semestre o año; filtros (área o nodo,
+   frecuencia, seguimiento, indicador, solo aprobadas); indicadores clave con variación contra el rango
+   anterior; «Requiere atención»; mapa de calor; gráficos y rankings; tabla exportable.
+ TODO lo anterior incluye únicamente los indicadores que la persona puede ver.
 
 ====================================================================================================
 8. AUDITORÍA: CÓMO SE AUDITA EL SISTEMA
 ====================================================================================================
 
-8.1 BITÁCORA (solo administrador)  -  menú Control > Bitácora
-    Registro INALTERABLE (solo se agrega, nunca se modifica ni se borra) de todo lo que ocurre, con
-    una cadena de huellas SHA-256: cada registro incluye la huella del anterior, así que alterar uno
-    rompe la cadena. Registra, entre otros:
-       INICIO_SESION, CLAVE_CAMBIADA, USUARIO_CREADO/EDITADO, AREA_CREADA/EDITADA/ELIMINADA,
-       PARAMETROS_EDITADOS, LOGO_*, CATALOGO_*, INDICADOR_CREADO/EDITADO/ARCHIVADO/ELIMINADO,
-       EJERCICIO_CREADO, PRESUPUESTO_GUARDADO (con valores antes/después), CARGA, REENVIO,
-       APROBACION, OBSERVACION, REAPERTURA, NOTA_AUDITORIA, EJERCICIO_CERRADO/REABIERTO,
-       IMPORTACION, REPORTE_EXPORTADO.
-    Cada registro guarda: fecha, usuario y rol, acción, entidad, indicador y área afectados, detalle
-    y huella.
-    - "Verificar integridad": recorre toda la cadena y confirma que ningún registro fue alterado.
-    - Filtros por acción y por usuario; la lista está PAGINADA (botones de página y "Por página": 10, 25, 50 o 100).
-    - "Descargar Excel": exporta la bitácora.
-    - El reinicio de fábrica es la única operación que vacía la bitácora.
-
-8.2 NOTAS DE AUDITORÍA  (gerente / administrador)
-    En "Todas las cargas", abra la carga y escriba la nota en "Agregar nota de auditoría" (mínimo 3 caracteres) y pulse "Agregar nota". Queda visible en la
-    carga y registrada en la bitácora. Sirve para dejar hallazgos sin devolver la carga.
-
-8.3 REVISIÓN DE CARGAS (control interno)
-    Segregación de funciones: quien carga no aprueba. Cada carga guarda quién la cargó, cuándo,
-    quién la revisó, cuándo, la nota de revisión y su versión. También guarda una FOTO de la ficha
-    vigente al cargar (meta, límite, fórmula, constantes, decimales y PRESUPUESTO): modificar la
-    ficha o el presupuesto de otros períodos NO cambia el pasado.
-
-8.4 REPORTES VERIFICABLES
-    (ver sección 13) Cada Excel lleva un número y una hoja "Control" con huella y firma del sistema. En Reportes >
-    "Verificar un reporte" (gerente / administrador) se sube el archivo y el sistema dice si es
-    auténtico o fue alterado. Cada descarga queda en la bitácora.
-
-8.5 CÓMO HACER UNA AUDITORÍA PASO A PASO
-    1. Bitácora > "Verificar integridad": debe decir que la cadena es íntegra.
-    2. Panel de control del ejercicio: revise cumplimiento, indicadores críticos y períodos sin
-       cargar ("Requiere atención").
-    3. Historial: filtre por estado "Devuelto" o semáforo "Crítico"; verifique que tengan análisis y
-       plan de mejora (ISO 9.1.3 y 10.2).
-    4. Para un indicador: Ver ficha > filas "Presupuesto" y "Real vs. presupuesto".
-    5. Descargue el reporte Excel y verifíquelo en Reportes > "Verificar un reporte".
-    6. Antes de cerrar el año: Cierre de años > "Verificar y cerrar" (lista de comprobación).
-    7. Deje constancia con notas de auditoría en las cargas observadas.
-
+ * Bitácora (solo Desarrollador): Control > Bitácora. Cada registro tiene fecha, persona, ROL AL MOMENTO
+   DE LA ACCIÓN, acción, entidad y detalle, y el hash SHA-256 del registro anterior. «Verificar
+   integridad» recorre la cadena. En PostgreSQL un trigger impide actualizar o borrar registros.
+ * Se registran, entre otras: ingresos; cargas, reenvíos, aprobaciones, devoluciones y reaperturas; notas de
+   auditoría; indicadores (crear, editar, asignar, archivar, restaurar, eliminar); estructura (crear,
+   renombrar, mover, eliminar); ROLES (crear, editar con los permisos que cambian, eliminar);
+   asignación de personas (rol, ámbito, indicadores); designación de Desarrolladores; cuentas, claves y
+   sesiones cerradas; metas; ejercicios (crear, cerrar, reabrir); parámetros; importaciones; reportes
+   exportados; respaldos.
+ * Segregación de funciones: nadie aprueba lo propio; el responsable es el único que modifica su ficha.
+ * Notas de auditoría: quien tiene el permiso las agrega a cualquier carga visible.
+ * Reportes firmados: cada Excel lleva número, hoja «Control» con huella y firma; «Verificar un reporte»
+   comprueba que no fue alterado (ver 13).
 
 ====================================================================================================
-9. MODIFICAR: "QUIERO CAMBIAR X, ¿CÓMO?"
+9. MODIFICAR: «QUIERO CAMBIAR X, ¿CÓMO?»
 ====================================================================================================
 
-   Quiero cambiar...                          Cómo
-   ----------------------------------------   --------------------------------------------------
-   El nombre de un área                       Organización y equipo > Áreas > Editar > Guardar.
-   Datos / rol / área de un usuario           Organización y equipo > Usuarios > Editar. El usuario
-                                              (login) no se puede cambiar.
-   La contraseña de un usuario                Usuarios > Editar > "Nueva contraseña (opcional)". Cierra
-                                              sus sesiones activas. El propio usuario: menú de perfil >
-                                              Cambiar contraseña.
-   Inhabilitar / habilitar a alguien          Usuarios > botón "Inhabilitar" (o "Habilitar"). No puede
-                                              ingresar; su historial se conserva. Un administrador no
-                                              puede inhabilitarse a sí mismo.
-   Eliminar un usuario                        Usuarios > botón "Eliminar" (definitivo). Solo si nunca tuvo
-                                              actividad (ej. creado por error); si ya ingresó, cargó o
-                                              revisó algo, el botón queda bloqueado y hay que inhabilitarlo.
-   Empresa, código de formato, logo           Organización y equipo > Empresa y logo.
-   Contraseña de los reportes                 Empresa y logo > casilla de bloqueo > nueva contraseña.
-   Mes de inicio del año fiscal               Empresa y logo > Inicio del ejercicio fiscal. Bloqueado si
-                                              hay períodos cerrados, cargas no mensuales o presupuestos.
-   Listas de apoyo                            Organización y equipo > Listas de apoyo.
-   La meta / fórmula / textos de un           Indicadores > Editar. Queda en la bitácora y NO altera las
-   indicador                                  cargas ya hechas.
-   La frecuencia o las claves de variables    Solo si el indicador NO tiene cargas. Con cargas: duplíquelo
-   de un indicador                            con otro código y archive el anterior. (Cambiar la frecuencia
-                                              borra el presupuesto del indicador: se ingresa de nuevo.)
-   El PRESUPUESTO de un indicador             Período y presupuesto > abrir el indicador > cambiar las
-                                              casillas > Guardar presupuesto. Los períodos con dato real
-                                              cargado están bloqueados. Con el año cerrado: el
-                                              administrador lo reabre primero.
-   Un dato ya enviado                         No se edita: el gerente lo DEVUELVE (o REABRE si estaba
-                                              aprobado) y el encargado corrige y reenvía.
-   Un período fiscal cerrado                  Cierre de años > "Reabrir" (administrador, con motivo de 5+
-                                              caracteres). Al terminar de corregir, vuelva a cerrarlo.
-
+  Cambiar...                                   Quién y dónde
+  -------------------------------------------  ----------------------------------------------------
+  Qué ve una persona (ámbito) o su rol         Coordinador SGC · Personas > Rol y posición
+  Qué puede hacer un rol                       Coordinador SGC · Roles y permisos (rige de inmediato)
+  Un indicador asignado a otra persona/nodo    Quien lo ve y tiene «Asignar»: Indicadores > Asignar
+  La responsabilidad de un indicador           Se traspasa asignándola a otra persona (no se «quita»)
+  La ficha (fórmula, semáforo, textos)         Su responsable: Indicadores > Editar (con cargas no se
+                                               cambian la frecuencia ni las claves de variables)
+  La meta de un período                        Quien la fija: Período y metas (si no tiene dato real)
+  Una carga ya enviada                         No se edita: se devuelve o reabre y se reenvía
+  Nombre, correo o clave de una cuenta         Desarrollador · Personas > Editar cuenta / clave temporal
+  Nombre de un nodo o su lugar                 Coordinador · Estructura > Renombrar / Mover
+  Empresa, logo, formato, inicio del año       Quien tenga «Parámetros» · Configuración
+  Listas de la ficha                           Quien tenga «Listas» · Configuración > Listas de apoyo
 
 ====================================================================================================
 10. ELIMINAR, ARCHIVAR Y LO QUE NO SE PUEDE BORRAR
 ====================================================================================================
 
-   Elemento              Qué pasa y por qué
-   -------------------   ---------------------------------------------------------------------------
-   Área                  Se elimina solo si NO tiene indicadores ni usuarios.
-   Usuario               Sin actividad registrada (nunca ingresó ni cargó nada): botón "Eliminar", definitivo.
-                         Con actividad: NO se elimina, se INHABILITA (para conservar quién hizo qué).
-                         Nadie puede eliminarse ni inhabilitarse a sí mismo.
-   Indicador             Sin cargas: se elimina, con su presupuesto. Con cargas: se ARCHIVA (deja de
-                         aparecer para cargar; el historial se conserva; se puede RESTAURAR).
-   Carga                 NO se elimina. Se devuelve y se corrige (versiones) para dejar trazabilidad.
-   Presupuesto           NO se elimina: se modifica mientras el período no tenga dato real. Se borra
-                         solo junto con un indicador sin cargas o al cambiar su frecuencia.
-   Período fiscal        NO se elimina: se cierra (solo lectura) y, si hace falta, se reabre.
-   Elemento de lista     "Quitar": las fichas que ya lo usan conservan el texto.
-   Bitácora              NO se elimina (inalterable). Solo desaparece con el reinicio de fábrica.
-   TODO                  Reinicio de fábrica (sección 14), solo administrador, sin vuelta atrás.
-
+ * Indicador SIN cargas: se elimina (con su meta). CON cargas: no se elimina; se ARCHIVA (deja de
+   ofrecerse para cargar; el historial se conserva; el responsable y el ámbito aún lo ven; se restaura
+   cuando se quiera).
+ * Cuenta SIN actividad: se elimina. Con actividad (ingresos, cargas, revisiones): solo se INHABILITA (no
+   puede ingresar; su historial se conserva). No se puede inhabilitar ni eliminar a quien es responsable de
+   indicadores o su única cargadora: reasígnelos primero.
+ * Nodo de la estructura: solo vacío (sin hijos, personas ni indicadores).
+ * Rol: solo si nadie lo usa; los de sistema nunca.
+ * Bitácora, cargas aprobadas y ejercicios cerrados: no se borran.
+ * No se puede eliminar ni inhabilitar a sí mismo ni quitarse el rol Desarrollador.
 
 ====================================================================================================
 11. CIERRE DEL AÑO Y APERTURA DEL SIGUIENTE
 ====================================================================================================
 
-11.1 CERRAR EL AÑO  (administrador; menú Control > Cierre de años)
-    1. Espere a que el año termine (solo puede cerrarse después de su último día).
-    2. Resuelva lo pendiente: cargas "En revisión" o "Devueltas" (se listan en la verificación) y
-       períodos nunca cargados.
-    3. En la tarjeta del ejercicio pulse "Verificar y cerrar". La ventana comprueba:
-          a) que el ejercicio ya terminó;
-          b) que no hay cargas en revisión ni devueltas (si las hay, no deja cerrar);
-          c) períodos nunca cargados (se pueden aceptar marcando "Entiendo que hay períodos sin
-             cargar y deseo cerrar de todos modos").
-       Muestra además el cumplimiento y permite una "Nota de cierre" opcional.
-    4. Pulse "Cerrar y archivar ejercicio". Queda en SOLO LECTURA con una foto de sus resultados.
-    - "Reabrir": administrador, con motivo. Vuelve a admitir cargas, revisiones y cambios de
-      presupuesto.
-
-11.2 ABRIR EL SIGUIENTE AÑO (repite los pasos 3 y 4)
-    1. Período y presupuesto > pulse el año siguiente ("... · sin crear") > "Crear período fiscal".
-       Puede crearlo con antelación, mucho antes de que empiece.
-    2. Pulse "Copiar del año anterior" para traer el presupuesto del año pasado a todos los
-       indicadores que aún no tienen el de este año; ajuste lo que cambie y guarde.
-    3. Para indicadores nuevos: abra cada uno y presupuéstelo (Paso 4).
-    Los encargados podrán cargar los períodos del nuevo año en cuanto estén creados y presupuestados.
-
+ Control > Cierre de años (permisos de ejercicios). Un ejercicio pasa de vigente → terminado → cerrado:
+ 1. Verificar: lista de comprobación (cargas en revisión o devueltas, períodos sin cargar).
+ 2. Cerrar (solo después del último día; sin cargas pendientes de revisión; aceptando los faltantes si los
+    hay). Queda de SOLO LECTURA y guarda una foto de sus resultados (quien ve toda la empresa recibe esa
+    foto; los demás, el cálculo de su propio alcance).
+ 3. Reabrir exige un motivo (queda en la bitácora).
+ 4. Crear el siguiente (Período y metas) y fijar sus metas (copiar del anterior ayuda).
 
 ====================================================================================================
-12. IMPORTAR FICHAS Y DATOS HISTÓRICOS DESDE EXCEL  (administrador; menú Control > Importar)
+12. IMPORTAR FICHAS Y DATOS HISTÓRICOS DESDE EXCEL
 ====================================================================================================
-    Sirve para traer años anteriores desde el libro de fichas técnicas (una hoja por indicador).
-    1. Pulse "Seleccionar archivo Excel (.xlsx)" (máx. 8 MB). El sistema lo analiza.
-    2. Vista previa por hoja: casilla para incluirla, Código, Nombre, Área (existente o nueva),
-       Frecuencia, Fórmula traducida (edítela si falta) y las mediciones a importar con su semáforo.
-       Los avisos amarillos señalan lo que no se pudo interpretar.
-    3. Si el ejercicio fiscal del archivo difiere del configurado, avisa: ajuste el inicio del
-       ejercicio (Organización > Empresa y logo) antes de importar.
-    4. Marque las listas de apoyo que quiera importar.
-    5. Pulse "Importar N indicador(es)". Todo se guarda O NADA. Las mediciones importadas quedan
-       APROBADAS y en la bitácora; los períodos fiscales que falten se crean automáticamente (con la
-       nota "Creado al importar datos históricos"). Los datos históricos no llevan presupuesto (no
-       hay comparación para ellos); los años nuevos sí se presupuestan con normalidad.
 
-
-====================================================================================================================================================================================================
-13. REPORTES Y SU VERIFICACIÓN  (menú Analizar > Reportes)
-====================================================================================================
-    TODOS los Excel son en BLANCO Y NEGRO, sin logo y sin gráficos (los gráficos se ven en la
-    aplicación). Cada hoja empieza únicamente con el NOMBRE DE LA EMPRESA cargado en Parámetros. Sirven
-    para imprimir y para comparar números: lo REAL contra lo PRESUPUESTADO.
-
-    13.1 INFORME "REAL VS PRESUPUESTO"  (botón "Descargar reporte Excel")
-        Filtros: Ejercicio (o todos), Área (no para el encargado) y Estado de la carga. El archivo se
-        llama  <Empresa>_real_vs_presupuesto_AAAAMMDD.xlsx.  Hojas:
-          Resumen ............. Totales (indicadores, períodos presupuestados, con real, que cumplen y
-                                que no alcanzan, cargas por aprobar, % de cumplimiento) y cumplimiento
-                                del presupuesto por ÁREA y por INDICADOR.
-          Real vs Presupuesto . Una fila por indicador y período, incluidos los períodos presupuestados
-                                que aún no se cargan ("Sin cargar" / "Por venir"). Columnas: Ejercicio,
-                                Código, Indicador, Área, Unidad, Sentido, Período, PRESUPUESTADO, REAL,
-                                DIFERENCIA, REAL / PRESUPUESTO (%), CUMPLE PRESUPUESTO (Sí/No), Semáforo y
-                                Estado. Tiene filtros y los títulos quedan fijos al desplazarse.
-          Matriz <ejercicio> .. Una hoja por ejercicio. Por indicador, tres filas: Presupuestado, Real y
-                                Diferencia, con los meses del año fiscal en columnas (un trimestre se ubica
-                                en su último mes) y al final cuántos períodos tienen real y cuántos cumplen.
-          Plan de mejora ...... Cargas fuera de meta con su análisis y su plan (ISO 9001, 9.1.3 y 10.2).
-          Indicadores ......... Definición de cada indicador: fórmula, sentido, meta y límite.
-          Control ............. Número, huella y firma del reporte (ver 13.4).
-        Diferencia, porcentaje y "Cumple" son FÓRMULAS vivas de Excel (se recalculan si se corrige un
-        valor). "Cumple" = real >= presupuesto si "mayor es mejor", o real <= presupuesto si "menor es
-        mejor". Si a un período le falta el presupuesto o el real, esas celdas quedan vacías.
-        Un indicador histórico importado sin presupuesto aparece con el presupuesto vacío.
-        El encargado de proceso solo obtiene sus indicadores asignados.
-
-    13.2 FICHAS TÉCNICAS (formato SGC)  (botón "Descargar fichas en Excel")
-        Una hoja por indicador con el diseño de la ficha en papel, también en blanco y negro: proceso,
-        definición, semáforo (Mín./Máx.), responsables, datos de cada período, la sección
-        "REAL VS PRESUPUESTO" (presupuestado, real, diferencia, % , cumple, semáforo y estado de cada
-        período del ejercicio), análisis y notas. El resultado y el semáforo son fórmulas vivas.
-        Filtros: Área e Indicador. Usa el ejercicio fiscal elegido (o el vigente).
-
-    13.3 BITÁCORA EN EXCEL (solo administrador)  (Bitácora > "Descargar Excel")
-        Mismo estilo; incluye el estado de la cadena de huellas.
-
-    13.4 VERIFICAR UN REPORTE (gerente / administrador)
-        "Elegir archivo para verificar": suba un Excel descargado del sistema. Dice si es auténtico o si
-        fue modificado. Cada reporte lleva un número y una hoja "Control" con huella y firma.
-    - Si el administrador activó el bloqueo con contraseña (Organización > Empresa y logo), los archivos
-      se pueden abrir y leer, pero modificar sus hojas exige esa contraseña.
-    - Cada descarga queda en la bitácora.
-
-
-====
-14. REINICIO DE FÁBRICA (BORRAR TODO)
-====================================================================================================
-    Deja el sistema como recién instalado. Úselo solo para empezar desde cero (por ejemplo, tras
-    pruebas). Descargue antes los reportes que necesite.
-    1. Organización y equipo > pestaña "Avanzado" > "Zona de peligro" > "Borrar todos los datos...".
-    2. Escriba exactamente  BORRAR TODO  y su contraseña de administrador.
-    3. Pulse "Borrar todo definitivamente".
-    Elimina: indicadores, cargas, presupuestos, períodos fiscales, áreas, usuarios (excepto el suyo),
-    listas, parámetros, logo y bitácora. NO SE PUEDE DESHACER. Después, comience otra vez por la
-    sección 5 (Paso 0).
-
+ Control > Importar (permiso «Importar planillas»). Suba el libro de fichas NC-16 (una hoja por indicador);
+ el sistema lee la definición, el semáforo, los períodos y los análisis, traduce la fórmula y muestra una
+ vista previa editable. En las planillas, la palabra «Meta» designa el umbral y se importa como NIVEL
+ ÓPTIMO. Los indicadores se crean SIN responsable ni cargadores (el Coordinador SGC los asigna después en
+ Personas o en la ficha) y sus cargas históricas quedan aprobadas. Las áreas de la planilla se crean como
+ departamentos bajo la gerencia indicada. Todo o nada; queda en la bitácora.
 
 ====================================================================================================
-15. MANTENIMIENTO: USUARIOS, CLAVES, RESPALDOS, ACTUALIZACIONES
+13. REPORTES Y SU VERIFICACIÓN
 ====================================================================================================
-    - USUARIO OLVIDÓ SU CLAVE: Usuarios > Editar > Nueva contraseña (10+ caracteres) y entréguesela.
-    - ADMINISTRADOR OLVIDÓ LA SUYA: otro administrador la restablece; o, con acceso al servidor,
-      python -m app.crear_admin  crea otro administrador.
-    - RESPALDOS: toda la información está en la base de datos (PostgreSQL / Supabase). Programe
-      respaldos automáticos de la base desde Supabase (o pg_dump). En desarrollo (SQLite), copie el
-      archivo data/sigt.db. Guarde también el valor de SIGT_SECRET: sin ella no se puede descifrar la
-      contraseña de reportes (habría que definir una nueva).
-    - ACTUALIZAR EL SISTEMA: despliegue la versión nueva y aplique  alembic upgrade head  (el
-      Dockerfile y Vercel lo hacen solos). No pierde datos.
-    - PRUEBAS: pytest  (sobre SQLite temporal; con SIGT_DATABASE_URL corre contra PostgreSQL).
-    - MONITOREO: GET /healthz responde {"ok": true} si la aplicación y la base están vivas.
 
+ Analizar > Reportes. Informe general (Real vs Meta) y fichas técnicas por indicador (formato NC-16, en
+ blanco y negro) de lo que la persona puede ver. Con «Bloquear los reportes con contraseña» (Parámetros) las
+ hojas quedan protegidas. «Verificar un reporte» sube un Excel y comprueba firma, contenido y emisión.
+ La bitácora en Excel es solo del Desarrollador.
 
-    SOPORTE A OTROS USUARIOS (desde el administrador)
-      Organización y equipo > Áreas y usuarios. En cada usuario:
-        - Último ingreso: se ve debajo del nombre ("Nunca ha ingresado" si no ha entrado).
-        - Soporte > "Generar clave temporal": crea una clave aleatoria de 14 caracteres y la muestra UNA vez en pantalla
-          (cópiela). Pulse "Guardar": el usuario queda con esa clave y sus sesiones se cierran. Entréguesela y pídale que la
-          cambie al ingresar (menú de su perfil > Cambiar contraseña).
-        - Soporte > "Cerrar sus sesiones": lo saca de todos sus dispositivos (por ejemplo, un teléfono perdido).
-        - Soporte > "Ver su actividad": abre la Bitácora filtrada por ese usuario.
-        - "Inhabilitar" / "Habilitar" y "Eliminar" (ver sección 10).
-      Botón "Desbloquear accesos" (arriba de la lista): levanta el bloqueo por intentos fallidos de ingreso (cuando alguien
-      dice "Demasiados intentos fallidos"). Todo queda en la Bitácora.
+====================================================================================================
+14. REINICIO DE FÁBRICA Y REINICIO A LA VERSIÓN 2
+====================================================================================================
 
-    CAPACIDAD Y SEGURIDAD DE LA BASE DE DATOS (Supabase / Vercel)
-      - La página y sus archivos se comprimen y se guardan en el navegador: la primera visita ronda 230 KB y las siguientes
-        unos 50 KB.
-      - La aplicación solo se conecta a la base con el rol "postgres" a través del "pooler" de Supabase (puerto 6543). Los roles
-        públicos de Supabase (anon / authenticated) no tienen ningún permiso sobre las tablas y todas tienen RLS activo: aunque
-        alguien conozca la dirección y la clave pública del proyecto, no puede leer ni escribir datos por esa vía.
-      - Para más usuarios simultáneos: en Supabase suba el tamaño de cómputo (Project Settings > Compute) y active respaldos
-        diarios o PITR; en Vercel active el Firewall con reglas de límite de peticiones por IP. Active la verificación en dos
-        pasos (2FA) en las cuentas de Supabase, Vercel y GitHub, y no comparta la SIGT_SECRET.
+ * Reinicio de fábrica (Configuración > Avanzado > Zona de peligro; Desarrollador): borra TODO (indicadores,
+   cargas, estructura, personas, roles definidos, listas, parámetros, logo y bitácora). Conserva solo su
+   cuenta y los roles de sistema. Pide escribir «BORRAR TODO» y su contraseña. No se puede deshacer.
+ * Reinicio a la versión 2 en producción: procedimiento y script en docs/OPERACION.md
+   (scripts/reset_produccion_v2.sql). Destruye los datos de la versión 1 (eran de prueba).
+
+====================================================================================================
+15. MANTENIMIENTO: CUENTAS, CLAVES, RESPALDOS, ACTUALIZACIONES
+====================================================================================================
+
+ * Cuentas y soporte (Desarrollador · Personas > Soporte técnico): generar clave temporal (restablecer cierra
+   las sesiones), cerrar las sesiones de alguien, desbloquear accesos (límite de intentos fallidos),
+   inhabilitar/habilitar, eliminar, designar Desarrollador, ver su actividad.
+ * Respaldo cifrado (Configuración > Avanzado, o «python -m app.respaldar»): se abre solo con la frase de
+   paso (el sistema no la guarda). Restaurar reemplaza todo y exige la frase, su contraseña y escribir
+   RESTAURAR. Hágalo y verifíquelo periódicamente (docs/OPERACION.md).
+ * Actualizaciones: «make verificar» en verde, migración probada en una copia y un respaldo reciente.
+ * Un cambio de permisos de un rol o de la asignación de una persona surte efecto en SU SIGUIENTE petición.
 
 ====================================================================================================
 16. PROBLEMAS FRECUENTES Y QUÉ HACER
 ====================================================================================================
 
-   "El período fiscal ... todavía no ha sido creado"
-        El administrador debe crearlo (Paso 3) en Período y presupuesto.
-   "Este período todavía no tiene presupuesto"
-        Falta el Paso 4 para ese indicador y período. Administrador o gerente: Período y presupuesto.
-   "... ya tiene dato real cargado: su presupuesto no puede cambiarse"
-        Es a propósito: se compara contra lo presupuestado "al inicio". Mientras exista la carga
-        (y las cargas no se borran) el presupuesto de ese período no cambia; si hubo un error de
-        presupuesto, déjelo documentado con una nota de auditoría en la carga.
-   No veo el año que quiero en el selector de la cabecera
-        El selector solo muestra períodos YA CREADOS. Créelo en Período y presupuesto.
-   No veo mi indicador en "Carga del mes"
-        Su área no lo tiene asignado, está archivado, o está viendo otro ejercicio (cámbielo arriba).
-   El período que busco no aparece
-        Solo se ofrecen los períodos del ejercicio elegido que ya empezaron (no los futuros).
-   "Enviar carga" está desactivado
-        Falta un dato obligatorio, el resultado no se pudo calcular, el período no tiene presupuesto /
-        período fiscal, o (si hay Alerta/Crítico) faltan los 10 caracteres de análisis y plan.
-   "Este período ya fue cargado y no puede modificarse"
-        Está En revisión o Aprobada. Solo se modifica si el gerente la devuelve o la reabre.
-   "El ejercicio fiscal ... está cerrado"
-        Es de solo lectura; el administrador puede reabrirlo.
-   No puedo aprobar una carga
-        La cargó usted: debe revisarla otra persona.
-   No puedo cambiar la frecuencia o las claves de un indicador
-        Ya tiene cargas. Duplíquelo con otro código.
-   No puedo eliminar un área
-        Tiene indicadores o usuarios asignados.
-   No puedo cambiar el mes de inicio del ejercicio
-        Hay períodos cerrados, cargas no mensuales o presupuestos ingresados.
-   "Sesión no válida o expirada"
-        La sesión venció (10 h), cambiaron su contraseña o la cerraron. Ingrese de nuevo.
-   "Demasiados intentos fallidos"
-        Espere 15 minutos.
-   La aplicación responde 503 "no pudo preparar la base de datos"
-        La base no está al día o no hay conexión: ejecute alembic upgrade head y revise las variables
-        (SIGT_DATABASE_URL, SIGT_SECRET). El mensaje indica el motivo.
-   Un Excel pide contraseña
-        El administrador activó el bloqueo de reportes.
-   "Error interno del sistema. Informe este código al administrador: A1B2C3D4"
-        Falló algo inesperado. Anote el código y entréguelo al responsable técnico: está en el registro
-        del servidor con el detalle. Ningún dato se guarda a medias (cada operación es todo o nada).
-   "No hay conexión con el servidor" / "El servidor tardó demasiado en responder"
-        Revise la conexión a internet e intente de nuevo; lo que no se confirmó con un aviso verde no
-        se guardó.
-   "La operación choca con datos que ya existen o están en uso" (409)
-        Dos personas hicieron lo mismo a la vez (por ejemplo, crear la misma área). Actualice la pantalla.
-   "La base de datos no responde en este momento" (503)
-        Problema temporal de conexión con la base; reintente en unos segundos.
-
+  Síntoma                                              Qué hacer
+  ---------------------------------------------------  ----------------------------------------------------
+  «Su cuenta está pendiente de asignación»             El Coordinador SGC debe asignarle rol, ámbito e indicadores
+  No veo un indicador                                  Es lo esperado si su nodo no está en su ámbito y no es suyo;
+                                                       Personas > «¿Qué ve?» lo comprueba; corrija en Rol y posición
+  «No tiene permisos para esta acción» (403)           Lo ve pero no le corresponde (no es responsable/cargador, o su
+                                                       rol no tiene el permiso): pídalo al Coordinador SGC
+  No puedo cargar un período                           Falta el período fiscal o la meta del período, el ejercicio está
+                                                       cerrado, o ya fue cargado
+  No puedo asignar un indicador a alguien              Solo a usted o a personas debajo de usted; su rol debe permitir
+                                                       cargar si va a cargarlo
+  No puedo inhabilitar/eliminar una persona            Reasigne antes sus indicadores
+  No puedo aprobar una carga                           No es la suya (propia) o no es el superior que le corresponde
+  Bloqueado por intentos fallidos                      Desarrollador: Personas > Desbloquear accesos
+  «La cadena de la bitácora no es válida»              Detenga escrituras y siga docs/OPERACION.md
+  Un Excel no se abre / no se puede editar             Está protegido a propósito (Parámetros); use el sistema
 
 ====================================================================================================
-17. EJEMPLO COMPLETO CON NÚMEROS (ÁREA DE PRODUCCIÓN)
+17. EJEMPLO COMPLETO CON NÚMEROS
 ====================================================================================================
 
-   Situación: Tripoliven, año fiscal que empieza en octubre. Hoy es octubre de 2026.
-
-   PASO 0   Admin: Organización > Empresa y logo > Inicio del ejercicio fiscal = Octubre > Guardar.
-   PASO 1   Admin: crea el área "Producción". Crea los usuarios:
-               encargado.prod  (Encargado de proceso, área Producción), gerente1 (Gerente / Auditor SGC).
-   PASO 2   Admin: crea dos indicadores del área Producción:
-               PRO-01  Cumplimiento del plan de producción   % · mensual · mayor es mejor
-                        fórmula: real / plan * 100     meta 95 · límite crítico 85
-                        variables: "TM producidas" (real), "TM presupuestadas" (plan)
-               PRO-02  Producción trimestral de caliza        TM · trimestral · mayor es mejor
-                        fórmula: real     meta 1000 · límite 800     variable: "TM" (real)
-   PASO 3   Admin: Período y presupuesto > "2026-2027" > "Crear período fiscal 2026-2027".
-   PASO 4   Admin o gerente: Período y presupuesto > 2026-2027:
-               PRO-01: valor anual 96, "Mismo valor en cada período" > Aplicar > Guardar presupuesto
-                        -> 96 % para cada uno de los 12 meses.
-               PRO-02: valor anual 4000, "Dividir en partes iguales" > Aplicar > Guardar presupuesto
-                        -> 1.000 TM para cada trimestre (T1 cierra en diciembre).
-               Resultado en pantalla: "2 de 2 indicadores con presupuesto completo".
-   PASO 5   Octubre: la jefa Marta entra > Carga del mes > PRO-01 > Octubre 2026.
-               TM producidas 900, TM presupuestadas 1000 -> Resultado 90 % -> semáforo ALERTA
-               (meta 95, crítico < 85).
-               Cuadro: Presupuestado 96 % · Real 90 % · Diferencia -6 (93,8 % · no alcanza).
-               Como es Alerta, escribe el análisis ("Paro de molino 3 por falla eléctrica") y el
-               plan de mejora ("Instalar respaldo eléctrico, Mantenimiento, 30-nov"). Enviar carga.
-            El gerente Luis entra > Bandeja > abre la carga, ve la comparación y pulsa Aprobar.
-            Noviembre: Marta carga 980/1000 -> 98 % -> verde; presupuesto 96 -> cumple (+2).
-            En el Panel de control, Luis ve la línea de presupuesto (96) junto a los resultados (90, 98)
-            y la columna "Vs. presupuesto": "1 de 2 cumplen".
-   AUDIT    El administrador abre Bitácora > Verificar integridad: cadena íntegra. Ve, en orden:
-            EJERCICIO_CREADO, PRESUPUESTO_GUARDADO (x2), CARGA, APROBACION, CARGA...
-   CIERRE   En octubre de 2027 el año termina. Admin: Cierre de años > Verificar y cerrar > cerrar.
-            Luego: Período y presupuesto > "2027-2028" > Crear > "Copiar del año anterior" > ajustar.
-
+ Estructura: Gerencia de Producción > Planta Norte > Jefatura de Línea 1.
+ Personas: Raúl (Gerente, ámbito Gerencia de Producción), Luis (Jefe, ámbito Jefatura de Línea 1), Ana
+   (Analista, trabaja en Línea 1). Marta (Coordinador SGC) las asignó; el Desarrollador creó las cuentas.
+ Indicador PRO-01 «Cumplimiento del plan» en Línea 1: responsable Luis, cargadora Ana; mayor es mejor;
+   Nivel óptimo 95 %, Límite crítico 85 %; fórmula real / plan × 100.
+ Meta de octubre: 96 (Luis la fija, el indicador es suyo). Ana carga real 450 y plan 500:
+   resultado 90 %, semáforo AMARILLO (≥ 85 y < 95); la meta del período es 96: diferencia −6 (93,8 % de la
+   meta). Por ser amarillo, Ana escribe el análisis y el plan de mejora.
+ La carga espera a LUIS (superior directo de Ana). Raúl, que ve todo lo de su gerencia, la ve en Cargas pero
+   no en su Bandeja. Luis la aprueba. Si Luis cargara él mismo, aprobaría Raúl, no Luis.
+ Raúl puede fijar la meta de PRO-01 (está debajo de él) pero NO editar su ficha (no es su responsable): 403.
+ Un analista de otra jefatura no ve PRO-01: 404.
 
 ====================================================================================================
 18. GLOSARIO
 ====================================================================================================
-   Área .................. Departamento de la empresa; dueño de indicadores y de sus encargados.
-   Bitácora .............. Registro inalterable de toda la actividad (cadena SHA-256).
-   Carga ................. El dato real de un indicador para un período.
-   Constante ............. Valor fijo de la fórmula que el encargado no ve.
-   Diferencia ............ Real menos presupuestado.
-   Ejercicio / Período fiscal ... Año de gestión; se crea, se presupuesta, se carga y se cierra.
-   Ficha técnica ......... Definición completa de un indicador.
-   Frecuencia ............ Cada cuánto se mide; define los períodos del año.
-   Meta / Límite crítico . Umbrales del semáforo.
-   Período ............... Cada mes / trimestre / semestre... en que se mide un indicador.
-   Presupuesto ........... Resultado que se espera lograr en cada período; se fija al inicio del año.
-   Real .................. Resultado calculado con los datos que digitó el encargado.
-   Segregación de funciones ... Nadie revisa su propia carga.
-   Semáforo .............. Verde / Amarillo / Rojo según meta y límite crítico.
-   Variable .............. Dato que el encargado digita cada período.
+
+ Ámbito        Nodos del árbol que una persona ve completos (con todo lo que cuelga de ellos).
+ Cargador      Persona que digita el dato real de un indicador.
+ Coordinador SGC  Rol de sistema funcional: define roles y asigna personas.
+ Desarrollador Rol de sistema técnico: todo, incluido soporte, respaldos y bitácora.
+ Ejercicio     Año de gestión (p. ej. octubre 2026 – septiembre 2027).
+ Límite crítico  Frontera entre amarillo y rojo del semáforo.
+ Meta          Lo que se espera lograr en un período (se compara con el real).
+ Nivel óptimo  Umbral de la zona verde del semáforo.
+ Nodo          Gerencia, departamento o jefatura del árbol.
+ Pendiente de asignación  Cuenta sin rol: no accede a nada.
+ Responsable   «Dueño» de un indicador: único que modifica su ficha.
+ Superior directo  Aprobador más cercano hacia arriba en el árbol.
 
 ====================================================================================================
 FIN DEL MANUAL
 ====================================================================================================
-
-
-================================================================================
-RECORDATORIOS DE CARGA  (menú: Recordatorios de carga — administrador y gerente)
-================================================================================
-Muestra qué encargado de proceso tiene períodos pendientes de cargar (o cargas devueltas para corregir), con el detalle por
-indicador. Los que más deben aparecen primero.
-
-  1. Registre el correo de cada encargado: Organización y equipo → Editar usuario → «Correo electrónico».
-  2. Elija el mensaje: Recordatorio amable, Urgente (carga vencida) o Carga devuelta para corregir.
-  3. Pulse «Enviar recordatorio por Outlook»: se abre un correo ya redactado (destinatario, asunto y texto con el nombre del
-     encargado y lo que le falta) en el programa de correo de la computadora. Revíselo y pulse «Enviar».
-     «Ver mensaje» muestra el texto; «Copiar mensaje» lo copia por si prefiere pegarlo en otro programa.
-  4. Cada aviso queda en la Bitácora (acción RECORDATORIO) y la tarjeta muestra la fecha del último aviso.
-
-Para que se abra Outlook: en Windows, Configuración → Aplicaciones → Aplicaciones predeterminadas → «Correo electrónico»
-(o «MAILTO») → elegir Outlook. El sistema no envía el correo por sí mismo: lo envía usted desde su Outlook.
-Los indicadores sin encargado asignado se avisan aparte (nadie recibe recordatorio por ellos).
-
-
-----------------------------------------------------------------------------------------------------
-LISTAS PAGINADAS
-----------------------------------------------------------------------------------------------------
-La bitácora, el historial de cargas, la bandeja de aprobación, la lista de Indicadores, los usuarios y los
-recordatorios muestran una PÁGINA a la vez (25 registros por defecto; se cambia con "Por página"). Debajo de
-cada lista aparece el rango mostrado ("1–25 de 240") y los botones para ir a otra página. Los filtros y la
-búsqueda se aplican sobre todos los registros, no solo sobre la página visible. Al entrar al sistema solo se
-descargan cantidades; cada lista pide únicamente lo que se ve.

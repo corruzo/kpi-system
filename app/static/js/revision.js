@@ -1,6 +1,6 @@
-/* Revisión: historial de cargas, bandeja de aprobación del gerente/auditor, reapertura y notas de auditoría. */
+/* Revisión: historial de cargas, bandeja de aprobación (lo que le toca aprobar a esta persona), reapertura y notas de auditoría. */
 SIGT.modulos.revision = () => ({
-    historial: [], filtro: { indicador_id: '', estado: '' }, filtro2: { semaforo: '', periodo: '', area_id: '' },
+    historial: [], filtro: { indicador_id: '', estado: '' }, filtro2: { semaforo: '', periodo: '', nodo_id: '' },
     notasHist: {}, reabrirNota: {},
     bandeja: [], bandejaN: 0, bandejaEj: [], notas: {}, histTodos: false,   // bandejaN y bandejaEj: cantidades (todas las cargas por aprobar)
 
@@ -39,15 +39,15 @@ SIGT.modulos.revision = () => ({
       const nota = (this.reabrirNota[m.id] || '').trim();
       if (nota.length < 5) { this.avisar('Indique el motivo de la reapertura.', true); return; }
       this.busy = true;
-      try { await this.api(`/api/mediciones/${m.id}/reabrir`, { method: 'POST', body: { accion: 'observar', nota } }); this.avisar('Carga devuelta al encargado de proceso.'); await this.cargarHistorial(this.pg('historial').pagina); } catch { }
+      try { await this.api(`/api/mediciones/${m.id}/reabrir`, { method: 'POST', body: { accion: 'observar', nota } }); this.avisar('Carga devuelta a quien la cargó.'); await this.cargarHistorial(this.pg('historial').pagina); } catch { }
       this.busy = false;
     },
     // La bandeja pide por páginas solo las cargas por aprobar del ejercicio elegido; de las de otros ejercicios solo se
     // conoce la cantidad (bandejaEj, que viene en el arranque y se refresca aquí) para avisarlas aparte.
     async cargarBandeja(pagina = 1) {
-      const q = new URLSearchParams({ estado: 'enviado' }); if (this.ejSel) q.set('ejercicio', this.ejSel);
-      const [lista, resumen] = await Promise.all([this.pedirPagina('bandeja', '/api/mediciones?' + q, pagina), this.api('/api/mediciones/resumen-ejercicios?estado=enviado')]);
-      this.bandeja = lista; this.bandejaEj = resumen; this.bandejaN = resumen.reduce((s, e) => s + e.n, 0);
+      const q = new URLSearchParams(); if (this.ejSel) q.set('ejercicio', this.ejSel);
+      const [lista, resumen] = await Promise.all([this.pedirPagina('bandeja', '/api/bandeja?' + q, pagina), this.api('/api/bandeja/resumen')]);
+      this.bandeja = lista; this.bandejaEj = resumen.ejercicios; this.bandejaN = resumen.total;
     },
     get bandejaDelEjercicio() { return this.bandejaEj.find(e => e.ejercicio === this.ejSel)?.n || 0; },
     get bandejaOtros() { return this.bandejaEj.filter(e => e.ejercicio !== this.ejSel).sort((a, b) => b.ejercicio - a.ejercicio); },
@@ -59,7 +59,7 @@ SIGT.modulos.revision = () => ({
       this.busy = true;
       try {
         await this.api(`/api/mediciones/${m.id}/revision`, { method: 'POST', body: { accion, nota } });
-        this.avisar(accion === 'aprobar' ? 'Carga aprobada.' : 'Carga devuelta al encargado de proceso.');
+        this.avisar(accion === 'aprobar' ? 'Carga aprobada.' : 'Carga devuelta a quien la cargó.');
         await this.cargarBandeja(this.pg('bandeja').pagina);
       } catch { }
       this.busy = false;

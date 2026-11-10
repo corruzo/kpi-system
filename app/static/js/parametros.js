@@ -5,7 +5,7 @@ SIGT.modulos.parametros = () => ({
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      entrar: { org() { this.parForm = { ...this.params, clave_reportes: '' }; } },
+      entrar: { async config() { if (this.puede('parametros.gestionar')) { await this.cargarParametros(); this.parForm = { ...this.params, clave_reportes: '' }; } } },
     },
 
     async cargarParametros() { this.params = await this.api('/api/parametros'); },

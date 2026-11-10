@@ -3,7 +3,7 @@
       <template x-if="fv.data">
         <div class="space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <button class="btn btn-s btn-sm" @click="go(fv.volver || (user.rol==='admin' ? 'fichas' : 'historial'))">← Volver</button>
+            <button class="btn btn-s btn-sm" @click="go(fv.volver || (puede('indicadores.ver') ? 'fichas' : 'historial'))">← Volver</button>
             <div class="flex flex-wrap gap-2">
               <select class="inp !min-h-[36px] !w-auto !py-1 text-sm" x-model.number="fv.ejercicio" @change="cargarFicha()" aria-label="Ejercicio fiscal"><template x-for="e in fv.data.ejercicios" :key="e.valor"><option :value="e.valor" :selected="e.valor===fv.ejercicio" x-text="'Ejercicio ' + e.etiqueta"></option></template></select>
               <button class="btn btn-p btn-sm" :disabled="busy" @click="fichaDescargar()">Descargar Excel (formato SGC)</button>

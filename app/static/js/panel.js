@@ -7,7 +7,7 @@ const PANEL_DIM = [['area', 'Área'], ['gerencia', 'Gerencia'], ['seguimiento', 
 const AZ = '#006bff', MAG = '#e55cff', GRIS = '#a6bbd1';
 
 SIGT.modulos.panel = () => ({
-    pf: { preset: 'ejercicio', desde: '', hasta: '', agrupar: 'mes', area_id: '', frecuencia: '', seguimiento: '', indicador_id: '', solo_aprobadas: false, dimension: 'area', metrica: 'semaforo' },
+    pf: { preset: 'ejercicio', desde: '', hasta: '', agrupar: 'mes', nodo_id: '', frecuencia: '', seguimiento: '', indicador_id: '', solo_aprobadas: false, dimension: 'area', metrica: 'semaforo' },
     tb: null, tendInd: null, filtrosAbiertos: false, cargandoTablero: false, orden: { col: 'pct_verde', asc: true },
     PANEL_PRESETS, PANEL_GRANOS, PANEL_FREC, PANEL_DIM,
 
@@ -38,13 +38,13 @@ SIGT.modulos.panel = () => ({
       return cargar ? this.cargarTablero() : null;
     },
     cambioFiltro(personalizado = false) { if (personalizado) this.pf.preset = 'personalizado'; return this.cargarTablero(); },
-    restablecerPanel() { this.pf = { ...this.pf, area_id: '', frecuencia: '', seguimiento: '', indicador_id: '', solo_aprobadas: false, agrupar: 'mes', dimension: 'area', metrica: 'semaforo' }; return this.aplicarPreset('ejercicio'); },
-    get hayFiltros() { const f = this.pf; return !!(f.area_id || f.frecuencia || f.seguimiento || f.indicador_id || f.solo_aprobadas); },
+    restablecerPanel() { this.pf = { ...this.pf, nodo_id: '', frecuencia: '', seguimiento: '', indicador_id: '', solo_aprobadas: false, agrupar: 'mes', dimension: 'area', metrica: 'semaforo' }; return this.aplicarPreset('ejercicio'); },
+    get hayFiltros() { const f = this.pf; return !!(f.nodo_id || f.frecuencia || f.seguimiento || f.indicador_id || f.solo_aprobadas); },
     get rangoTexto() { const r = this.tb?.rango; return r ? `${this.fechaCorta(r.desde)} – ${this.fechaCorta(r.hasta)} · ${r.meses} mes${r.meses === 1 ? '' : 'es'}` : ''; },
 
     async cargarTablero() {
       const f = this.pf, q = new URLSearchParams({ desde: f.desde, hasta: f.hasta, agrupar: f.agrupar, dimension: f.dimension });
-      for (const k of ['area_id', 'frecuencia', 'seguimiento', 'indicador_id']) if (f[k]) q.set(k, f[k]);
+      for (const k of ['nodo_id', 'frecuencia', 'seguimiento', 'indicador_id']) if (f[k]) q.set(k, f[k]);
       if (f.solo_aprobadas) q.set('solo_aprobadas', 'true');
       try { localStorage.setItem('sigt_panel', JSON.stringify(f)); } catch { }
       this.cargandoTablero = true;

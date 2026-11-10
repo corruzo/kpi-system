@@ -18,7 +18,7 @@ SIGT.modulos.sesion = () => ({
       try { ['sigt_panel', 'sigt_ej'].forEach(k => localStorage.removeItem(k)); } catch { }   // nada de la sesión queda en el equipo
     },
     iniciales(u = this.user) { return u.nombre.split(' (')[0].split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); },
-    rolNombre: u => ROLES[u.rol],
+    rolNombre: u => u.rol || 'Sin rol asignado',
     abrirClave() { this.menu = false; this.clave = { actual: '', nueva: '', repetir: '' }; this.modalClave = true; },
     async cambiarClave() {
       this.busy = true;

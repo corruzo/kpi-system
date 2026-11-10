@@ -27,8 +27,10 @@ SIGT.modulos.nucleo = () => ({
       let preferido = null; try { preferido = Number(localStorage.getItem('sigt_ej')) || null; } catch { }
       const d = await this.api('/api/arranque' + (preferido ? '?ejercicio=' + preferido : ''), {}, silencioso);
       this.user = d.usuario; this.params = d.parametros;
-      this.aplicarEjercicios(d.ejercicios.ejercicios); this.ejVigente = d.ejercicios.vigente; this.ejSel = d.ejercicio;
-      this.indicadores = d.indicadores; this.areas = d.areas || [];
+      if (d.usuario.pendiente) { this.view = 'pendiente'; return; }   // cuenta sin rol: solo su perfil, hasta que el Coordinador SGC la asigne
+      if (d.ejercicios) { this.aplicarEjercicios(d.ejercicios.ejercicios); this.ejVigente = d.ejercicios.vigente; }
+      this.ejSel = d.ejercicio;
+      this.indicadores = d.indicadores; this.areas = d.unidades || [];
       this.bandejaN = d.bandeja_total || 0; this.bandejaEj = d.bandeja_ejercicios || []; this.catalogos = d.catalogos || []; this.usuarios = [];
       this.marcha = d.marcha || null; this.resumenInicio = d.resumen || null; this._inicioListo = true;   // la pantalla de inicio ya tiene sus datos
       for (const cargar of this.ganchos.ingreso) await cargar.call(this);   // lo que no viene en el arranque (p. ej. valores por defecto)
@@ -116,26 +118,19 @@ SIGT.modulos.nucleo = () => ({
     },
 
     // ------------------------------------------------------------ navegación
-    // Menú por rol: fuente única de las secciones, su orden y sus insignias.
+    // ------------------------------------------------------------ permisos
+    // El servidor decide siempre; la interfaz solo refleja lo que la persona puede hacer (lo que no puede, no se muestra).
+    puede(permiso) { return !!this.user?.permisos?.[permiso]; },
+    puedeAlguno(lista) { return lista.some(p => this.puede(p)); },
+    // Menú por permisos: fuente única de las secciones, su orden y sus insignias.
     nav() {
-      const r = this.user.rol, ver = (id, label, corto, badge) => ({ id, label, corto, grupo: GRUPOS_NAV[id], ...(badge ? { badge } : {}) });
-      const secciones = {
-        inicio: ver('inicio', r === 'admin' ? 'Puesta en marcha' : 'Inicio', 'Inicio'),
-        carga: ver('carga', r === 'admin' ? 'Cargar datos' : 'Carga del mes', 'Cargar', this.pendientesTotal()),
-        historial: ver('historial', r === 'jefe' ? 'Mis cargas' : 'Todas las cargas', r === 'jefe' ? 'Historial' : 'Cargas'),
-        reportes: ver('reportes', 'Reportes', 'Reportes'),
-        panel: ver('panel', 'Panel de control', 'Panel'),
-        bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaN),
-        recordatorios: ver('recordatorios', 'Recordatorios de carga', 'Avisos'),
-        ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
-        meta: ver('meta', 'Período y metas', 'Presup.'),
-        fichas: ver('fichas', 'Indicadores', 'Fichas'),
-        org: ver('org', 'Organización y equipo', 'Equipo'),
-        importar: ver('importar', 'Importar', 'Importar'),
-        bitacora: ver('bitacora', 'Bitácora', 'Bitácora'),
-      };
-      return MENU_POR_ROL[r].map(id => secciones[id]);
+      if (!this.user || this.user.pendiente) return [];
+      return SECCIONES.filter(([, permisos]) => !permisos || this.puedeAlguno(permisos)).map(([id, , label, corto, grupo]) => {
+        const badge = id === 'carga' ? this.pendientesTotal() : id === 'bandeja' ? this.bandejaN : 0;
+        return { id, label: id === 'inicio' && this.puede('sistema.puesta_en_marcha') ? 'Puesta en marcha' : label, corto, grupo, ...(badge ? { badge } : {}) };
+      });
     },
+    puedeIr(vista) { return vista === 'inicio' || vista === 'ficha' || vista === 'pendiente' || this.nav().some(n => n.id === vista); },
     // Menú agrupado (barra lateral): [{grupo, items}] respetando el orden del flujo
     navGrupos() {
       const g = [];
@@ -153,6 +148,7 @@ SIGT.modulos.nucleo = () => ({
     dockActivo(n) { return n.id === '_mas' ? (this.masActivo || this.mas) : (this.view === n.id && !this.mas); },
     get masActivo() { return this.navMas().some(n => n.id === this.view); },
     async go(vista) {
+      if (!this.puedeIr(vista)) vista = this.user?.pendiente ? 'pendiente' : VISTA_INICIAL;   // sin permiso, ni se abre
       this.view = vista; this.menu = false; this.mas = false;
       window.scrollTo({ top: 0 });
       this.$nextTick(() => { document.querySelector('.pill-on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }); SIGT_ANIM.indicadores(); });   // el menú largo se desplaza hasta la sección activa

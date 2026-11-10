@@ -1,8 +1,8 @@
 /* Indicadores: lista según el rol y administración de fichas técnicas (alta, edición, fórmula, probador). */
 SIGT.modulos.indicadores = () => ({
     indicadores: [],                                                     // los que el usuario puede cargar (selector de «Cargar datos»)
-    fichas: [],                                                          // página de la lista «Indicadores» (gestión de fichas)
-    opcionesUsuarios: [],                                                // usuarios activos para elegir encargado
+    fichas: [],                                                          // página de la lista «Indicadores»
+    opcionesUsuarios: [],                                                // personas a las que puede asignar (él mismo y quienes están debajo)
     fq: { q: '', area: '', frecuencia: '', estado: 'activo' },           // filtros de la lista
     ficha: { variables: [], constantes: [] }, modal: false,              // ficha en edición
     formulaMsg: { ok: true, txt: '' }, prueba: { valores: {}, res: null }, // validación y probador de fórmulas
@@ -15,47 +15,53 @@ SIGT.modulos.indicadores = () => ({
     },
 
     // Los pendientes de cada indicador corresponden al ejercicio elegido; los de otros ejercicios vienen aparte.
-    // Quienes cargan datos (encargado y administrador) reciben sus indicadores al ingresar; el gerente / auditor no los necesita ahí.
+    // Quien carga datos recibe aquí SUS indicadores (aquellos de los que es cargador); los demás ven la lista en «Indicadores».
     async cargarIndicadores() {
-      if (this.user && this.user.rol === 'gerente') { this.indicadores = []; return; }
-      this.indicadores = await this.api('/api/indicadores' + (this.ejSel ? '?ejercicio=' + this.ejSel : ''));
+      if (!this.user || !this.puede('cargas.cargar')) { this.indicadores = []; return; }
+      this.indicadores = await this.api('/api/indicadores?cargables=true' + (this.ejSel ? '&ejercicio=' + this.ejSel : ''));
     },
     // Lista de gestión: el servidor filtra y entrega solo la página pedida (incluye archivados)
     async cargarFichas(pagina = 1) {
       const q = new URLSearchParams({ gestion: 'true' });
       if (this.ejSel) q.set('ejercicio', this.ejSel);
       if (this.fq.q.trim()) q.set('q', this.fq.q.trim());
-      if (this.fq.area) q.set('area_id', this.fq.area);
+      if (this.fq.area) q.set('nodo_id', this.fq.area);
       if (this.fq.frecuencia) q.set('frecuencia', this.fq.frecuencia);
       if (this.fq.estado) q.set('activo', this.fq.estado === 'activo');
       this.fichas = await this.pedirPagina('fichas', '/api/indicadores?' + q, pagina);
     },
-    async cargarOpcionesUsuarios() { if (!this.opcionesUsuarios.length) this.opcionesUsuarios = await this.api('/api/usuarios/opciones'); },
+    async cargarOpcionesUsuarios() { if (!this.opcionesUsuarios.length && this.puedeAlguno(['indicadores.crear', 'indicadores.asignar'])) this.opcionesUsuarios = await this.api('/api/usuarios/opciones'); },
     // Tras crear, editar o eliminar: se refresca la página actual y la lista de carga
     async refrescarIndicadores() { await Promise.all([this.cargarFichas(this.pg('fichas').pagina), this.cargarIndicadores()]); },
     codigoSugerido: '',
     get etiquetaNC() { return (this.params.codigo_formato || 'NC-16').split('-').slice(0, 2).join('-'); },
-    get encargadosDelArea() { return this.opcionesUsuarios.filter(u => u.rol === 'jefe' && u.activo && u.area_id === this.ficha.area_id); },
-    async cambioDeArea() {
-      if (!this.encargadosDelArea.some(u => u.id === this.ficha.encargado_id)) this.ficha.encargado_id = this.encargadosDelArea.length === 1 ? this.encargadosDelArea[0].id : null;
-      await this.pedirCodigo();
-    },
+    // Asignación: nodo de la estructura, responsable (el «dueño», único que modifica la ficha) y quienes cargan el dato.
+    get personasCarga() { return this.opcionesUsuarios.filter(u => u.puede_cargar); },
+    nodoEtiqueta(a) { return '\u2003'.repeat(a.profundidad || 0) + a.nombre + ' · ' + (NIVEL_ETIQUETA[a.nivel] || ''); },
+    alternarCargador(id) { const c = this.ficha.cargadores || (this.ficha.cargadores = []), k = c.indexOf(id); if (k >= 0) c.splice(k, 1); else c.push(id); },
+    get puedeEditarFicha() { return !this.ficha.id || (this.ficha.soy_responsable && this.puede('indicadores.editar')); },
+    get puedeAsignarFicha() { return !this.ficha.id || (this.puede('indicadores.asignar') && (this.ficha.en_ambito || this.ficha.soy_responsable)); },
+    get asignacionCambio() { return !!this.ficha.id && JSON.stringify([this.ficha.nodo_id, this.ficha.responsable_id, [...this.ficha.cargadores].sort()]) !== this.ficha._asig; },
+    cambioDeNodo() { this.pedirCodigo(); },
+    puedeEditarI(i) { return this.puede('indicadores.editar') && i.soy_responsable; },
+    puedeAsignarI(i) { return this.puede('indicadores.asignar') && (i.en_ambito || i.soy_responsable); },
     async pedirCodigo() {
-      if (this.ficha.id || !this.ficha.area_id) { this.codigoSugerido = ''; return; }
-      try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?area_id=${this.ficha.area_id}`)).codigo; } catch { this.codigoSugerido = ''; }
+      if (this.ficha.id || !this.ficha.nodo_id) { this.codigoSugerido = ''; return; }
+      try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?nodo_id=${this.ficha.nodo_id}`)).codigo; } catch { this.codigoSugerido = ''; }
     },
     nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
-      this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» y los atajos de la fórmula como ayuda.');
-      this.cambioDeArea();
+      this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: this.areas[0]?.id, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
+      this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» como ayuda.');
+      this.pedirCodigo();
     },
     editarFicha(i) {
       this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.constantes ||= [];
+      this.ficha._asig = JSON.stringify([i.nodo_id, i.responsable_id, [...i.cargadores].sort()]);
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
       this.abrirFicha(''); this.validarFormula(); this.codigoSugerido = '';
     },
     duplicarFicha(i) {
-      this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true };
+      this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], soy_responsable: true, en_ambito: true };
       this.ficha.constantes ||= [];
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
       this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo();
@@ -80,7 +86,7 @@ SIGT.modulos.indicadores = () => ({
     },
     get nombresFormula() { return [...this.ficha.variables, ...(this.ficha.constantes || [])].map(v => v.clave).filter(Boolean); },
     async validarFormula() {
-      if (!this.ficha.formula) return;
+      if (!this.ficha.formula || !this.puede('formulas.probar')) return;   // sin ese permiso no se valida en vivo
       try {
         const r = await this.api('/api/formula/validar', { method: 'POST', body: { formula: this.ficha.formula, claves: this.nombresFormula, variables: this.ficha.variables.map(v => v.clave).filter(Boolean) } }, true);
         this.formulaMsg = !r.ok ? { ok: false, txt: r.error } : r.sin_usar.length ? { ok: true, aviso: true, txt: '✔ Válida, pero no usa: ' + r.sin_usar.join(', ') } : { ok: true, txt: '✔ Fórmula válida' };
@@ -88,6 +94,7 @@ SIGT.modulos.indicadores = () => ({
       } catch { }
     },
     async probar() {
+      if (!this.puede('formulas.probar')) return;
       const f = this.ficha, valores = {};
       for (const v of f.variables.filter(v => v.clave)) {
         const x = this.prueba.valores[v.clave];
@@ -98,11 +105,11 @@ SIGT.modulos.indicadores = () => ({
     },
     cuerpoFicha(f) {
       return {
-        codigo: f.id ? f.codigo : '', encargado_id: f.encargado_id || null, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
+        codigo: f.id ? f.codigo : '', nodo_id: f.nodo_id, responsable_id: f.responsable_id || null, cargadores: f.cargadores || [], nombre: f.nombre, objetivo: f.objetivo, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
         variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta, ayuda: v.ayuda || '', unidad: v.unidad || '', opcional: !!v.opcional, defecto: Number(v.defecto || 0), negativo: !!v.negativo })),
         constantes: (f.constantes || []).map(c => ({ clave: c.clave, etiqueta: c.etiqueta, valor: Number(c.valor) })),
         decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', nivel_optimo: f.nivel_optimo, limite: f.limite,
-        nivel_optimo_tope: f.nivel_optimo_tope === '' ? null : f.nivel_optimo_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, activo: f.activo,
+        nivel_optimo_tope: f.nivel_optimo_tope === '' ? null : f.nivel_optimo_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope,
         seguimiento: f.seguimiento || 'proceso', ref_nombre: f.ref_nombre || '', ref_detalle: f.ref_detalle || '', sigla: f.sigla || '', gerencia: f.gerencia || '',
         lider: f.lider || '', resp_medicion: f.resp_medicion || '', resp_registro: f.resp_registro || '', resp_analisis: f.resp_analisis || ''
       };
@@ -111,20 +118,24 @@ SIGT.modulos.indicadores = () => ({
       this.busy = true;
       try {
         const f = this.ficha, id = f.id;
-        await this.api(id ? `/api/indicadores/${id}` : '/api/indicadores', { method: id ? 'PUT' : 'POST', body: this.cuerpoFicha(f) });
+        if (!id) await this.api('/api/indicadores', { method: 'POST', body: this.cuerpoFicha(f) });
+        else {
+          if (this.puedeEditarFicha) await this.api(`/api/indicadores/${id}`, { method: 'PUT', body: this.cuerpoFicha(f) });
+          if (this.puedeAsignarFicha && this.asignacionCambio) await this.api(`/api/indicadores/${id}/asignacion`, { method: 'PUT', body: { nodo_id: f.nodo_id, responsable_id: f.responsable_id, cargadores: f.cargadores } });
+        }
         this.modal = false; this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.'); await this.refrescarIndicadores();
       } catch { }
       this.busy = false;
     },
     async alternarActivo(i) {
-      const accion = i.activo ? 'archivar' : 'restaurar';
-      if (i.activo && !confirm(`¿Archivar ${i.codigo}? Dejará de aparecer para cargar datos; el historial se conserva.`)) return;
-      try { await this.api(`/api/indicadores/${i.id}`, { method: 'PUT', body: this.cuerpoFicha({ ...i, activo: !i.activo }) }); this.avisar(`Indicador ${i.activo ? 'archivado' : 'restaurado'}.`); await this.refrescarIndicadores(); } catch { }
+      const archivar = i.activo;
+      if (archivar && !confirm(`¿Archivar ${i.codigo}? Dejará de aparecer para cargar datos; el historial se conserva.`)) return;
+      try { await this.api(`/api/indicadores/${i.id}/${archivar ? 'archivar' : 'restaurar'}`, { method: 'POST' }); this.avisar(`Indicador ${archivar ? 'archivado' : 'restaurado'}.`); await this.refrescarIndicadores(); } catch { }
     },
     async eliminarFicha(i) {
-      const msg = i.n_mediciones ? `${i.codigo} tiene ${i.n_mediciones} carga(s) registradas: no se borrará, se archivará para conservar la trazabilidad. ¿Continuar?` : `¿Eliminar definitivamente el indicador ${i.codigo}?`;
-      if (!confirm(msg)) return;
-      try { const r = await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar(r.archivado ? 'Indicador archivado (tiene historial de cargas).' : 'Indicador eliminado.'); await this.refrescarIndicadores(); } catch { }
+      if (i.n_mediciones) { this.avisar(`${i.codigo} tiene ${i.n_mediciones} carga(s) registradas: no puede eliminarse sin perder la trazabilidad. Archívelo.`, true); return; }
+      if (!confirm(`¿Eliminar definitivamente el indicador ${i.codigo}?`)) return;
+      try { await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar('Indicador eliminado.'); await this.refrescarIndicadores(); } catch { }
     },
     elegirRef() {
       const c = this.catalogos.find(c => c.tipo === 'proceso' && c.valor === this.ficha.ref_nombre);

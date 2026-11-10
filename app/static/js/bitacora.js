@@ -1,4 +1,4 @@
-/* Bitácora del sistema (solo administrador): consulta, filtros y verificación de integridad. */
+/* Bitácora del sistema (permiso técnico bitacora.ver): consulta, filtros y verificación de integridad. */
 SIGT.modulos.bitacora = () => ({
     bitacora: [], bitAccion: '', bitUsuario: '', ACCIONES,
 
@@ -35,8 +35,16 @@ SIGT.modulos.bitacora = () => ({
         case 'CATALOGO_EDITADO': return `${d.tipo}: ${(d.antes || [])[0]} → ${(d.despues || [])[0]}`;
         case 'CLAVE_CAMBIADA': return 'Cambio de contraseña';
         case 'USUARIO_CREADO': case 'USUARIO_EDITADO': return `${d.username || ''} ${d.rol || ''} ` + Object.keys(d.cambios || {}).join(', ');
-        case 'AREA_CREADA': case 'AREA_ELIMINADA': return d.nombre;
-        case 'AREA_EDITADA': return `${d.antes} → ${d.despues}`;
+        case 'UNIDAD_CREADA': case 'UNIDAD_ELIMINADA': return `${d.nombre} (${d.nivel})`;
+        case 'UNIDAD_EDITADA': return `${d.antes} → ${d.despues}`;
+        case 'UNIDAD_MOVIDA': return `${d.nombre}: cambió de lugar en la estructura`;
+        case 'ROL_CREADO': case 'ROL_ELIMINADO': return d.nombre;
+        case 'ROL_EDITADO': return `${d.nombre}: cambios en ` + Object.keys(d.cambios || {}).join(', ') + (d.cambios?.permisos ? ` (${Object.keys(d.cambios.permisos).join(', ')})` : '');
+        case 'USUARIO_ASIGNADO': return `${d.username}: ` + Object.entries(d.cambios || {}).map(([k, v]) => `${k}: ${JSON.stringify(v[0])} → ${JSON.stringify(v[1])}`).join('; ');
+        case 'INDICADOR_ASIGNADO': return `${d.codigo}: ` + Object.keys(d.cambios || {}).join(', ');
+        case 'INDICADORES_ASIGNADOS': return `${d.username}: ` + Object.entries(d).filter(([k]) => k !== 'username').map(([k, v]) => `${k.replace(/_/g, ' ')} ${v.join(', ')}`).join('; ');
+        case 'META_GUARDADA': return `${d.ejercicio}: ` + Object.keys(d.cambios || {}).length + ' período(s)';
+        case 'DESARROLLADOR_DESIGNADO': case 'DESARROLLADOR_RETIRADO': return d.username;
         default: return `${d.codigo || ''} ${d.nombre || ''}`;
       }
     },

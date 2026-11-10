@@ -10,7 +10,7 @@ SIGT.modulos.meta = () => ({
     },
 
     get presDesc() { return this.ejTodos.find(e => e.anio === this.presAnio) || {}; },
-    get presEditable() { return ['admin', 'gerente'].includes(this.user.rol) && this.presDesc.creado && this.presDesc.estado !== 'cerrado'; },
+    get presEditable() { return this.puede('metas.cargar') && this.presDesc.creado && this.presDesc.estado !== 'cerrado'; },
     // Años que se pueden elegir: los creados y los que faltan por crear, del más reciente al más antiguo
     get presAnios() { return this.ejTodos.filter(e => e.creado || e.anio >= this.ejVigente - 1); },
     get presPct() { const r = this.pres?.resumen; return r && r.total ? Math.round(100 * r.completos / r.total) : 0; },
@@ -20,9 +20,9 @@ SIGT.modulos.meta = () => ({
     },
 
     async cargarMetas() {
-      const r = await this.api('/api/ejercicios'); this.aplicarEjercicios(r.ejercicios);
+      if (this.puede('ejercicios.ver')) { const r = await this.api('/api/ejercicios'); this.aplicarEjercicios(r.ejercicios); }
       if (!this.presDesc.creado) { this.pres = null; return; }
-      const q = this.presArea ? '?area_id=' + this.presArea : '';
+      const q = this.presArea ? '?nodo_id=' + this.presArea : '';
       this.pres = await this.api(`/api/ejercicios/${this.presAnio}/metas` + q);
       this.ed = {}; this.rapido = {};
       for (const f of this.pres.indicadores) {

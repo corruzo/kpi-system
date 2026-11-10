@@ -1,0 +1,37 @@
+    <!-- ============ PERSONAS ============ -->
+    <section data-vista="personas" x-show="view==='personas'" class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Rol, posición e indicadores</p><h1 class="page-title">Personas</h1><p class="text-sm text-slate-600">Una cuenta nueva no tiene acceso a nada hasta que se le asigne un rol, su posición en la estructura y sus indicadores. Ver baja por el árbol; modificar es solo lo asignado personalmente.</p></div>
+        <span class="flex flex-wrap gap-2"><button class="btn btn-s" x-show="puede('soporte.desbloquear')" :disabled="busy" @click="desbloquearAccesos()" title="Levanta el bloqueo por intentos fallidos de ingreso">Desbloquear accesos</button><button class="btn btn-p" x-show="puede('usuarios.cuentas')" @click="nuevoUsuario()">+ Nueva cuenta</button></span></div>
+      <div class="card">
+        <div class="border-b border-slate-100 p-3"><input class="inp" type="search" x-model="usrQ" @input.debounce.400ms="cargarUsuarios(1)" placeholder="Buscar por nombre o usuario" aria-label="Buscar persona"></div>
+        <ul class="divide-y divide-slate-100">
+          <template x-for="x in usuarios" :key="x.id"><li class="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap" :class="!x.activo && 'bg-slate-50'">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600" x-text="iniciales(x)"></span>
+            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" :class="!x.activo && 'text-slate-500'" x-text="x.nombre"></span>
+              <span class="block truncate text-xs text-slate-500" x-text="x.username + ' · ' + (x.rol || 'Sin rol') + (x.activo ? '' : ' · inhabilitado')"></span>
+              <span class="block text-xs" :class="x.pendiente ? 'font-semibold text-amber-700' : 'text-slate-500'" x-text="resumenPosicion(x)"></span>
+              <span class="block truncate text-[11px] text-slate-400" x-show="x.email" x-text="x.email"></span></span>
+            <span class="flex w-full flex-wrap gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
+              <button class="btn btn-p btn-sm" x-show="puede('usuarios.asignar') && x.id !== user.id && x.rol_clave!=='desarrollador'" @click="abrirAsignacion(x)">Rol y posición</button>
+              <button class="btn btn-s btn-sm" x-show="puede('usuarios.asignar') && x.id !== user.id && x.rol_clave!=='desarrollador' && !x.pendiente" @click="abrirIndicadores(x)">Indicadores</button>
+              <button class="btn btn-s btn-sm" @click="api('/api/usuarios/'+x.id+'/alcance').then(r => previa = r)">¿Qué ve?</button>
+              <button class="btn btn-s btn-sm" x-show="puede('usuarios.cuentas')" @click="editarUsuario(x)">Editar cuenta</button>
+              <button class="btn btn-s btn-sm" x-show="puedeAlguno(['usuarios.cuentas','soporte.sesiones']) && x.id !== user.id" @click="abrirSoporte(x)" :aria-expanded="soporte===x.id">Soporte</button>
+            </span>
+            <div class="basis-full rounded-2xl bg-slate-50 p-3 sm:ml-[3.25rem]" x-show="soporte===x.id && x.id !== user.id" x-transition>
+              <div class="eyebrow mb-2">Soporte técnico · <span x-text="ultimoIngreso(x)"></span></div>
+              <div class="flex flex-wrap gap-2">
+                <button class="btn btn-s btn-sm" x-show="puede('usuarios.cuentas')" @click="editarUsuario(x); generarClave()">Generar clave temporal</button>
+                <button class="btn btn-s btn-sm" x-show="puede('soporte.sesiones')" :disabled="busy" @click="cerrarSesiones(x)">Cerrar sus sesiones</button>
+                <button class="btn btn-s btn-sm" x-show="puede('bitacora.ver')" @click="verActividad(x)">Ver su actividad</button>
+                <button class="btn btn-s btn-sm" x-show="puede('usuarios.cuentas')" :disabled="busy" @click="alternarUsuario(x)" x-text="x.activo ? 'Inhabilitar' : 'Habilitar'"></button>
+                <button class="btn btn-s btn-sm" x-show="puede('usuarios.cuentas')" @click="abrirDesignar(x)" x-text="x.rol_clave==='desarrollador' ? 'Retirar rol Desarrollador' : 'Designar Desarrollador'"></button>
+                <button class="btn btn-d btn-sm" x-show="puede('usuarios.cuentas')" :disabled="busy || !x.puede_eliminarse" @click="eliminarUsuario(x)" :title="x.puede_eliminarse ? 'Eliminar definitivamente' : 'Tiene actividad registrada: solo puede inhabilitarse'">Eliminar</button>
+              </div>
+            </div>
+          </li></template>
+        </ul>
+        <div class="border-t border-slate-100 p-3" x-data="{ k: 'usuarios' }"><!--#incluir parciales/componentes/paginador.html--></div>
+        <p class="p-6 text-center text-sm text-slate-500" x-show="!usuarios.length">No hay personas que coincidan.</p>
+      </div>
+    </section>

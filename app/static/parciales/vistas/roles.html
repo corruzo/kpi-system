@@ -1,0 +1,39 @@
+    <!-- ============ ROLES Y PERMISOS ============ -->
+    <section data-vista="roles" x-show="view==='roles'" class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Qué puede hacer cada quien</p><h1 class="page-title">Roles y permisos</h1><p class="text-sm text-slate-600">Un rol es un conjunto de permisos. Usted elige el <b>nivel</b> de cada uno; el <b>alcance</b> (sobre qué datos actúa) es fijo y lo aplica siempre el sistema. Una persona tiene un solo rol.</p></div>
+        <button class="btn btn-p w-full sm:w-auto" @click="nuevoRol()">+ Nuevo rol</button></div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <template x-for="r in roles" :key="r.id"><div class="card self-start" :class="rolForm && rolForm.id===r.id && 'ring-2 ring-brand'">
+          <div class="card-h"><div class="min-w-0"><h2 class="truncate font-semibold" x-text="r.nombre"></h2><p class="truncate text-xs text-slate-500" x-text="r.descripcion || (r.de_sistema ? 'Rol de sistema' : 'Sin descripción')"></p></div>
+            <span class="chip shrink-0 border-slate-200 bg-slate-100 text-slate-700" x-text="r.usuarios + (r.usuarios===1 ? ' persona' : ' personas')"></span></div>
+          <div class="card-b space-y-3">
+            <ul class="space-y-1 text-xs text-slate-600"><template x-for="f in r.resumen.slice(0,4)" :key="f"><li x-text="f"></li></template><li class="text-slate-400" x-show="r.resumen.length>4" x-text="'… y ' + (r.resumen.length-4) + ' módulo(s) más'"></li></ul>
+            <div class="flex flex-wrap gap-1.5"><button class="btn btn-s btn-sm" @click="editarRol(r)" x-text="r.editable ? 'Editar permisos' : 'Ver permisos'"></button><button class="btn btn-s btn-sm" x-show="r.clave!=='desarrollador'" @click="abrirDuplicar(r)">Duplicar</button><button class="btn btn-d btn-sm" x-show="!r.de_sistema" @click="eliminarRol(r)">Eliminar</button></div>
+          </div></div></template>
+      </div>
+      <p class="card px-5 py-6 text-center text-sm text-slate-500" x-show="!roles.length">Aún no hay roles.</p>
+
+      <div class="card" x-show="rolCopia.id" x-transition><form class="card-b flex flex-wrap items-end gap-2" @submit.prevent="duplicarRol()"><div class="min-w-[14rem] flex-1"><label class="lbl" for="rol-copia">Nombre del rol duplicado</label><input id="rol-copia" class="inp" x-model="rolCopia.nombre" required minlength="3" maxlength="60"></div><button class="btn btn-p" :disabled="busy">Duplicar</button><button type="button" class="btn btn-s" @click="rolCopia={id:null,nombre:''}">Cancelar</button></form></div>
+
+      <div class="card" id="rol-editor" x-show="rolForm" x-transition>
+        <div class="card-h"><h2 class="font-semibold" x-text="rolForm && (rolForm.id ? (rolForm.editable ? 'Editar rol' : 'Permisos del rol') : 'Nuevo rol')"></h2><button class="btn btn-s btn-sm" @click="rolForm=null" aria-label="Cerrar">✕</button></div>
+        <template x-if="rolForm"><form class="card-b space-y-4" @submit.prevent="guardarRol()">
+          <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="rolForm && !rolForm.editable" x-text="rolForm && rolForm.motivo"></p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl" for="rol-nombre">Nombre del rol</label><input id="rol-nombre" class="inp" x-model="rolForm.nombre" required minlength="3" maxlength="60" :disabled="!rolForm.editable || rolForm.de_sistema" placeholder="Ej. Gerente, Jefe, Analista"></div>
+            <div><label class="lbl" for="rol-desc">Descripción (opcional)</label><input id="rol-desc" class="inp" x-model="rolForm.descripcion" maxlength="500" :disabled="!rolForm.editable"></div></div>
+          <div><label class="lbl" for="rol-buscar">Buscar un permiso</label><input id="rol-buscar" type="search" class="inp" x-model="rolQ" placeholder="Ej. metas, aprobar, reportes…"></div>
+          <template x-for="g in gruposVisibles()" :key="g"><section class="sec"><header class="sec-h"><div><h3 class="font-semibold" x-text="g"></h3></div></header>
+            <ul class="divide-y divide-slate-100"><template x-for="p in permisosDe(g)" :key="p.codigo"><li class="grid grid-cols-1 gap-2 p-3 sm:grid-cols-5 sm:items-center">
+              <div class="sm:col-span-3"><div class="text-sm font-semibold" x-text="p.etiqueta"></div><div class="text-xs text-slate-600" x-text="p.descripcion"></div><div class="mt-0.5 text-[11px] text-slate-400"><span class="font-semibold">Alcance fijo:</span> <span x-text="p.alcance"></span></div></div>
+              <div class="sm:col-span-2"><label class="sr-only" :for="'nv-'+p.codigo" x-text="'Nivel de ' + p.etiqueta"></label>
+                <select :id="'nv-'+p.codigo" class="inp" :value="nivelDe(p)" @change="setNivel(p, $event.target.value)" :disabled="!rolForm.editable || !p.tope"><template x-for="o in opcionesNivel(p)" :key="o[0]"><option :value="o[0]" x-text="o[1]" :selected="nivelDe(p)===o[0]"></option></template></select>
+                <p class="mt-1 text-[11px] text-slate-400" x-show="esImplicado(p) && nivelDe(p)">Necesario para otro permiso elegido.</p><p class="mt-1 text-[11px] text-amber-700" x-show="!p.tope">Usted no tiene este permiso: no puede concederlo.</p></div>
+            </li></template></ul></section></template>
+          <p class="py-4 text-center text-sm text-slate-500" x-show="!gruposVisibles().length">Ningún permiso coincide con la búsqueda.</p>
+          <div class="rounded-2xl bg-brand-light p-4"><div class="eyebrow mb-1">Lo que este rol podrá hacer</div><ul class="space-y-1 text-sm text-slate-800"><template x-for="f in resumenRol" :key="f"><li x-text="f"></li></template></ul>
+            <p class="mt-2 text-xs text-slate-500">Ver baja por la estructura; modificar es solo sobre lo asignado personalmente. Los cambios rigen desde la siguiente petición de cada persona y quedan en la bitácora.</p></div>
+          <div class="flex justify-end gap-2"><button type="button" class="btn btn-s" @click="rolForm=null">Cerrar</button><button class="btn btn-p" x-show="rolForm && rolForm.editable" :disabled="busy">Guardar rol</button></div>
+        </form></template>
+      </div>
+    </section>

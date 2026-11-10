@@ -88,7 +88,7 @@ def test_un_periodo_ya_cargado_no_admite_cambiar_su_meta(client):
     assert r.status_code == 409 and "ya tiene dato real" in r.json()["detail"]
 
 
-def test_periodos_ajenos_a_la_frecuencia_se_rechazan_y_el_jefe_no_presupuesta(client):
+def test_periodos_ajenos_a_la_frecuencia_se_rechazan_y_el_jefe_no_fija_metas(client):
     esc = preparar(client, frecuencia="trimestral")
     crear_periodo(client, vigente())
     ind = esc["indicador"]["id"]

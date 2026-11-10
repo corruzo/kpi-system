@@ -1,0 +1,10 @@
+    <!-- ============ CUENTA PENDIENTE DE ASIGNACIÓN ============ -->
+    <section data-vista="pendiente" class="mx-auto flex min-h-[70vh] max-w-md items-center">
+      <div class="card w-full space-y-4 p-7 text-center">
+        <svg class="mx-auto h-12 w-12 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h1 class="text-xl font-extrabold">Su cuenta está pendiente de asignación</h1>
+        <p class="text-sm text-slate-600">Ya puede ingresar, pero aún no tiene un rol, una posición en la empresa ni indicadores. El Coordinador SGC se los asignará; hasta entonces solo puede cambiar su contraseña.</p>
+        <p class="text-xs text-slate-500">Usuario: <b x-text="user.username"></b></p>
+        <div class="flex flex-col gap-2 sm:flex-row sm:justify-center"><button class="btn btn-s" @click="abrirClave()">Cambiar contraseña</button><button class="btn btn-p" @click="logout()">Cerrar sesión</button><button class="btn btn-s" @click="abrirSesion()">Comprobar de nuevo</button></div>
+      </div>
+    </section>

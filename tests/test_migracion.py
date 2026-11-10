@@ -76,6 +76,6 @@ def test_la_base_desde_cero_queda_con_el_esquema_v2_y_la_migracion_de_endurecimi
     ahora, tablas = salida.splitlines()
     assert ahora == "v2_0002"
     assert tablas == str(sorted(["unidades", "roles", "rol_permisos", "usuario_unidades", "indicador_cargadores", "metas"]))
-    t = correr_ok(tmp_path, "from app.servicios import migraciones as m; from sqlalchemy import inspect; from app.database import engine; "
-                  "print(sorted(set(inspect(engine).get_table_names()) & {'presupuestos', 'areas'}))")
-    assert t == "[]"   # nada del esquema v1
+    todas = correr_ok(tmp_path, "from sqlalchemy import inspect; from app.database import engine; print(sorted(inspect(engine).get_table_names()))")
+    assert todas == str(sorted(["alembic_version", "bitacora", "catalogos", "ejercicios", "indicador_cargadores", "indicadores", "intentos_fallidos",
+                                "mediciones", "metas", "notas_auditoria", "parametros", "rol_permisos", "roles", "unidades", "usuario_unidades", "usuarios"]))

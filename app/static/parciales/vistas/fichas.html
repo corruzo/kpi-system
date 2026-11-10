@@ -1,12 +1,12 @@
     <!-- ============ FICHAS ============ -->
     <section data-vista="fichas" x-show="view==='fichas'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3">
-        <div><p class="eyebrow">Paso 2 de la puesta en marcha</p><h1 class="page-title">Indicadores</h1><p class="text-sm text-slate-600">Qué se mide, cómo se calcula y cuándo se considera bueno (semáforo). La meta de cada año se ingresa en <b>Período y metas</b>.</p></div>
-        <button data-tour="fichas-nuevo" class="btn btn-p w-full sm:w-auto" @click="nuevaFicha()" :disabled="!areas.length">+ Nuevo indicador</button>
+        <div><p class="eyebrow">Fichas técnicas</p><h1 class="page-title">Indicadores</h1><p class="text-sm text-slate-600">Qué se mide, cómo se calcula y cuándo se considera bueno (semáforo), con su responsable y quienes lo cargan. Usted ve los de su ámbito y los asignados, y modifica solo aquellos de los que es responsable. La meta de cada año se ingresa en <b>Período y metas</b>.</p></div>
+        <button data-tour="fichas-nuevo" class="btn btn-p w-full sm:w-auto" x-show="puede('indicadores.crear')" @click="nuevaFicha()" :disabled="!areas.length">+ Nuevo indicador</button>
       </div>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <input class="inp lg:col-span-1" type="search" x-model="fq.q" @input.debounce.400ms="cargarFichas(1)" placeholder="Buscar código, nombre o área" aria-label="Buscar">
-        <select class="inp" x-model="fq.area" @change="cargarFichas(1)" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
+        <select class="inp" x-model="fq.area" @change="cargarFichas(1)" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="nodoEtiqueta(a)"></option></template></select>
         <select class="inp" x-model="fq.frecuencia" @change="cargarFichas(1)" aria-label="Frecuencia"><option value="">Toda frecuencia</option><option value="mensual">Mensual</option><option value="bimestral">Bimestral</option><option value="trimestral">Trimestral</option><option value="cuatrimestral">Cuatrimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option><option value="eventual">Eventual</option></select>
         <select class="inp" x-model="fq.estado" @change="cargarFichas(1)" aria-label="Estado"><option value="activo">Activos</option><option value="archivado">Archivados</option><option value="">Todos</option></select>
       </div>
@@ -19,15 +19,15 @@
             <td class="td" x-text="i.area"></td><td class="td" x-text="cap(i.frecuencia) + ' · ' + i.unidad"></td>
             <td class="td whitespace-nowrap" x-text="umbralTxt(i)"></td><td class="td" x-text="i.n_mediciones"></td>
             <td class="td whitespace-nowrap text-right"><div class="flex justify-end gap-1">
-              <button class="btn btn-s btn-sm" x-show="i.activo || user.rol==='admin'" @click="verFicha(i.id)">Ver ficha</button><button class="btn btn-s btn-sm" @click="editarFicha(i)">Editar</button><button class="btn btn-s btn-sm" @click="duplicarFicha(i)">Duplicar</button>
-              <button class="btn btn-s btn-sm" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" @click="eliminarFicha(i)">Eliminar</button></div></td></tr></template></tbody></table>
+              <button class="btn btn-s btn-sm" @click="verFicha(i.id)">Ver ficha</button><button class="btn btn-s btn-sm" x-show="puedeEditarI(i) || puedeAsignarI(i)" @click="editarFicha(i)" x-text="puedeEditarI(i) ? 'Editar' : 'Asignar'"></button><button class="btn btn-s btn-sm" x-show="puede('indicadores.crear')" @click="duplicarFicha(i)">Duplicar</button>
+              <button class="btn btn-s btn-sm" x-show="puede('indicadores.archivar') && i.soy_responsable" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" x-show="puede('indicadores.eliminar') && i.soy_responsable" @click="eliminarFicha(i)">Eliminar</button></div></td></tr></template></tbody></table>
       </div></div>
       <div class="space-y-3 md:hidden">
         <template x-for="i in fichas" :key="'m'+i.id"><div class="card" :class="!i.activo && 'bg-slate-50'"><div class="card-b space-y-2">
           <div class="flex items-start justify-between gap-2"><div><div class="text-xs text-slate-500"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <b x-text="i.codigo"></b> · <span x-text="i.area"></span></div><div class="font-semibold" x-text="i.nombre"></div></div><span class="chip border-slate-300 text-slate-600" x-text="i.activo ? i.n_mediciones + ' cargas' : 'Archivado'"></span></div>
           <div class="text-xs text-slate-500" x-text="cap(i.frecuencia) + ' · ' + i.unidad + ' · ' + umbralTxt(i)"></div>
-          <div class="grid grid-cols-2 gap-2 pt-1"><button class="btn btn-s btn-sm col-span-2" x-show="i.activo || user.rol==='admin'" @click="verFicha(i.id)">Ver ficha técnica</button><button class="btn btn-s btn-sm" @click="editarFicha(i)">Editar</button><button class="btn btn-s btn-sm" @click="duplicarFicha(i)">Duplicar</button>
-            <button class="btn btn-s btn-sm" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" @click="eliminarFicha(i)">Eliminar</button></div>
+          <div class="grid grid-cols-2 gap-2 pt-1"><button class="btn btn-s btn-sm col-span-2" @click="verFicha(i.id)">Ver ficha técnica</button><button class="btn btn-s btn-sm" x-show="puedeEditarI(i) || puedeAsignarI(i)" @click="editarFicha(i)" x-text="puedeEditarI(i) ? 'Editar' : 'Asignar'"></button><button class="btn btn-s btn-sm" x-show="puede('indicadores.crear')" @click="duplicarFicha(i)">Duplicar</button>
+            <button class="btn btn-s btn-sm" x-show="puede('indicadores.archivar') && i.soy_responsable" @click="alternarActivo(i)" x-text="i.activo ? 'Archivar' : 'Restaurar'"></button><button class="btn btn-d btn-sm" x-show="puede('indicadores.eliminar') && i.soy_responsable" @click="eliminarFicha(i)">Eliminar</button></div>
         </div></div></template>
       </div>
       <div x-data="{ k: 'fichas' }"><!--#incluir parciales/componentes/paginador.html--></div>

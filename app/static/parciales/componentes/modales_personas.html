@@ -1,0 +1,60 @@
+  <template x-if="asig">
+  <!-- ===== Modal: rol y posición de una persona ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4">
+    <form class="sheet max-h-[94vh] w-full max-w-2xl" @submit.prevent="guardarAsignacion()" @keydown.escape.window="asig=null">
+      <div class="card-h"><div><h2 class="text-lg font-bold">Rol y posición</h2><p class="text-xs text-slate-500" x-text="asig && asig.nombre"></p></div><button type="button" class="btn btn-s btn-sm" @click="asig=null" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-4 overflow-y-auto">
+        <div><label class="lbl" for="asig-rol">Rol</label><select id="asig-rol" class="inp" x-model="asig.rol_id" @change="previa=null"><option value="">Sin rol (pendiente de asignación)</option><template x-for="r in rolesAsignables" :key="r.id"><option :value="r.id" x-text="r.nombre" :selected="String(r.id)===String(asig.rol_id)"></option></template></select></div>
+        <label class="flex items-start gap-2 rounded-2xl border border-slate-200 p-3 text-sm"><input type="checkbox" class="mt-0.5 h-5 w-5" x-model="asig.raiz" @change="previa=null"><span><b>Toda la empresa</b> (ámbito en la raíz): ve absolutamente todo, como el gerente general. Sus permisos del rol siguen mandando.</span></label>
+        <div x-show="!asig.raiz"><div class="eyebrow mb-1">Posición en la estructura</div><p class="mb-2 text-xs text-slate-500"><b>Ve</b>: el nodo y todo lo que cuelga de él (gerente, jefe; puede ser más de un nodo). <b>Trabaja en</b>: solo lo sitúa (analista): no le da visibilidad, pero queda «debajo» de quien tiene ese ámbito. Sin ninguno, solo ve lo que se le asigne.</p>
+          <ul class="max-h-64 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200"><template x-for="n in areas" :key="n.id"><li class="flex items-center gap-2 py-1.5 pr-2" :style="'padding-left:' + (0.5 + n.profundidad * 1.25) + 'rem'">
+            <span class="min-w-0 flex-1 truncate text-sm" x-text="n.nombre"></span><span class="chip shrink-0 border-slate-200 bg-slate-50 text-[10px] text-slate-500" x-text="etiquetaNivel(n.nivel)"></span>
+            <select class="inp !min-h-[36px] !w-auto !py-1 text-xs" :value="modoNodo(n.id)" @change="setModoNodo(n.id, $event.target.value)" :aria-label="'Posición en ' + n.nombre"><option value="">—</option><option value="ambito">Ve</option><option value="miembro">Trabaja en</option></select></li></template></ul></div>
+        <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-s btn-sm" :disabled="busy" @click="verAlcance()">¿Qué verá con esto?</button></div>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="asig=null">Cancelar</button><button class="btn btn-p" :disabled="busy">Guardar</button></div>
+    </form>
+  </div>
+  </template>
+  <template x-if="indPersona">
+  <!-- ===== Modal: indicadores de una persona ===== -->
+  <div class="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4">
+    <form class="sheet max-h-[94vh] w-full max-w-2xl" @submit.prevent="guardarIndicadores()" @keydown.escape.window="indPersona=null">
+      <div class="card-h"><div><h2 class="text-lg font-bold">Indicadores de la persona</h2><p class="text-xs text-slate-500" x-text="indPersona && indPersona.nombre"></p></div><button type="button" class="btn btn-s btn-sm" @click="indPersona=null" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-3 overflow-y-auto">
+        <p class="text-xs text-slate-500"><b>Responsable</b>: es el «dueño»: único que modifica la ficha (la responsabilidad no se quita, se traspasa a otra persona). <b>Cargador</b>: quien digita el dato cada período (un indicador puede tener varios).</p>
+        <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900" x-show="indPersona && !indPersona.puedeCargar">El rol de esta persona no permite cargar datos: no puede quedar como cargador.</p>
+        <input type="search" class="inp" x-model="indQ" placeholder="Buscar indicador" aria-label="Buscar indicador">
+        <ul class="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200"><template x-for="i in indFiltrados" :key="i.id"><li class="flex flex-wrap items-center gap-3 p-2.5">
+          <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" x-text="i.codigo + ' · ' + i.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="i.area + (i.responsable ? ' · responsable: ' + i.responsable : '')"></span></span>
+          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.responsable.includes(i.id)" :disabled="indPersona.r0.includes(i.id)" @change="alternarInd('responsable', i.id)"> Responsable</label>
+          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.cargador.includes(i.id)" :disabled="!indPersona.puedeCargar" @change="alternarInd('cargador', i.id)"> Carga</label></li></template></ul>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="indPersona=null">Cancelar</button><button class="btn btn-p" :disabled="busy">Guardar</button></div>
+    </form>
+  </div>
+  </template>
+  <template x-if="previa">
+  <!-- ===== Modal: «qué ve esta persona» ===== -->
+  <div class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4">
+    <div class="sheet max-h-[90vh] w-full max-w-xl" @keydown.escape.window="previa=null">
+      <div class="card-h"><div><h2 class="text-lg font-bold">¿Qué ve esta persona?</h2><p class="text-xs text-slate-500" x-text="previa.usuario + ' · ' + (previa.rol || 'sin rol')"></p></div><button type="button" class="btn btn-s btn-sm" @click="previa=null" aria-label="Cerrar">✕</button></div>
+      <div class="card-b space-y-3 overflow-y-auto">
+        <ul class="space-y-1 text-sm text-slate-700"><template x-for="f in (previa ? previa.resumen : [])" :key="f"><li x-text="f"></li></template></ul>
+        <div class="grid grid-cols-3 gap-2 text-center"><div class="rounded-2xl bg-slate-100 p-2"><div class="text-xl font-extrabold" x-text="previa && previa.total"></div><div class="text-[11px] text-slate-500">indicadores que ve</div></div><div class="rounded-2xl bg-slate-100 p-2"><div class="text-xl font-extrabold" x-text="previa && previa.modifica"></div><div class="text-[11px] text-slate-500">que modifica</div></div><div class="rounded-2xl bg-slate-100 p-2"><div class="text-xl font-extrabold" x-text="previa && previa.carga"></div><div class="text-[11px] text-slate-500">que carga</div></div></div>
+        <div x-show="previa && previa.nodos.length"><div class="eyebrow mb-1" x-text="previa && previa.global ? 'Toda la empresa' : 'Nodos de su ámbito'"></div><div class="flex flex-wrap gap-1.5"><template x-for="n in (previa ? previa.nodos.slice(0,40) : [])" :key="n.id"><span class="chip border-slate-200 bg-slate-50 text-xs" x-text="n.nombre"></span></template></div></div>
+        <div x-show="previa && previa.indicadores.length"><div class="eyebrow mb-1">Indicadores</div><ul class="max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200"><template x-for="i in (previa ? previa.indicadores : [])" :key="i.id"><li class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm"><span class="min-w-0 truncate" x-text="i.codigo + ' · ' + i.nombre"></span><span class="chip shrink-0 border-slate-200 bg-slate-50 text-[10px]" x-text="i.motivo"></span></li></template></ul></div>
+      </div>
+      <div class="flex justify-end border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-p" @click="previa=null">Entendido</button></div>
+    </div>
+  </div>
+  </template>
+  <!-- ===== Modal: designar / retirar Desarrollador ===== -->
+  <div class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 sm:items-center sm:p-4" x-show="desig.abierto" x-transition.opacity>
+    <form class="sheet w-full max-w-md" x-show="desig.abierto" @submit.prevent="confirmarDesignar()" @keydown.escape.window="desig.abierto=false">
+      <div class="card-h"><h2 class="text-lg font-bold" x-text="desig.x && desig.x.rol_clave==='desarrollador' ? 'Retirar rol Desarrollador' : 'Designar Desarrollador'"></h2></div>
+      <div class="card-b space-y-3"><p class="text-sm text-slate-700">El Desarrollador puede <b>todo</b>, incluido lo técnico (bitácora, respaldos, soporte). Este procedimiento es explícito: confirme con su contraseña. El sistema nunca queda sin un Desarrollador activo.</p>
+        <div><label class="lbl" for="desig-pass">Su contraseña</label><input id="desig-pass" type="password" class="inp" x-model="desig.password" maxlength="128" autocomplete="current-password" required></div></div>
+      <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="desig.abierto=false">Cancelar</button><button class="btn btn-p" :disabled="busy || !desig.password">Confirmar</button></div>
+    </form>
+  </div>

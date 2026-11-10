@@ -1,18 +1,17 @@
 /* Reportes en Excel: informe general y fichas técnicas. */
 SIGT.modulos.reportes = () => ({
-    rep: { anio: '', area_id: '', estado: '' }, repFicha: { area_id: '', indicador_id: '' },
+    rep: { anio: '', nodo_id: '', estado: '' }, repFicha: { nodo_id: '', indicador_id: '' },
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
       ejercicio() { this.rep.anio = this.ejSel || ''; },
       ingreso() { this.rep.anio = this.ejSel || ''; },
-      entrar: { async reportes() { if (this.user.rol !== 'jefe' && !this.areas.length) await this.cargarAreas(); } },
     },
 
     descargarFichas() {
       const q = new URLSearchParams(); if (this.rep.anio) q.set('ejercicio', this.rep.anio);
       for (const [k, v] of Object.entries(this.repFicha)) if (v) q.set(k, v);
-      if (this.user.rol !== 'jefe' && this.rep.area_id && !this.repFicha.area_id) q.set('area_id', this.rep.area_id);
+      if (this.rep.nodo_id && !this.repFicha.nodo_id) q.set('nodo_id', this.rep.nodo_id);
       return this.descargar('/api/reportes/fichas.xlsx?' + q, 'fichas_spe_tpv.xlsx');
     },
     verif: null,

@@ -1,6 +1,6 @@
     <!-- ============ BANDEJA ============ -->
     <section data-vista="bandeja" x-show="view==='bandeja'" class="mx-auto max-w-4xl space-y-4">
-      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> enviadas por los encargados de proceso, pendientes de revisión.</p></div>
+      <div><h1 class="page-title">Bandeja de aprobación</h1><p class="text-sm text-slate-600">Cargas del ejercicio <b x-text="ejActual.etiqueta"></b> que le corresponde aprobar a usted: usted es el superior más cercano de quien las cargó (o respaldo, si es Coordinador SGC). Nunca aparecen las propias.</p></div>
       <div class="card border-brand/30 bg-brand-light" x-show="bandejaOtros.length"><div class="card-b space-y-2 text-sm text-cobalt"><template x-for="o in bandejaOtros" :key="o.ejercicio"><div class="flex flex-wrap items-center justify-between gap-2"><span>También hay <b x-text="o.n"></b> carga(s) por aprobar del ejercicio <b x-text="o.etiqueta"></b>.</span><button class="btn btn-s btn-sm" @click="irAEjercicio(o.ejercicio)">Ver ese ejercicio</button></div></template></div></div>
       <template x-for="m in bandeja" :key="m.id">
         <div class="card fade-in">

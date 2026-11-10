@@ -44,7 +44,7 @@ def test_el_gerente_crea_edita_archiva_y_elimina_indicadores(client, escenario):
     assert archivado["id"] in {i["id"] for i in client.get("/api/indicadores?gestion=true").json()}
 
 
-def test_el_encargado_no_gestiona_indicadores(client, escenario):
+def test_el_analista_no_gestiona_indicadores(client, escenario):
     entrar(client, escenario["jefe"])
     assert client.post("/api/indicadores", json=ficha_base(escenario["area"])).status_code == 403
     assert client.delete(f"/api/indicadores/{escenario['indicador']['id']}").status_code == 403
@@ -52,7 +52,7 @@ def test_el_encargado_no_gestiona_indicadores(client, escenario):
     assert [i["id"] for i in client.get("/api/indicadores?gestion=true").json()] == [escenario["indicador"]["id"]]
 
 
-def test_opciones_de_usuarios_para_gerente_y_admin_pero_no_para_el_encargado(client, escenario):
+def test_opciones_de_usuarios_para_quien_asigna_pero_no_para_el_analista(client, escenario):
     entrar(client, escenario["gerente"])
     r = client.get("/api/usuarios/opciones")
     assert r.status_code == 200 and all(set(u) == {"id", "nombre", "rol", "puede_cargar", "yo"} for u in r.json())

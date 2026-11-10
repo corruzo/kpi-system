@@ -25,7 +25,7 @@ SIGT.modulos.importacion = () => ({
         if (this.imp.cat.area && this.imp.crearAreas) (p.catalogos.area || []).forEach(a => nuevas.add(a));
         const cuerpo = { archivo: p.archivo, inicio_ejercicio: p.inicio_ejercicio, indicadores: inds.map(i => ({ ...i, objetivo: i.objetivo || '' })), catalogos: cats, areas_nuevas: [...nuevas] };
         this.imp.res = await this.api('/api/importar/confirmar', { method: 'POST', body: cuerpo });
-        this.imp.prev = null; await this.cargarIndicadores(); this.areas = await this.api('/api/areas'); this.catalogos = await this.api('/api/catalogos'); this.avisar('Importación completada.');
+        this.imp.prev = null; await this.cargarIndicadores(); await this.refrescarUnidades(); if (this.puedeAlguno(['catalogos.gestionar'])) this.catalogos = await this.api('/api/catalogos'); this.avisar('Importación completada.');
       } catch { }
       this.busy = false;
     },

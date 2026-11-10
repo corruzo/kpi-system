@@ -19,7 +19,7 @@ _declaracion = permisos_doc.declaracion
 def _url(path: str) -> str:
     for marcador in ("{indicador_id}", "{medicion_id}", "{usuario_id}", "{unidad_id}", "{rol_id}", "{elemento_id}"):
         path = path.replace(marcador, "987654")
-    return path.replace("{anio}", "2026")
+    return path.replace("{anio}", "2001")   # año sin crear: ninguna ruta del barrido puede cerrar, reabrir ni cambiar nada real
 
 
 RUTAS = list(rutas_de_la_api())

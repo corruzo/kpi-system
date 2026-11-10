@@ -164,7 +164,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         _par(ws, d + 10, 5, "Responsable de registro", 6, 8, ind.resp_registro)
         _par(ws, d + 10, 9, "Responsable de análisis", 10, 13, ind.resp_analisis)
 
-        # --- datos de cada período (las variables que digitó el encargado); solo las columnas de períodos que existen
+        # --- datos de cada período (las variables que digitó quien carga); solo las columnas de períodos que existen
         n = len(periodos)
         span = max(1, 12 // max(n, 1))                  # 12, 6, 4, 3, 2 o 1 períodos: cada uno ocupa 1, 2, 3, 4, 6 o 12 columnas
         col_per = [2 + j * span for j in range(n)]       # primera columna de cada período (la cuadrícula siempre llena el ancho)

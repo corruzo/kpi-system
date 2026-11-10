@@ -1,11 +1,12 @@
-"""Ejemplo completo del flujo del SGC con el área de Producción (para aprender a usar el sistema).
+"""Ejemplo completo del flujo de SPE TPV con la gerencia de Producción (para aprender a usar el sistema).
 
-Crea, a través de la API: el área, un jefe y un gerente, cuatro indicadores con sus metas y la carga mensual de datos
-reales del ejercicio (aprobada por el gerente salvo el último mes, que queda pendiente, y un mes devuelto y reenviado).
+Crea, a través de la API (con el Desarrollador): una gerencia con su departamento y jefatura, los roles Gerente / Jefe / Analista, las
+cuentas de un gerente, un jefe y un analista (asignados a su posición), cuatro indicadores con sus metas y la carga mensual de datos
+reales del ejercicio, aprobada por el superior directo (el jefe) salvo el último mes, que queda pendiente, y un mes devuelto y reenviado.
 
     python scripts/ejemplo_produccion.py --url http://127.0.0.1:8000 --admin admin --clave-admin '...'
 
-Es solo un ejemplo: crea usuarios reales. En un sistema de producción bórrelos (desactívelos) cuando termine.
+Es solo un ejemplo: crea usuarios reales. En un sistema de producción inhabilítelos cuando termine.
 Requiere `httpx` (pip install -r requirements-dev.txt).
 """
 import argparse
@@ -15,8 +16,7 @@ from datetime import date
 
 import httpx
 
-AREA = "Producción"
-
+GERENCIA = "Gerencia de Producción"
 # (código, nombre, objetivo, unidad, sentido, fórmula, variables [(clave, etiqueta, ayuda)], nivel_optimo, límite, decimales, fuente)
 INDICADORES = [
     ("PRO-01", "Cumplimiento del plan de producción", "Producir la meta cada mes.", "%", "mayor",
@@ -84,23 +84,48 @@ def main() -> None:
             "Cambiar el inicio del ejercicio")
     inicio = exigir(adm.get("/api/parametros"), "Leer parámetros")["ejercicio_inicio"]
 
-    # 1) Administrador: área, usuarios y fichas (aquí se fijan las METAS)
-    if any(x["nombre"] == AREA for x in exigir(adm.get("/api/areas"), "Listar áreas")):
-        sys.exit(f"El área «{AREA}» ya existe: el ejemplo ya fue creado.")
-    area = exigir(adm.post("/api/areas", json={"nombre": AREA}), "Crear área")["id"]
-    for rol, usuario, nombre in (("jefe", "jefe.produccion", "Jefe de Producción"), ("gerente", "gerente.calidad", "Gerente de Calidad")):
-        exigir(adm.post("/api/usuarios", json={"username": usuario, "nombre": nombre, "rol": rol,
-                                               "area_id": area if rol == "jefe" else None, "password": clave}), f"Crear {usuario}")
-    ids = {}
-    for cod, nombre, objetivo, unidad, sentido, formula, variables, nivel_optimo, limite, dec, fuente in INDICADORES:
-        ids[cod] = exigir(adm.post("/api/indicadores", json={
-            "codigo": cod, "nombre": nombre, "objetivo": objetivo, "area_id": area, "unidad": unidad, "frecuencia": "mensual",
-            "sentido": sentido, "formula": formula, "nivel_optimo": nivel_optimo, "limite": limite, "decimales": dec, "fuente": fuente,
-            "seguimiento": "proceso", "ref_nombre": "Proceso de Producción", "ref_detalle": "Fabricar según el plan, con calidad y sin desperdicio",
-            "variables": [{"clave": k, "etiqueta": e, "ayuda": h} for k, e, h in variables]}), f"Crear {cod}")["id"]
+    # 1) Estructura: gerencia → departamento → jefatura
+    if any(x["nombre"] == GERENCIA for x in exigir(adm.get("/api/unidades"), "Listar la estructura")):
+        sys.exit(f"«{GERENCIA}» ya existe: el ejemplo ya fue creado.")
+    gerencia = exigir(adm.post("/api/unidades", json={"nombre": GERENCIA, "nivel": "gerencia"}), "Crear gerencia")["id"]
+    depto = exigir(adm.post("/api/unidades", json={"nombre": "Planta Norte", "nivel": "departamento", "padre_id": gerencia}), "Crear departamento")["id"]
+    jefatura = exigir(adm.post("/api/unidades", json={"nombre": "Jefatura de Línea 1", "nivel": "jefatura", "padre_id": depto}), "Crear jefatura")["id"]
 
-    # 2) Jefe de área: carga mensual de datos reales, de enero (inicio del ejercicio) hasta el mes actual
-    jefe, ger = cliente(a.url, "jefe.produccion", clave), cliente(a.url, "gerente.calidad", clave)
+    # 2) Roles (los define el Coordinador SGC; aquí los crea el Desarrollador, que puede conceder todo lo funcional)
+    carga = {"cargas.cargar": "modificar", "reportes.fichas": "ver"}
+    jefe_p = {**carga, "cargas.aprobar": "modificar", "cargas.reabrir": "modificar", "cargas.notas": "modificar", "indicadores.crear": "modificar",
+              "indicadores.editar": "modificar", "indicadores.archivar": "modificar", "indicadores.asignar": "modificar", "formulas.probar": "modificar",
+              "metas.cargar": "modificar", "metas.copiar": "modificar", "panel.ver": "ver", "reportes.general": "ver"}
+    roles = {n: exigir(adm.post("/api/roles", json={"nombre": n, "permisos": p}), f"Crear rol {n}")["id"]
+             for n, p in (("Analista", carga), ("Jefe", jefe_p), ("Gerente", jefe_p))}
+
+    # 3) Cuentas (sin rol) y su asignación: rol y posición en la estructura
+    personas = (("gerente.produccion", "Gerente de Producción", "Gerente", {"ambito": [gerencia], "miembro": []}),
+                ("jefe.produccion", "Jefe de Línea 1", "Jefe", {"ambito": [jefatura], "miembro": []}),
+                ("analista.produccion", "Analista de Línea 1", "Analista", {"ambito": [], "miembro": [jefatura]}))
+    ids = {}
+    for usuario, nombre, rol, pos in personas:
+        ids[usuario] = exigir(adm.post("/api/usuarios", json={"username": usuario, "nombre": nombre, "password": clave}), f"Crear {usuario}")["id"]
+        exigir(adm.put(f"/api/usuarios/{ids[usuario]}/asignacion", json={"rol_id": roles[rol], "raiz": False, **pos}), f"Asignar {usuario}")
+
+    # 4) Ejercicio, indicadores (responsable: el jefe; carga: el analista) y sus metas
+    anio = hoy.year + (1 if hoy.month >= inicio > 1 else 0)
+    r = adm.post("/api/ejercicios", json={"anio": anio})   # 409 = ya existía
+    if r.status_code not in (201, 409):
+        sys.exit(f"Crear el período fiscal: {r.status_code} {r.text}")
+    ids_ind = {}
+    for cod, nombre, objetivo, unidad, sentido, formula, variables, nivel_optimo, limite, dec, fuente in INDICADORES:
+        ind = exigir(adm.post("/api/indicadores", json={
+            "nombre": nombre, "objetivo": objetivo, "nodo_id": jefatura, "responsable_id": ids["jefe.produccion"],
+            "cargadores": [ids["analista.produccion"]], "unidad": unidad, "frecuencia": "mensual", "sentido": sentido, "formula": formula,
+            "nivel_optimo": nivel_optimo, "limite": limite, "decimales": dec, "fuente": fuente, "seguimiento": "proceso",
+            "ref_nombre": "Proceso de Producción", "ref_detalle": "Fabricar según el plan, con calidad y sin desperdicio",
+            "variables": [{"clave": k, "etiqueta": e, "ayuda": h} for k, e, h in variables]}), f"Crear {cod}")
+        ids_ind[cod] = ind["id"]
+        exigir(adm.put(f"/api/ejercicios/{anio}/metas/{ind['id']}", json={"anual": nivel_optimo, "reparto": "repetir"}), f"Meta de {cod}")
+
+    # 5) El analista carga de enero (inicio del ejercicio) al mes actual; el jefe (superior directo) aprueba
+    analista, jefe = cliente(a.url, "analista.produccion", clave), cliente(a.url, "jefe.produccion", clave)
     meses = [f"{hoy.year}-{m:02d}" for m in range(inicio, hoy.month + 1)] if inicio <= hoy.month else []
     if not meses:
         sys.exit("El ejercicio fiscal actual empieza en otro año: use --inicio-ejercicio 1 para el ejemplo.")
@@ -109,22 +134,21 @@ def main() -> None:
         for ind in INDICADORES:
             cod, variables = ind[0], ind[6]
             valores = dict(zip((v[0] for v in variables), DATOS[cod][i], strict=True))
-            cuerpo = {"indicador_id": ids[cod], "periodo": periodo, "valores": valores, "analisis": ANALISIS[0], "plan_mejora": ANALISIS[1]}
-            cargas[(cod, periodo)] = exigir(jefe.post("/api/mediciones", json=cuerpo), f"Cargar {cod} {periodo}")
-    # 3) Gerente: aprueba todo salvo el último mes; un mes se devuelve con observación y el jefe lo reenvía
+            cuerpo = {"indicador_id": ids_ind[cod], "periodo": periodo, "valores": valores, "analisis": ANALISIS[0], "plan_mejora": ANALISIS[1]}
+            cargas[(cod, periodo)] = exigir(analista.post("/api/mediciones", json=cuerpo), f"Cargar {cod} {periodo}")
     for (cod, periodo), m in cargas.items():
         if periodo == meses[-1]:
             continue
         if meses.index(periodo) == DEVUELTO and cod == "PRO-01":
-            exigir(ger.post(f"/api/mediciones/{m['id']}/revision", json={"accion": "observar", "nota": "Confirme la producción real con el cierre de planta."}), "Devolver")
+            exigir(jefe.post(f"/api/mediciones/{m['id']}/revision", json={"accion": "observar", "nota": "Confirme la producción real con el cierre de planta."}), "Devolver")
             valores = dict(zip((v[0] for v in INDICADORES[0][6]), DATOS[cod][DEVUELTO], strict=True))
-            m = exigir(jefe.post("/api/mediciones", json={"indicador_id": ids[cod], "periodo": periodo, "valores": valores,
-                                                          "analisis": ANALISIS[0], "plan_mejora": ANALISIS[1]}), "Reenviar")
-        exigir(ger.post(f"/api/mediciones/{m['id']}/revision", json={"accion": "aprobar", "nota": ""}), "Aprobar")
+            m = exigir(analista.post("/api/mediciones", json={"indicador_id": ids_ind[cod], "periodo": periodo, "valores": valores,
+                                                              "analisis": ANALISIS[0], "plan_mejora": ANALISIS[1]}), "Reenviar")
+        exigir(jefe.post(f"/api/mediciones/{m['id']}/revision", json={"accion": "aprobar", "nota": ""}), "Aprobar")
 
-    print(f"Ejemplo creado: área «{AREA}», 4 indicadores, {len(meses)} meses ({meses[0]} a {meses[-1]}).")
-    print(f"  Jefe de área : jefe.produccion   Gerente: gerente.calidad   Contraseña: {clave}")
-    print(f"  Queda pendiente de aprobación el mes {meses[-1]} (ingrese como gerente.calidad → Bandeja de aprobación).")
+    print(f"Ejemplo creado: «{GERENCIA}» > Planta Norte > Jefatura de Línea 1, 4 indicadores, {len(meses)} meses ({meses[0]} a {meses[-1]}).")
+    print(f"  Gerente: gerente.produccion   Jefe: jefe.produccion   Analista: analista.produccion   Contraseña: {clave}")
+    print(f"  Queda pendiente de aprobación el mes {meses[-1]} (ingrese como jefe.produccion → Bandeja de aprobación).")
 
 
 if __name__ == "__main__":

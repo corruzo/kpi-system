@@ -21,7 +21,10 @@ const ORDEN_DE_MODULOS = [
   'panel',         // dashboard
   'ficha_tecnica', // ficha en pantalla
   'reportes',      // Excel
-  'organizacion',  // áreas, usuarios, listas
+  'organizacion',  // configuración: parámetros, listas, respaldo y reinicio
+  'estructura',    // árbol de la empresa
+  'roles',         // roles y matriz de permisos
+  'personas',      // rol, ámbito e indicadores de cada persona; cuentas y soporte
   'importacion',   // fichas históricas
   'bitacora',      // trazabilidad
   'guia',          // recorrido de bienvenida

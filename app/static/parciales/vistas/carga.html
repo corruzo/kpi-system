@@ -4,8 +4,8 @@
         <div class="ayuda" x-show="ay==='carga'" x-html="ayudaHtml('carga')" x-transition></div></div>
 
       <div class="card p-8 text-center" x-show="!indicadoresCarga.length">
-        <p class="font-semibold" x-text="user.rol==='admin' ? 'No hay indicadores activos.' : 'Su área aún no tiene indicadores asignados.'"></p>
-        <p class="mt-1 text-sm text-slate-600" x-text="user.rol==='admin' ? 'Cree fichas en la sección Indicadores.' : 'Solicite al Administrador SGC que cree las fichas técnicas de su área.'"></p>
+        <p class="font-semibold" x-text="'Aún no tiene indicadores asignados para cargar.'"></p>
+        <p class="mt-1 text-sm text-slate-600" x-text="'Solicite al Coordinador SGC que le asigne los indicadores que usted debe cargar.'"></p>
       </div>
 
       <template x-if="indicadoresCarga.length">
@@ -30,7 +30,7 @@
               <label class="lbl" for="sel-ind">Indicador</label>
               <select id="sel-ind" class="inp" x-model.number="f.indicador_id" @change="cambiarIndicador()">
                 <option value="">Seleccione…</option>
-                <template x-for="i in indicadoresCarga" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre + (user.rol==='admin' ? ' (' + i.area + ')' : '')"></option></template>
+                <template x-for="i in indicadoresCarga" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre + ' (' + i.area + ')'"></option></template>
               </select>
             </div>
             <div>
@@ -70,7 +70,7 @@
               <span x-show="medActual && medActual.nota_revision" x-text="' Nota: ' + (medActual && medActual.nota_revision)"></span>
             </div>
             <div x-show="medActual && medActual.estado==='observado'" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <b>Carga devuelta por el Gerente / Auditor.</b> Corrija y reenvíe.<br><span x-text="'Observación: ' + (medActual ? medActual.nota_revision : '')"></span>
+              <b>Carga devuelta por quien la revisó.</b> Corrija y reenvíe.<br><span x-text="'Observación: ' + (medActual ? medActual.nota_revision : '')"></span>
             </div>
 
             <div class="card">

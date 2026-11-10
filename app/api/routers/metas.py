@@ -1,4 +1,4 @@
-"""Metas por indicador y período (antes «presupuesto») y guía de puesta en marcha."""
+"""Metas por indicador y período y guía de puesta en marcha."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
