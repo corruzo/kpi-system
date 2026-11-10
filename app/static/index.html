@@ -44,7 +44,7 @@
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
   @media print{header,nav,.dock,button,.no-print{display:none!important}body{background:#fff}.card{box-shadow:none}}</style>
 </head>
-<body x-data="sigt()" x-init="init()" class="min-h-screen">
+<body x-data="sigt()" class="min-h-screen">   <!-- Alpine llama solo a init(): llamarlo también con x-init lo ejecutaba dos veces (dos arranques antes de ingresar) -->
 
 <!-- Pantalla de arranque: se ve desde el primer instante (antes de que cargue el script) y desaparece al estar lista la aplicación -->
 <div class="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-slate-50" x-show="!ready && !fallaArranque" x-transition.opacity.duration.300ms role="status" aria-live="polite">
