@@ -68,8 +68,8 @@ SIGT.modulos.panel = () => ({
       return [
         { t: 'Indicadores', v: k.indicadores, c: NAVY, sub: `${k.mediciones} mediciones en el rango` },
         { t: 'Cumplimiento', v: p(k.cumplimiento), c: BRAND, d: this.delta('cumplimiento'), sub: k.mediciones ? `${k.verde} cumplen · ${k.amarillo} alerta · ${k.rojo} críticos` : 'Sin mediciones' },
-        { t: 'Cumplen el presupuesto', v: p(k.cumplimiento_ppto), c: MAG, d: this.delta('cumplimiento_ppto'), sub: k.con_ppto ? `${k.cumplen_ppto} de ${k.con_ppto} períodos presupuestados` : 'Sin presupuesto en el rango' },
-        { t: 'Real vs. presupuesto', v: p(k.real_vs_ppto), c: '#7c3aed', sub: 'Promedio de real ÷ presupuestado' },
+        { t: 'Cumplen la meta', v: p(k.cumplimiento_meta), c: MAG, d: this.delta('cumplimiento_meta'), sub: k.con_meta ? `${k.cumplen_meta} de ${k.con_meta} períodos con_meta` : 'Sin meta en el rango' },
+        { t: 'Real vs. meta', v: p(k.real_vs_meta), c: '#7c3aed', sub: 'Promedio de real ÷ meta' },
         { t: 'Carga al día', v: p(k.carga_al_dia), c: '#004eba', d: this.delta('carga_al_dia'), sub: k.faltantes ? `${k.faltantes} de ${k.esperados} períodos sin cargar` : (k.esperados ? 'Todo cargado' : 'Nada por cargar aún'), subc: k.faltantes ? 'text-amber-700' : '' },
         { t: 'Cargas a tiempo', v: p(k.a_tiempo), c: '#0891b2', d: this.delta('a_tiempo'), sub: k.dias_retraso === null ? 'Sin cargas propias' : `Retraso promedio ${nf(k.dias_retraso, 1)} días (plazo ${this.tb.rango.plazo_dias})` },
         { t: 'Por aprobar', v: k.por_aprobar, c: SEM.amarillo, sub: `${k.devueltas} devuelta(s)` },
@@ -85,7 +85,7 @@ SIGT.modulos.panel = () => ({
     get conDatos() { return this.tb.indicadores.filter(i => i.n > 0); },
     get peores() { return [...this.conDatos].sort((a, b) => a.pct_verde - b.pct_verde || b.rojo - a.rojo).slice(0, 10); },
     get mejores() { return [...this.conDatos].sort((a, b) => b.pct_verde - a.pct_verde || b.n - a.n).slice(0, 10); },
-    get desviados() { return this.tb.indicadores.filter(i => i.real_vs_ppto !== null).sort((a, b) => Math.abs(b.real_vs_ppto - 100) - Math.abs(a.real_vs_ppto - 100)).slice(0, 10); },
+    get desviados() { return this.tb.indicadores.filter(i => i.real_vs_meta !== null).sort((a, b) => Math.abs(b.real_vs_meta - 100) - Math.abs(a.real_vs_meta - 100)).slice(0, 10); },
     get tabla() {
       const { col, asc } = this.orden, v = i => col === 'ultimo' ? i.ultimo?.resultado : i[col];
       return [...this.tb.indicadores].sort((a, b) => {
@@ -98,8 +98,8 @@ SIGT.modulos.panel = () => ({
     ordenar(col) { this.orden = { col, asc: this.orden.col === col ? !this.orden.asc : true }; },
     flecha(col) { return this.orden.col === col ? (this.orden.asc ? '▲' : '▼') : ''; },
     exportarCsv() {
-      const filas = [['Código', 'Indicador', 'Área', 'Frecuencia', 'Mediciones', 'Cumple', 'Alerta', 'Crítico', '% cumple', 'Cumplen presupuesto', 'Con presupuesto', 'Real vs presupuesto %', 'Sin cargar', 'Último período', 'Último resultado', 'Último semáforo']];
-      for (const i of this.tabla) filas.push([i.codigo, i.nombre, i.area, i.frecuencia, i.n, i.verde, i.amarillo, i.rojo, i.pct_verde ?? '', i.cumplen_ppto, i.con_ppto, i.real_vs_ppto ?? '', i.faltantes, i.ultimo?.etiqueta ?? '', i.ultimo?.resultado ?? '', i.ultimo ? this.semTxt(i.ultimo.semaforo) : '']);
+      const filas = [['Código', 'Indicador', 'Área', 'Frecuencia', 'Mediciones', 'Cumple', 'Alerta', 'Crítico', '% cumple', 'Cumplen meta', 'Con meta', 'Real vs meta %', 'Sin cargar', 'Último período', 'Último resultado', 'Último semáforo']];
+      for (const i of this.tabla) filas.push([i.codigo, i.nombre, i.area, i.frecuencia, i.n, i.verde, i.amarillo, i.rojo, i.pct_verde ?? '', i.cumplen_meta, i.con_meta, i.real_vs_meta ?? '', i.faltantes, i.ultimo?.etiqueta ?? '', i.ultimo?.resultado ?? '', i.ultimo ? this.semTxt(i.ultimo.semaforo) : '']);
       const csv = '﻿' + filas.map(f => f.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       a.download = `panel_${this.pf.desde}_${this.pf.hasta}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -119,21 +119,21 @@ SIGT.modulos.panel = () => ({
       nuevo('ch-evol', { type: 'bar', data: { labels: et, datasets: [['Cumple', 'verde'], ['Alerta', 'amarillo'], ['Crítico', 'rojo']].map(([l, k]) => ({ label: l, data: S.map(s => pct(k, s)), backgroundColor: SEM[k], borderRadius: 4, borderSkipped: false, stack: 's' })) },
         options: { ...base, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, max: 100, title: { display: true, text: '% de las mediciones' } } },
           plugins: { ...leyenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y ?? 0}%`, footer: it => `${S[it[0].dataIndex].total} medición(es)` } } } } });
-      // 2. presupuesto por período
-      nuevo('ch-ppto', { data: { labels: et, datasets: [
+      // 2. meta por período
+      nuevo('ch-meta', { data: { labels: et, datasets: [
         { type: 'bar', label: 'Cumplen', data: S.map(s => s.cumplen), backgroundColor: SEM.verde, borderRadius: 4, stack: 'p', yAxisID: 'y' },
-        { type: 'bar', label: 'No alcanzan', data: S.map(s => s.con_ppto - s.cumplen), backgroundColor: SEM.rojo, borderRadius: 4, stack: 'p', yAxisID: 'y' },
-        { type: 'line', label: '% que cumple', data: S.map(s => s.cumplimiento_ppto), borderColor: MAG, backgroundColor: MAG, pointStyle: 'rectRot', pointRadius: 5, tension: .25, spanGaps: true, yAxisID: 'y1' }] },
+        { type: 'bar', label: 'No alcanzan', data: S.map(s => s.con_meta - s.cumplen), backgroundColor: SEM.rojo, borderRadius: 4, stack: 'p', yAxisID: 'y' },
+        { type: 'line', label: '% que cumple', data: S.map(s => s.cumplimiento_meta), borderColor: MAG, backgroundColor: MAG, pointStyle: 'rectRot', pointRadius: 5, tension: .25, spanGaps: true, yAxisID: 'y1' }] },
         options: { ...base, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Períodos' }, ticks: { precision: 0 } }, y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: '%' } } } } });
       // 3. estado actual
       const a = this.tb.actual;
       nuevo('ch-actual', { type: 'doughnut', data: { labels: ['Cumple', 'Alerta', 'Crítico', 'Sin datos'], datasets: [{ data: [a.verde, a.amarillo, a.rojo, a.sin_datos], backgroundColor: [SEM.verde, SEM.amarillo, SEM.rojo, SEM.sin_datos], borderWidth: 3, borderColor: '#fff' }] }, options: { ...base, cutout: '66%' } });
       // 4. comparativo por dimensión
-      const G = this.tb.por_dimension, ppto = this.pf.metrica === 'presupuesto';
-      nuevo('ch-dim', { type: 'bar', data: { labels: G.map(g => g.nombre), datasets: ppto
-          ? [{ label: '% de períodos que cumplen el presupuesto', data: G.map(g => g.cumplimiento_ppto), backgroundColor: MAG, borderRadius: 6 }]
+      const G = this.tb.por_dimension, meta = this.pf.metrica === 'meta';
+      nuevo('ch-dim', { type: 'bar', data: { labels: G.map(g => g.nombre), datasets: meta
+          ? [{ label: '% de períodos que cumplen la meta', data: G.map(g => g.cumplimiento_meta), backgroundColor: MAG, borderRadius: 6 }]
           : [['Cumple', 'verde'], ['Alerta', 'amarillo'], ['Crítico', 'rojo']].map(([l, k]) => ({ label: l, data: G.map(g => g.total ? Math.round(1000 * g[k] / g.total) / 10 : null), backgroundColor: SEM[k], borderRadius: 4, stack: 's' })) },
-        options: { ...base, indexAxis: 'y', scales: { x: { stacked: !ppto, max: 100, title: { display: true, text: '%' } }, y: { stacked: !ppto, grid: { display: false } } } } });
+        options: { ...base, indexAxis: 'y', scales: { x: { stacked: !meta, max: 100, title: { display: true, text: '%' } }, y: { stacked: !meta, grid: { display: false } } } } });
       // 5. estado de las cargas
       nuevo('ch-carga', { type: 'bar', data: { labels: et, datasets: [
         { label: 'Aprobadas', data: S.map(s => s.aprobadas), backgroundColor: SEM.verde, stack: 'c', borderRadius: 3 }, { label: 'En revisión', data: S.map(s => s.en_revision), backgroundColor: AZ, stack: 'c' },
@@ -149,8 +149,8 @@ SIGT.modulos.panel = () => ({
         const s = i.serie, dec = i.decimales;
         nuevo('ch-tend', { type: 'line', data: { labels: s.map(p => p.etiqueta), datasets: [
           { label: 'Resultado', data: s.map(p => p.resultado), borderColor: AZ, backgroundColor: AZ, pointBackgroundColor: s.map(p => SEM[p.semaforo]), pointRadius: 6, pointBorderColor: '#fff', borderWidth: 2.5, tension: .25 },
-          { label: 'Presupuesto', data: s.map(p => p.presupuesto), borderColor: MAG, backgroundColor: MAG, pointStyle: 'rectRot', pointRadius: 5, borderWidth: 2, tension: .25, spanGaps: true },
-          { label: 'Meta', data: s.map(p => p.meta), borderColor: NAVY, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
+          { label: 'Meta', data: s.map(p => p.meta), borderColor: MAG, backgroundColor: MAG, pointStyle: 'rectRot', pointRadius: 5, borderWidth: 2, tension: .25, spanGaps: true },
+          { label: 'Nivel óptimo', data: s.map(p => p.nivel_optimo), borderColor: NAVY, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
           { label: 'Límite crítico', data: s.map(p => p.limite), borderColor: SEM.rojo, borderDash: [2, 4], pointRadius: 0, borderWidth: 1.5 }] },
           options: { ...base, plugins: { ...leyenda, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${this.fmt(c.parsed.y, i.unidad, dec)}` } } }, scales: { y: { title: { display: true, text: i.unidad } }, x: { grid: { display: false } } } } });
       } else Chart.getChart(document.getElementById('ch-tend'))?.destroy();

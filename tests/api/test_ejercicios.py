@@ -13,7 +13,7 @@ def test_ejercicio_vigente_no_se_cierra_antes_de_terminar(client):
 
 def test_cierre_bloquea_cargas_y_la_reapertura_las_permite(client):
     area = crear_area(client)
-    ind = crear_indicador(client, area, formula="ok / total * 100", sentido="mayor", meta=98, limite=95, unidad="%",
+    ind = crear_indicador(client, area, formula="ok / total * 100", sentido="mayor", nivel_optimo=98, limite=95, unidad="%",
                           variables=[{"clave": "ok", "etiqueta": "Conformes"}, {"clave": "total", "etiqueta": "Analizados"}])
     anio = calendario.ejercicio_de_fecha(calendario.hoy()) - 1
     periodo = calendario.codigo("mensual", calendario.limites(anio)[0])

@@ -25,14 +25,14 @@ def exigir_abierto(db: Session, anio: int | None) -> None:
 
 
 def creado(db: Session, anio: int | None) -> bool:
-    """¿Existe el período fiscal (paso 1)? Sin crearlo no se presupuesta ni se carga."""
+    """¿Existe el período fiscal (paso 1)? Sin crearlo no se fijan metas ni se carga."""
     return anio is not None and db.get(Ejercicio, anio) is not None
 
 
 def exigir_creado(db: Session, anio: int) -> None:
     if not creado(db, anio):
         raise Conflicto(f"El período fiscal {calendario.etiqueta_ejercicio(anio)} todavía no ha sido creado. "
-                        "El administrador debe crearlo en «Período y presupuesto» antes de presupuestar o cargar datos.")
+                        "El administrador debe crearlo en «Período y metas» antes de fijar metas o cargar datos.")
 
 
 def crear(db: Session, usuario: Usuario, anio: int, nota: str = "") -> Ejercicio:

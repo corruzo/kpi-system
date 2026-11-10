@@ -37,7 +37,7 @@ def test_importar_fichas_historicas_y_reemplazar_el_excel(client):
     ind = next(i for i in client.get("/api/indicadores").json() if i["sigla"] == "SP")
     f = client.get(f"/api/indicadores/{ind['id']}/ficha?ejercicio=2026").json()
     assert f["ejercicio_etiqueta"] == "2025-2026" and len(f["periodos"]) == 12 and f["periodos"][0]["corta"] == "Oct."
-    assert f["periodos"][0]["medicion"]["resultado"] == 92.86 and f["indicador"]["meta_texto"] == "96 Mín."
+    assert f["periodos"][0]["medicion"]["resultado"] == 92.86 and f["indicador"]["nivel_optimo_texto"] == "96 Mín."
     x = client.get("/api/reportes/fichas.xlsx?ejercicio=2026")
     assert x.status_code == 200
     libro = load_workbook(BytesIO(x.content))

@@ -94,7 +94,7 @@ SIGT.modulos.nucleo = () => ({
     cargarGraficos() {
       if (window.Chart) return Promise.resolve();
       return this._graficos ||= new Promise((ok, no) => {
-        const s = document.createElement('script'); s.src = document.querySelector('meta[name="sgc-chart"]').content;
+        const s = document.createElement('script'); s.src = document.querySelector('meta[name="spe-chart"]').content;
         s.onload = ok; s.onerror = () => { this._graficos = null; no(Object.assign(new Error('No se pudieron cargar los gráficos. Revise su conexión.'), { avisado: false })); };
         document.head.appendChild(s);
       });
@@ -128,7 +128,7 @@ SIGT.modulos.nucleo = () => ({
         bandeja: ver('bandeja', 'Bandeja de aprobación', 'Bandeja', this.bandejaN),
         recordatorios: ver('recordatorios', 'Recordatorios de carga', 'Avisos'),
         ejercicios: ver('ejercicios', 'Cierre de años', 'Cierre'),
-        presupuesto: ver('presupuesto', 'Período y presupuesto', 'Presup.'),
+        meta: ver('meta', 'Período y metas', 'Presup.'),
         fichas: ver('fichas', 'Indicadores', 'Fichas'),
         org: ver('org', 'Organización y equipo', 'Equipo'),
         importar: ver('importar', 'Importar', 'Importar'),

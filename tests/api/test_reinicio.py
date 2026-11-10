@@ -18,7 +18,7 @@ def test_reinicio_de_fabrica(tmp_path):
             area = c.post("/api/areas", json={"nombre": "Sistemas"}).json()["id"]
             c.post("/api/usuarios", json={"username": "jefe", "nombre": "Jefe", "rol": "jefe", "area_id": area, "password": "clave-segura-123"})
             c.post("/api/indicadores", json={"codigo": "X-1", "nombre": "Indicador", "area_id": area, "unidad": "%", "frecuencia": "mensual",
-                   "sentido": "mayor", "formula": "a / b * 100", "meta": 90, "limite": 80,
+                   "sentido": "mayor", "formula": "a / b * 100", "nivel_optimo": 90, "limite": 80,
                    "variables": [{"clave": "a", "etiqueta": "A"}, {"clave": "b", "etiqueta": "B"}]})
             r = c.post("/api/sistema/reiniciar", json={"confirmacion": "borrar", "password": "clave-admin-123"})
             assert r.status_code == 422, r.text

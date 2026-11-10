@@ -37,7 +37,7 @@
               <label class="lbl" for="sel-per">Período</label>
               <p class="mb-1.5 text-xs text-slate-500">Períodos del ejercicio <b x-text="ejActual.etiqueta"></b> (cambie de ejercicio en la parte superior).</p>
               <select id="sel-per" class="inp" x-model="f.periodo" @change="cambiarPeriodo()" :disabled="!periodosInd.length">
-                <template x-for="g in gruposPeriodos" :key="g.etiqueta"><optgroup :label="'Ejercicio ' + g.etiqueta"><template x-for="p in g.periodos" :key="p.periodo"><option :value="p.periodo" :selected="p.periodo===f.periodo" x-text="p.etiqueta + (p.actual ? ' (en curso)' : '') + (p.cerrado ? ' — ejercicio cerrado' : estadoSufijo(p)) + (!p.medicion && p.presupuesto === null && ind.frecuencia !== 'eventual' ? ' — sin presupuesto' : '')"></option></template></optgroup></template>
+                <template x-for="g in gruposPeriodos" :key="g.etiqueta"><optgroup :label="'Ejercicio ' + g.etiqueta"><template x-for="p in g.periodos" :key="p.periodo"><option :value="p.periodo" :selected="p.periodo===f.periodo" x-text="p.etiqueta + (p.actual ? ' (en curso)' : '') + (p.cerrado ? ' — ejercicio cerrado' : estadoSufijo(p)) + (!p.medicion && p.meta === null && ind.frecuencia !== 'eventual' ? ' — sin meta' : '')"></option></template></optgroup></template>
               </select>
             </div>
           </div>
@@ -55,14 +55,14 @@
                   <div x-show="ind.fuente"><b>Fuente de datos:</b> <span x-text="ind.fuente"></span></div>
                   <div x-show="ind.notas"><b>Método:</b> <span x-text="ind.notas"></span></div>
                   <div x-show="ind.constantes && ind.constantes.length"><b>Constantes:</b> <span x-text="(ind.constantes||[]).map(c => c.etiqueta + ' = ' + c.valor).join(' · ')"></span></div>
-                  <div><b>Semáforo:</b> verde = cumple la meta, amarillo = alerta, rojo = crítico (requiere análisis y plan de mejora).</div></div>
-                <div class="text-xs text-slate-500 pt-1">Meta <b class="text-slate-800" x-text="umbralTxt(ind)"></b></div>
+                  <div><b>Semáforo:</b> verde = alcanza el nivel óptimo, amarillo = alerta, rojo = crítico (requiere análisis y plan de mejora).</div></div>
+                <div class="text-xs text-slate-500 pt-1">Nivel óptimo <b class="text-slate-800" x-text="umbralTxt(ind)"></b></div>
                 <div class="text-xs text-slate-500">Fórmula <span class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-700" x-text="formulaLegible(ind)"></span></div>
               </div>
             </div>
 
-            <div x-show="periodoSinCrear && !periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">📅 El <b>período fiscal</b> de este mes todavía no ha sido creado. Pida al administrador que lo cree en «Período y presupuesto».</div>
-            <div x-show="sinPresupuesto && !periodoSinCrear && !periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">💰 Este período <b>aún no tiene presupuesto</b>, así que no hay con qué comparar el dato real. Pida al administrador o al gerente que lo ingrese en «Período y presupuesto».</div>
+            <div x-show="periodoSinCrear && !periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">📅 El <b>período fiscal</b> de este mes todavía no ha sido creado. Pida al administrador que lo cree en «Período y metas».</div>
+            <div x-show="sinMeta && !periodoSinCrear && !periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">💰 Este período <b>aún no tiene meta</b>, así que no hay con qué comparar el dato real. Pida al administrador o al gerente que la ingrese en «Período y metas».</div>
             <div x-show="periodoCerrado" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">🔒 Este período pertenece a un <b>ejercicio fiscal cerrado</b>: solo lectura. El administrador puede reabrirlo si hay que corregir algo.</div>
             <div x-show="medActual && medActual.estado!=='observado'" class="card px-4 py-3 text-sm" :class="medActual && medActual.estado==='aprobado' ? 'border-green-300 bg-green-50 text-green-900' : 'border-brand/30 bg-brand-light text-cobalt'">
               <b x-text="medActual && medActual.estado==='aprobado' ? 'Carga aprobada.' : 'Carga enviada, en revisión.'"></b>
@@ -97,24 +97,24 @@
                 </div>
                 <div x-show="calc && calc.ok" class="text-right">
                   <span class="chip !px-4 !py-2 !text-sm !text-white !border-transparent" :class="semBg(calc && calc.semaforo)" x-text="semTxt(calc && calc.semaforo)"></span>
-                  <div class="mt-1 text-xs text-slate-500" x-text="'Meta ' + umbralTxt(ind)"></div>
+                  <div class="mt-1 text-xs text-slate-500" x-text="'Nivel óptimo ' + umbralTxt(ind)"></div>
                 </div>
               </div>
             </div>
 
-            <div class="card" x-show="presupuestoSel !== null" x-transition data-tour="carga-presupuesto">
+            <div class="card" x-show="metaSel !== null" x-transition data-tour="carga-meta">
               <div class="card-b grid grid-cols-3 gap-3 text-center">
-                <div><div class="eyebrow">Presupuestado</div><div class="mt-1 text-xl font-extrabold sm:text-2xl" x-text="presupuestoSel !== null ? fmt(presupuestoSel, ind.unidad, ind.decimales) : ''"></div></div>
+                <div><div class="eyebrow">Meta</div><div class="mt-1 text-xl font-extrabold sm:text-2xl" x-text="metaSel !== null ? fmt(metaSel, ind.unidad, ind.decimales) : ''"></div></div>
                 <div><div class="eyebrow">Real</div><div class="mt-1 text-xl font-extrabold sm:text-2xl" x-text="calc && calc.ok ? fmt(calc.resultado, ind.unidad, ind.decimales) : '—'"></div></div>
                 <div><div class="eyebrow">Diferencia</div>
-                  <div class="mt-1 text-xl font-extrabold sm:text-2xl" :class="calc && calc.vs_presupuesto ? (calc.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700') : ''" x-text="calc && calc.vs_presupuesto ? (calc.vs_presupuesto.desviacion > 0 ? '+' : '') + nf(calc.vs_presupuesto.desviacion, ind.decimales) : '—'"></div>
-                  <div class="text-xs font-semibold text-slate-500" x-show="calc && calc.vs_presupuesto && calc.vs_presupuesto.porcentaje !== null" x-text="calc && calc.vs_presupuesto ? nf(calc.vs_presupuesto.porcentaje, 1) + '% de lo presupuestado · ' + (calc.vs_presupuesto.cumple ? 'cumple' : 'no alcanza') : ''"></div></div>
+                  <div class="mt-1 text-xl font-extrabold sm:text-2xl" :class="calc && calc.vs_meta ? (calc.vs_meta.cumple ? 'text-green-700' : 'text-red-700') : ''" x-text="calc && calc.vs_meta ? (calc.vs_meta.desviacion > 0 ? '+' : '') + nf(calc.vs_meta.desviacion, ind.decimales) : '—'"></div>
+                  <div class="text-xs font-semibold text-slate-500" x-show="calc && calc.vs_meta && calc.vs_meta.porcentaje !== null" x-text="calc && calc.vs_meta ? nf(calc.vs_meta.porcentaje, 1) + '% de la meta · ' + (calc.vs_meta.cumple ? 'cumple' : 'no alcanza') : ''"></div></div>
               </div>
             </div>
 
             <div x-show="calc && calc.ok && calc.requiere_analisis" x-transition class="card border-amber-300 bg-amber-50">
               <div class="card-b space-y-4">
-                <div class="text-sm font-semibold text-amber-900">Indicador fuera de meta: el análisis y el plan de mejora son obligatorios (ISO 9001:2015).</div>
+                <div class="text-sm font-semibold text-amber-900">Indicador fuera del nivel óptimo: el análisis y el plan de mejora son obligatorios (ISO 9001:2015).</div>
                 <div><label class="lbl">Resultados del análisis <span class="text-red-600">*</span></label><textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.analisis" placeholder="¿Qué causó la desviación?"></textarea></div>
                 <div><label class="lbl">Correcciones / plan de mejora <span class="text-red-600">*</span></label><textarea class="inp" rows="3" :disabled="bloqueado" x-model="f.plan_mejora" placeholder="Acciones, responsable y fecha compromiso"></textarea></div>
                 <div class="text-xs text-amber-800" x-show="!bloqueado && !analisisOk()">Mínimo 10 caracteres en cada campo.</div>

@@ -1,5 +1,5 @@
 ====================================================================================================
-SGC • TRIPOLIVEN  -  MANUAL DE USO COMPLETO
+SPE TPV  -  MANUAL DE USO COMPLETO
 Sistema de Gestión de la Calidad: indicadores de gestión bajo ISO 9001:2015
 ====================================================================================================
 
@@ -202,8 +202,8 @@ Esta sección es para quien instala el sistema (responsable técnico o de TI).
          SIGT_TRUST_PROXY=1             Si hay proxy o balanceador delante (para ver la IP real).
          SIGT_EJERCICIO_INICIO          (opcional) mes de inicio del año fiscal para una base nueva.
     3) Despliegue con Docker:
-           docker build -t sgc-tripoliven .
-           docker run -p 8000:8000 --env-file .env sgc-tripoliven
+           docker build -t spe-tpv .
+           docker run -p 8000:8000 --env-file .env spe-tpv
        Healthcheck: GET /healthz.  Sirva SIEMPRE detrás de HTTPS.
     4) Migraciones de base de datos (Alembic): el esquema solo cambia con migraciones versionadas
        (carpeta migrations/versions). Antes de arrancar una versión nueva ejecute:

@@ -1,4 +1,4 @@
-/* Formatos de presentación: números, fechas, semáforos, estados y textos de metas y fórmulas. */
+/* Formatos de presentación: números, fechas, semáforos, estados y textos de umbrales y fórmulas. */
 SIGT.modulos.formatos = () => ({
 
 
@@ -17,7 +17,7 @@ SIGT.modulos.formatos = () => ({
     estadoSufijo(p) { return p.medicion ? ' — ' + this.estadoTxt(p.medicion.estado) : ''; },
     umbralTxt(i) {
       const [a, b] = i.sentido === 'mayor' ? ['≥', '<'] : ['≤', '>'];
-      return `${a} ${this.fmt(i.meta, i.unidad, i.decimales)} · crítico ${b} ${this.fmt(i.limite, i.unidad, i.decimales)}`;
+      return `${a} ${this.fmt(i.nivel_optimo, i.unidad, i.decimales)} · crítico ${b} ${this.fmt(i.limite, i.unidad, i.decimales)}`;
     },
     formulaLegible(i) {
       let t = i.formula;

@@ -13,8 +13,8 @@ from .. import serializadores as ser
 from ..deps import AnioConsulta, get_db, usuario_actual
 from . import ejercicios as r_ejercicios
 from . import indicadores as r_indicadores
+from . import metas as r_metas
 from . import organizacion as r_org
-from . import presupuestos as r_presupuestos
 
 router = APIRouter(prefix="/api", tags=["sesión"])
 
@@ -44,5 +44,5 @@ def arranque(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: U
         datos["resumen"] = r_ejercicios.tablero(ejercicio=sel, db=db)["resumen"]   # lo que muestra la pantalla de inicio
         datos["catalogos"] = r_org.listar_catalogos(db=db)
     if u.rol == "admin":
-        datos["marcha"] = r_presupuestos.puesta_en_marcha(db=db)
+        datos["marcha"] = r_metas.puesta_en_marcha(db=db)
     return datos

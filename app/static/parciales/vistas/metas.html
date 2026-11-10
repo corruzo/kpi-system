@@ -1,10 +1,10 @@
-    <!-- ============ PERÍODO Y PRESUPUESTO ============ -->
-    <section data-vista="presupuesto" x-show="view==='presupuesto'" class="space-y-5">
+    <!-- ============ PERÍODO Y META ============ -->
+    <section data-vista="meta" x-show="view==='meta'" class="space-y-5">
       <div class="hero">
         <div class="flex items-start gap-4">
-          <span class="hero-ico"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="icono('presupuesto')"/></svg></span>
-          <div class="min-w-0"><p class="eyebrow !text-white/70">Pasos 3 y 4 de la puesta en marcha</p><h1 class="mt-1">Período y presupuesto</h1>
-            <p class="mt-2 max-w-xl text-sm sm:text-base">Cree el año fiscal y diga cuánto se espera lograr en cada indicador. Cada mes, el dato real que cargue el encargado de proceso se compara con este presupuesto.</p></div>
+          <span class="hero-ico"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="icono('meta')"/></svg></span>
+          <div class="min-w-0"><p class="eyebrow !text-white/70">Pasos 3 y 4 de la puesta en marcha</p><h1 class="mt-1">Período y metas</h1>
+            <p class="mt-2 max-w-xl text-sm sm:text-base">Cree el año fiscal y diga cuánto se espera lograr en cada indicador. Cada mes, el dato real que cargue el encargado de proceso se compara con esta meta.</p></div>
         </div>
         <div class="mt-5 flex flex-wrap gap-2" data-tour="pres-anios">
           <template x-for="e in presAnios" :key="e.anio">
@@ -19,7 +19,7 @@
         <div class="card-b space-y-4 text-center sm:py-10">
           <span class="tile-ico mx-auto !h-16 !w-16"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="icono('ejercicios')"/></svg></span>
           <h2 class="text-2xl font-extrabold">El período fiscal <span x-text="presDesc.etiqueta"></span> aún no existe</h2>
-          <p class="mx-auto max-w-lg text-sm text-slate-600">Va de <b x-text="fechaCorta(presDesc.desde)"></b> a <b x-text="fechaCorta(presDesc.hasta)"></b>. Mientras no lo cree, no se puede presupuestar ni cargar datos en ese año.</p>
+          <p class="mx-auto max-w-lg text-sm text-slate-600">Va de <b x-text="fechaCorta(presDesc.desde)"></b> a <b x-text="fechaCorta(presDesc.hasta)"></b>. Mientras no lo cree, no se pueden fijar metas ni cargar datos en ese año.</p>
           <div class="mx-auto max-w-md" x-show="user.rol==='admin'"><button class="btn btn-p btn-lg" :disabled="busy" @click="crearPeriodo(presAnio)"><span>Crear período fiscal <span x-text="presDesc.etiqueta"></span></span><span class="btn-flecha">→</span></button></div>
           <p class="text-sm font-semibold text-amber-700" x-show="user.rol!=='admin'">Solo el administrador puede crear períodos fiscales.</p>
         </div>
@@ -29,21 +29,21 @@
       <div class="space-y-4">
         <div class="card"><div class="card-b space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
-            <div><div class="text-3xl font-extrabold" x-text="pres.resumen.completos + ' de ' + pres.resumen.total"></div><div class="text-sm text-slate-500">indicadores con presupuesto completo</div></div>
+            <div><div class="text-3xl font-extrabold" x-text="pres.resumen.completos + ' de ' + pres.resumen.total"></div><div class="text-sm text-slate-500">indicadores con la meta completa</div></div>
             <div class="flex flex-wrap gap-2">
-              <select class="inp !min-h-[44px] !w-auto" x-model="presArea" @change="cargarPresupuesto()" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
-              <button class="btn btn-s btn-sm !min-h-[44px]" x-show="presEditable" :disabled="busy" @click="copiarPresupuesto()">Copiar del año anterior</button>
+              <select class="inp !min-h-[44px] !w-auto" x-model="presArea" @change="cargarMetas()" aria-label="Área"><option value="">Todas las áreas</option><template x-for="a in areas" :key="a.id"><option :value="a.id" x-text="a.nombre"></option></template></select>
+              <button class="btn btn-s btn-sm !min-h-[44px]" x-show="presEditable" :disabled="busy" @click="copiarMetas()">Copiar del año anterior</button>
             </div>
           </div>
           <div class="barra"><i :style="'width:' + presPct + '%'"></i></div>
           <div class="flex flex-wrap gap-2 text-sm">
             <template x-for="f in [['todos','Todos'],['pendientes','Faltan datos'],['completos','Completos']]" :key="f[0]"><button class="chip !px-4 !py-1.5" :class="presFiltro===f[0] ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-600'" @click="presFiltro=f[0]" x-text="f[1]"></button></template>
           </div>
-          <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900" x-show="presDesc.estado==='cerrado'">🔒 Este ejercicio está cerrado: el presupuesto es de solo lectura.</p>
-          <p class="rounded-2xl bg-brand-light px-4 py-3 text-sm text-cobalt" x-show="presEditable && pres.resumen.pendientes">Toque un indicador, escriba lo presupuestado para cada período (o un valor anual y «Aplicar») y pulse <b>Guardar presupuesto</b>. Un período con dato real ya cargado queda bloqueado.</p>
+          <p class="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900" x-show="presDesc.estado==='cerrado'">🔒 Este ejercicio está cerrado: la meta es de solo lectura.</p>
+          <p class="rounded-2xl bg-brand-light px-4 py-3 text-sm text-cobalt" x-show="presEditable && pres.resumen.pendientes">Toque un indicador, escriba la meta para cada período (o un valor anual y «Aplicar») y pulse <b>Guardar meta</b>. Un período con dato real ya cargado queda bloqueado.</p>
         </div></div>
 
-        <p class="card p-8 text-center text-sm text-slate-500" x-show="!pres.indicadores.length">No hay indicadores para presupuestar. Cree las fichas en la sección <b>Indicadores</b> (los eventuales no se presupuestan).</p>
+        <p class="card p-8 text-center text-sm text-slate-500" x-show="!pres.indicadores.length">No hay indicadores para fijar metas. Cree las fichas en la sección <b>Indicadores</b> (los eventuales no llevan meta).</p>
 
         <div class="space-y-3">
           <template x-for="f in presLista" :key="f.indicador_id">
@@ -69,7 +69,7 @@
                       <input class="inp !text-lg !font-bold" type="number" step="any" inputmode="decimal" :disabled="!presEditable || p.bloqueado" x-model="ed[k(f,p)]" placeholder="—"></div>
                   </template>
                 </div>
-                <button class="btn btn-p btn-lg" x-show="presEditable" :disabled="busy || !hayCambios(f)" @click="guardarPres(f)"><span>Guardar presupuesto</span><span class="btn-flecha">→</span></button>
+                <button class="btn btn-p btn-lg" x-show="presEditable" :disabled="busy || !hayCambios(f)" @click="guardarPres(f)"><span>Guardar meta</span><span class="btn-flecha">→</span></button>
               </div>
             </div>
           </template>

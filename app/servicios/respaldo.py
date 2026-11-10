@@ -104,7 +104,7 @@ def crear(db: Session, frase: str) -> tuple[bytes, dict]:
 def abrir(archivo: bytes, frase: str) -> dict:
     """Descifra y valida un respaldo. Lanza Invalido si la frase es incorrecta o el archivo está dañado o alterado."""
     if not archivo.startswith(MAGIA) or len(archivo) < len(MAGIA) + 17:
-        raise Invalido("No es un respaldo de SGC • TRIPOLIVEN.")
+        raise Invalido("No es un respaldo de SPE TPV.")
     sal = archivo[len(MAGIA):len(MAGIA) + 16]
     try:
         contenido = json.loads(gzip.decompress(_clave(frase, sal).decrypt(archivo[len(MAGIA) + 16:])))

@@ -122,9 +122,9 @@ class IndicadorIn(BaseModel):
     resp_medicion: str = Field(default="", max_length=150)
     resp_registro: str = Field(default="", max_length=150)
     resp_analisis: str = Field(default="", max_length=150)
-    meta: Numero
+    nivel_optimo: Numero
     limite: Numero
-    meta_tope: Numero | None = None
+    nivel_optimo_tope: Numero | None = None
     limite_tope: Numero | None = None
     activo: bool = True
 
@@ -150,9 +150,9 @@ class ProbarIn(BaseModel):
     valores: dict[str, Numero] = Field(max_length=MAX_CLAVES)
     constantes: dict[str, Numero] = Field(default_factory=dict, max_length=MAX_CLAVES)
     decimales: int = Field(default=2, ge=0, le=6)
-    meta: Numero
+    nivel_optimo: Numero
     limite: Numero
-    meta_tope: Numero | None = None
+    nivel_optimo_tope: Numero | None = None
     limite_tope: Numero | None = None
     sentido: Literal["mayor", "menor"]
 
@@ -161,7 +161,7 @@ class ProbarIn(BaseModel):
 class CalcIn(BaseModel):
     indicador_id: int = Field(ge=1, le=ID_MAX)
     valores: dict[str, Numero | None] = Field(max_length=MAX_CLAVES)
-    periodo: str | None = None      # opcional: con él el cálculo en vivo incluye la comparación con el presupuesto
+    periodo: str | None = None      # opcional: con él el cálculo en vivo incluye la comparación con la meta
 
 
 class CargaIn(CalcIn):
@@ -185,15 +185,15 @@ class EjercicioIn(BaseModel):
     nota: str = Field(default="", max_length=2000)
 
 
-# ---------------------------------------------------------------- presupuesto
-class PresupuestoIn(BaseModel):
+# ---------------------------------------------------------------- meta
+class MetaIn(BaseModel):
     """O bien `valores` (período → valor), o bien `anual` con su `reparto` (igual | repetir)."""
     valores: dict[str, Numero] | None = Field(default=None, max_length=24)   # un ejercicio tiene a lo sumo 12 períodos
     anual: Numero | None = None
     reparto: Literal["igual", "repetir"] = "igual"
 
 
-class CopiaPresupuestoIn(BaseModel):
+class CopiaMetaIn(BaseModel):
     desde: int = Field(ge=2000, le=2100)
 
 

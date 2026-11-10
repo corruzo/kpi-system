@@ -9,7 +9,7 @@ SIGT.modulos.guia = () => ({
 
     pasosBase() {
       const r = this.user.rol, nav = (id, t, d) => ({ sel: `[data-tour="nav-${id}"]`, alt: '[data-tour="nav-_mas"]', t, d });
-      const ini = { t: '¡Bienvenido al SGC • TRIPOLIVEN!', d: 'Este sistema reúne los indicadores de gestión de Tripoliven: cargar datos, aprobarlos, analizarlos y generar reportes. Le mostramos en un minuto para qué sirve cada parte. Puede omitir la guía cuando quiera y repetirla desde el menú de su perfil.' };
+      const ini = { t: '¡Bienvenido a SPE TPV!', d: 'Este sistema reúne los indicadores de gestión de Tripoliven: cargar datos, aprobarlos, analizarlos y generar reportes. Le mostramos en un minuto para qué sirve cada parte. Puede omitir la guía cuando quiera y repetirla desde el menú de su perfil.' };
       const ej = { sel: '[data-tour="ej-selector"]', t: 'Ejercicio fiscal', d: 'Todo el sistema se organiza por ejercicio fiscal (por ejemplo 2025-2026). Aquí elige cuál ver: así los registros de años distintos no se mezclan. Los ejercicios cerrados quedan de solo lectura.' };
       const menu = { sel: '[data-tour="menu-usuario"]', t: 'Su perfil', d: 'Desde aquí cambia su contraseña, vuelve a ver esta guía o cierra la sesión.' };
       const info = { sel: '.info', t: 'Botones «i»', d: 'Cada vez que vea un botón con una «i», tóquelo: explica el campo o el concepto en lenguaje sencillo.' };
@@ -23,7 +23,7 @@ SIGT.modulos.guia = () => ({
         nav('reportes', 'Reportes', 'Descargue en Excel las cargas y las fichas técnicas de su área.'), ej, info, menu, fin];
       if (r === 'gerente') return [ini,
         { sel: '[data-tour="panel-rangos"]', t: 'Rango de fechas', d: 'Elija el período que quiere analizar: este mes, últimos meses, el ejercicio o hasta 5 años. Abajo puede ajustar las fechas exactas y ver los datos por mes, bimestre, trimestre, cuatrimestre, semestre o año.' },
-        { sel: '[data-tour="panel-resumen"]', t: 'Indicadores clave', d: 'Cumplimiento, cumplimiento del presupuesto, carga al día, puntualidad y tiempos de aprobación del rango, con la variación frente al rango anterior de igual duración.' },
+        { sel: '[data-tour="panel-resumen"]', t: 'Indicadores clave', d: 'Cumplimiento, cumplimiento de la meta, carga al día, puntualidad y tiempos de aprobación del rango, con la variación frente al rango anterior de igual duración.' },
         { sel: '[data-tour="panel-atencion"]', t: 'Requiere atención', d: 'Indicadores críticos, en alerta y empeorando, o con cargas pendientes. Toque uno para abrir su ficha.' },
         { sel: '[data-tour="panel-mapa"]', t: 'Mapa de calor', d: 'Cada fila es un indicador y cada columna un mes del ejercicio: de un vistazo ve dónde están los problemas.' },
         nav('inicio', 'Inicio', 'Su punto de partida: muestra lo que tiene pendiente y da acceso directo a cada sección.'),
@@ -31,14 +31,14 @@ SIGT.modulos.guia = () => ({
         nav('bandeja', 'Bandeja de aprobación', 'Las cargas enviadas por los encargados de proceso esperan aquí su aprobación o devolución con observaciones.'),
         nav('historial', 'Todas las cargas', 'Historial completo con filtros. Desde aquí puede agregar notas de auditoría o reabrir una carga aprobada con un error.'),
         nav('reportes', 'Reportes', 'Informe general en Excel y fichas técnicas en el formato del SGC.'),
-        nav('presupuesto', 'Período y presupuesto', 'Consulte y ajuste el presupuesto de cada indicador por período.'),
+        nav('meta', 'Período y metas', 'Consulte y ajuste la meta de cada indicador por período.'),
         nav('ejercicios', 'Cierre de años', 'Consulte el estado de cada ejercicio y sus resultados finales.'), ej, info, menu, fin];
       return [ini,
-        { sel: '[data-tour="marcha"]', t: 'Los 5 pasos para arrancar', d: 'Esta es la guía del administrador: 1) organización y equipo, 2) indicadores, 3) período fiscal, 4) presupuesto, 5) carga mensual. Cada paso muestra si ya está listo y el botón para hacerlo. Siga el orden.' },
+        { sel: '[data-tour="marcha"]', t: 'Los 5 pasos para arrancar', d: 'Esta es la guía del administrador: 1) organización y equipo, 2) indicadores, 3) período fiscal, 4) meta, 5) carga mensual. Cada paso muestra si ya está listo y el botón para hacerlo. Siga el orden.' },
         nav('org', 'Organización y equipo', 'Cree las áreas de la empresa y los usuarios: un encargado de proceso por área (carga datos) y un gerente / auditor (aprueba). Aquí también están los parámetros y el logo.'),
         nav('fichas', 'Indicadores', 'Defina qué se mide en cada área: fórmula, frecuencia y semáforo.'),
-        nav('presupuesto', 'Período y presupuesto', 'Cree el período fiscal del año y presupueste cada indicador, por período o con un valor anual repartido.'),
-        nav('carga', 'Cargar datos', 'Cada mes los encargados cargan su dato real; el sistema lo compara con lo presupuestado. Como administrador también puede cargar por ellos.'),
+        nav('meta', 'Período y metas', 'Cree el período fiscal del año y fije la meta de cada indicador, por período o con un valor anual repartido.'),
+        nav('carga', 'Cargar datos', 'Cada mes los encargados cargan su dato real; el sistema lo compara con la meta. Como administrador también puede cargar por ellos.'),
         nav('bandeja', 'Bandeja de aprobación', 'Cargas pendientes de revisión.'),
         nav('historial', 'Todas las cargas', 'Historial con filtros, notas de auditoría y reapertura de cargas.'),
         nav('panel', 'Panel de control', 'Todo el sistema en una pantalla: indicadores clave, gráficos, rankings y mapa de calor, por rango de fechas y por mes, trimestre, semestre o año.'),

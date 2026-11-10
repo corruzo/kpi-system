@@ -105,7 +105,7 @@
   .dock-item { @apply relative z-10 flex min-h-[58px] flex-col items-center justify-center gap-0.5 rounded-[1.35rem] px-1 text-[11px] font-bold text-slate-500 transition-colors; }
   .dock-on { @apply text-white; }
 
-  /* ---- barra de progreso y campos de presupuesto */
+  /* ---- barra de progreso y campos de meta */
   .barra { @apply h-3 overflow-hidden rounded-full bg-slate-100; }
   .barra > i { @apply block h-full rounded-full bg-gradient-to-r from-brand to-cyan transition-[width] duration-700 ease-out; }
 }

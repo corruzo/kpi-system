@@ -2,10 +2,10 @@
 
 Un solo cálculo (`construir`) devuelve, para un rango de meses y filtros (área, frecuencia, seguimiento, indicador…):
   · indicadores clave y su comparación con el rango anterior de igual duración;
-  · serie por período (mes, bimestre, trimestre, cuatrimestre, semestre o año fiscal): semáforos, cumplimiento del presupuesto,
+  · serie por período (mes, bimestre, trimestre, cuatrimestre, semestre o año fiscal): semáforos, cumplimiento de la meta,
     estado de las cargas y carga al día;
   · estado actual (última medición de cada indicador), comparativo por área / gerencia / seguimiento / frecuencia / proceso;
-  · detalle por indicador (mapa de calor, tendencia, desviación contra presupuesto), responsables (puntualidad) y atención requerida.
+  · detalle por indicador (mapa de calor, tendencia, desviación contra meta), responsables (puntualidad) y atención requerida.
 Los períodos de los indicadores (mensual, trimestral…) se asignan al período de la vista según el mes en que CIERRAN.
 """
 import re
@@ -15,7 +15,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..dominio import calendario
-from ..dominio.presupuesto import comparar
+from ..dominio.meta import comparar
 from ..errores import Invalido
 from ..models import Indicador, Medicion
 
@@ -101,10 +101,10 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
     cubetas: dict[str, dict] = {}
     for m in meses:
         codigo, etiqueta = _cubeta(agrupar, m)
-        cubetas.setdefault(codigo, {"codigo": codigo, "etiqueta": etiqueta, "verde": 0, "amarillo": 0, "rojo": 0, "con_ppto": 0,
+        cubetas.setdefault(codigo, {"codigo": codigo, "etiqueta": etiqueta, "verde": 0, "amarillo": 0, "rojo": 0, "con_meta": 0,
                                     "cumplen": 0, "aprobadas": 0, "en_revision": 0, "devueltas": 0, "esperados": 0, "cubiertos": 0})
 
-    # --- mediciones del rango (todas las cargas; las «válidas» alimentan semáforos y presupuesto)
+    # --- mediciones del rango (todas las cargas; las «válidas» alimentan semáforos y meta)
     anio_ini, anio_fin = calendario.ejercicio_de_fecha(ini), calendario.ejercicio_de_fecha(fin)
     meds = []
     if inds:
@@ -122,7 +122,7 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
 
     def ficha(ind: Indicador) -> dict:
         return datos.setdefault(ind.id, {
-            "ind": ind, "validas": [], "verde": 0, "amarillo": 0, "rojo": 0, "con_ppto": 0, "cumplen": 0, "porcentajes": [],
+            "ind": ind, "validas": [], "verde": 0, "amarillo": 0, "rojo": 0, "con_meta": 0, "cumplen": 0, "porcentajes": [],
             "devueltas": 0, "esperados": 0, "cubiertos": 0, "celdas": {}, "serie": []})
 
     responsables: dict[int, dict] = {}
@@ -148,16 +148,16 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
         d["validas"].append(m)
         for contador in (cub, d):
             contador[m.semaforo] += 1
-        c = comparar(m.resultado, m.presupuesto, m.sentido)
+        c = comparar(m.resultado, m.meta, m.sentido)
         if c:
             for contador in (cub, d):
-                contador["con_ppto"] += 1
+                contador["con_meta"] += 1
                 contador["cumplen"] += c["cumple"]
             if c["porcentaje"] is not None:
                 d["porcentajes"].append(c["porcentaje"])
         d["celdas"][codigo] = {"semaforo": m.semaforo, "resultado": m.resultado, "etiqueta": calendario.etiqueta(ind.frecuencia, m.periodo)}
         d["serie"].append({"periodo": m.periodo, "etiqueta": calendario.etiqueta(ind.frecuencia, m.periodo), "resultado": m.resultado,
-                           "presupuesto": m.presupuesto, "meta": m.meta, "limite": m.limite, "semaforo": m.semaforo})
+                           "meta": m.meta, "nivel_optimo": m.nivel_optimo, "limite": m.limite, "semaforo": m.semaforo})
     # --- carga al día: períodos ya cerrados que debieron cargarse
     for ind in inds.values():
         if ind.frecuencia == "eventual":
@@ -195,11 +195,11 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
             "id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.area.nombre, "unidad": ind.unidad,
             "decimales": ind.precision, "frecuencia": ind.frecuencia, "sentido": ind.sentido, "gerencia": ind.gerencia or "",
             "n": total, "verde": d["verde"], "amarillo": d["amarillo"], "rojo": d["rojo"], "pct_verde": _pct(d["verde"], total),
-            "con_ppto": d["con_ppto"], "cumplen_ppto": d["cumplen"], "pct_ppto": _pct(d["cumplen"], d["con_ppto"]),
-            "real_vs_ppto": _prom(d["porcentajes"]), "faltantes": d["esperados"] - d["cubiertos"], "esperados": d["esperados"],
+            "con_meta": d["con_meta"], "cumplen_meta": d["cumplen"], "pct_meta": _pct(d["cumplen"], d["con_meta"]),
+            "real_vs_meta": _prom(d["porcentajes"]), "faltantes": d["esperados"] - d["cubiertos"], "esperados": d["esperados"],
             "devueltas": d["devueltas"], "tendencia": tendencia,
             "ultimo": ({"etiqueta": calendario.etiqueta(ind.frecuencia, ultimo.periodo), "resultado": ultimo.resultado,
-                        "semaforo": ultimo.semaforo, "presupuesto": ultimo.presupuesto} if ultimo else None),
+                        "semaforo": ultimo.semaforo, "meta": ultimo.meta} if ultimo else None),
             "celdas": d["celdas"], "serie": d["serie"]})
 
     resumen_actual = {"verde": 0, "amarillo": 0, "rojo": 0, "sin_datos": 0}
@@ -208,7 +208,7 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
 
     def sumar(campo):
         return sum(c[campo] for c in cubetas.values())
-    total_val, con_ppto = sumar("verde") + sumar("amarillo") + sumar("rojo"), sumar("con_ppto")
+    total_val, con_meta = sumar("verde") + sumar("amarillo") + sumar("rojo"), sumar("con_meta")
     esperados, cubiertos = sumar("esperados"), sumar("cubiertos")
     cargas = sumar("aprobadas") + sumar("en_revision") + sumar("devueltas")
     a_tiempo = sum(r["a_tiempo"] for r in responsables.values())
@@ -217,8 +217,8 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
     kpis = {
         "indicadores": len(lista), "mediciones": total_val, "cargas": cargas,
         "verde": sumar("verde"), "amarillo": sumar("amarillo"), "rojo": sumar("rojo"),
-        "cumplimiento": _pct(sumar("verde"), total_val), "con_ppto": con_ppto, "cumplen_ppto": sumar("cumplen"),
-        "cumplimiento_ppto": _pct(sumar("cumplen"), con_ppto), "real_vs_ppto": _prom(porcentajes),
+        "cumplimiento": _pct(sumar("verde"), total_val), "con_meta": con_meta, "cumplen_meta": sumar("cumplen"),
+        "cumplimiento_meta": _pct(sumar("cumplen"), con_meta), "real_vs_meta": _prom(porcentajes),
         "esperados": esperados, "faltantes": esperados - cubiertos,
         "carga_al_dia": _pct(cubiertos, esperados) if esperados else None,
         "a_tiempo": _pct(a_tiempo, cargas_propias),
@@ -232,23 +232,23 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
     serie = []
     for c in cubetas.values():
         total = c["verde"] + c["amarillo"] + c["rojo"]
-        serie.append({**c, "total": total, "cumplimiento": _pct(c["verde"], total), "cumplimiento_ppto": _pct(c["cumplen"], c["con_ppto"]),
+        serie.append({**c, "total": total, "cumplimiento": _pct(c["verde"], total), "cumplimiento_meta": _pct(c["cumplen"], c["con_meta"]),
                       "faltantes": c["esperados"] - c["cubiertos"], "carga_al_dia": _pct(c["cubiertos"], c["esperados"])})
 
     # --- comparativo por dimensión
     grupos: dict[str, dict] = {}
     for i in lista:
         g = grupos.setdefault(DIMENSIONES[dimension](datos[i["id"]]["ind"]),
-                              {"nombre": "", "indicadores": 0, "verde": 0, "amarillo": 0, "rojo": 0, "con_ppto": 0, "cumplen": 0, "faltantes": 0})
+                              {"nombre": "", "indicadores": 0, "verde": 0, "amarillo": 0, "rojo": 0, "con_meta": 0, "cumplen": 0, "faltantes": 0})
         g["indicadores"] += 1
-        for k, kk in (("verde", "verde"), ("amarillo", "amarillo"), ("rojo", "rojo"), ("con_ppto", "con_ppto"),
-                      ("cumplen", "cumplen_ppto"), ("faltantes", "faltantes")):
+        for k, kk in (("verde", "verde"), ("amarillo", "amarillo"), ("rojo", "rojo"), ("con_meta", "con_meta"),
+                      ("cumplen", "cumplen_meta"), ("faltantes", "faltantes")):
             g[k] += i[kk]
     por_dimension = []
     for nombre, g in sorted(grupos.items()):
         total = g["verde"] + g["amarillo"] + g["rojo"]
         por_dimension.append({**g, "nombre": nombre, "total": total, "cumplimiento": _pct(g["verde"], total),
-                              "cumplimiento_ppto": _pct(g["cumplen"], g["con_ppto"])})
+                              "cumplimiento_meta": _pct(g["cumplen"], g["con_meta"])})
 
     # --- atención requerida
     atencion = []

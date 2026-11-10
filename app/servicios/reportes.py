@@ -8,7 +8,7 @@ from .. import excel
 from ..dominio import calendario
 from ..errores import Invalido, NoEncontrado
 from ..excel import comun, sello
-from ..models import Area, Bitacora, Indicador, Medicion, Presupuesto, Usuario
+from ..models import Area, Bitacora, Indicador, Medicion, Meta, Usuario
 from ..security import firmar_reporte
 from . import acceso, auditoria, bitacora, indicadores, parametros, zip_seguro
 
@@ -35,7 +35,7 @@ def _entregar(db: Session, u: Usuario, libro, tipo: str, prefijo: str, detalle: 
 
 
 def verificar(db: Session, contenido: bytes) -> dict:
-    """Comprueba que un Excel descargado del SGC • TRIPOLIVEN no fue modificado: firma del sistema, huella del contenido y
+    """Comprueba que un Excel descargado de SPE TPV no fue modificado: firma del sistema, huella del contenido y
     constancia de su emisión en la bitácora."""
     if len(contenido) > MAX_BYTES_VERIFICAR:
         raise Invalido("El archivo supera 10 MB.")
@@ -45,7 +45,7 @@ def verificar(db: Session, contenido: bytes) -> dict:
         raise Invalido(str(e)) from None
     c = sello.leer_control(contenido)
     if not c or not c["numero"]:
-        raise Invalido("El archivo no es un reporte del SGC • TRIPOLIVEN (no tiene la hoja «Control»).")
+        raise Invalido("El archivo no es un reporte de SPE TPV (no tiene la hoja «Control»).")
     firma_valida = c["firma"] == firmar_reporte(f"{c['numero']}|{c['huella_declarada']}")
     contenido_intacto = c["huella_real"] == c["huella_declarada"]
     emitido = any((b.detalle or {}).get("numero") == c["numero"]
@@ -59,7 +59,7 @@ def verificar(db: Session, contenido: bytes) -> dict:
 
 
 def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, estado: str | None) -> tuple[bytes, str]:
-    """Real contra presupuesto. El encargado de proceso solo obtiene sus indicadores (ver `acceso`)."""
+    """Real contra meta. El encargado de proceso solo obtiene sus indicadores (ver `acceso`)."""
     q_ind = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
     q_med = acceso.restringir(select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo), u)
     filtros = []
@@ -75,12 +75,12 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
     inds, meds = db.scalars(q_ind).all(), db.scalars(q_med).all()
     if anio:
         meds = [m for m in meds if calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
-    q_pres = acceso.restringir(select(Presupuesto).join(Indicador, Presupuesto.indicador_id == Indicador.id), u)
+    q_pres = acceso.restringir(select(Meta).join(Indicador, Meta.indicador_id == Indicador.id), u)
     if area_id:
         q_pres = q_pres.where(Indicador.area_id == area_id)
     if anio:
-        q_pres = q_pres.where(Presupuesto.ejercicio == int(anio))
-    presupuestos = {(p.indicador_id, p.periodo): p.valor for p in db.scalars(q_pres)}
+        q_pres = q_pres.where(Meta.ejercicio == int(anio))
+    metas = {(p.indicador_id, p.periodo): p.valor for p in db.scalars(q_pres)}
     anios = {int(anio)} if anio else ({m.ejercicio or calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) for m in meds}
                                       | {p.ejercicio for p in db.scalars(q_pres)})
     q_apr = acceso.restringir(select(Medicion.id).join(Indicador).where(Medicion.estado == "enviado"), u)
@@ -88,9 +88,9 @@ def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, esta
         q_apr = q_apr.where(Indicador.area_id == area_id)
     por_aprobar = len(db.scalars(q_apr).all())
     empresa = parametros.datos_para_reportes(db)["empresa"]
-    libro = excel.general.reporte_general(empresa, meds, inds, presupuestos, sorted(anios), u.nombre, " · ".join(filtros),
+    libro = excel.general.reporte_general(empresa, meds, inds, metas, sorted(anios), u.nombre, " · ".join(filtros),
                                           por_aprobar, solo_cargadas=bool(estado))
-    return _entregar(db, u, libro, "General", "real_vs_presupuesto", {"filtros": filtros, "filas": len(meds)})
+    return _entregar(db, u, libro, "General", "real_vs_meta", {"filtros": filtros, "filas": len(meds)})
 
 
 def fichas(db: Session, u: Usuario, ejercicio: int | None, area_id: int | None, indicador_id: int | None) -> tuple[bytes, str]:

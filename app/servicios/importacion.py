@@ -74,7 +74,7 @@ def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind,
         ahora_ = ahora()
         db.add(Medicion(
             indicador_id=ind.id, periodo=med.periodo, valores=r["valores"], resultado=r["resultado"], semaforo=r["semaforo"],
-            meta=ind.meta, limite=ind.limite, sentido=ind.sentido, meta_tope=ind.meta_tope, limite_tope=ind.limite_tope,
+            nivel_optimo=ind.nivel_optimo, limite=ind.limite, sentido=ind.sentido, nivel_optimo_tope=ind.nivel_optimo_tope, limite_tope=ind.limite_tope,
             estado="aprobado", analisis=med.analisis.strip(), plan_mejora=med.plan_mejora.strip(), version=1,
             formula=ind.formula, constantes=ind.constantes or [], decimales=ind.precision, ejercicio=anio,
             cargado_por_id=admin.id, cargado_en=ahora_, revisado_por_id=admin.id, revisado_en=ahora_,

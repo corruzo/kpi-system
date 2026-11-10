@@ -1,4 +1,4 @@
-# SGC • TRIPOLIVEN · Sistema de Gestión de la Calidad — indicadores de gestión de Tripoliven, C.A.
+# SPE TPV · Sistema de Gestión de la Calidad — indicadores de gestión de Tripoliven, C.A.
 
 Aplicación web (FastAPI + SQLAlchemy + Alpine.js + Tailwind + Chart.js) para cargar, aprobar y analizar indicadores bajo ISO 9001:2015. Diseño por tarjetas, responsive, con navegación inferior en móvil.
 No incluye datos de ejemplo: se parte de una base vacía y el administrador crea áreas, usuarios e indicadores desde la propia interfaz.
@@ -13,7 +13,7 @@ No incluye datos de ejemplo: se parte de una base vacía y el administrador crea
    | `SIGT_SECRET` | 32+ caracteres aleatorios (firma de sesiones). |
    | `SIGT_ADMIN_USER` / `SIGT_ADMIN_PASSWORD` | Solo para crear el primer administrador con la base vacía (≥ 10 caracteres). Elimine la contraseña después. |
    | `SIGT_TRUST_PROXY=1` | Detrás de un proxy/balanceador (IP real para el límite de intentos). |
-3. Despliegue: `docker build -t sgc-tripoliven . && docker run -p 8000:8000 --env-file .env sgc-tripoliven` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
+3. Despliegue: `docker build -t spe-tpv . && docker run -p 8000:8000 --env-file .env spe-tpv` (o cualquier plataforma que ejecute el `Dockerfile`). Healthcheck: `GET /healthz`. Sirva siempre tras HTTPS.
 4. **Migraciones (Alembic).** El esquema solo cambia mediante migraciones versionadas (`migrations/versions/`). Antes de arrancar una versión nueva ejecute `alembic upgrade head` con las mismas variables de entorno (el `Dockerfile` ya lo hace al iniciar el contenedor; el *advisory lock* evita que dos réplicas migren a la vez). En producción la aplicación **solo verifica** que la base esté al día y, si no lo está, responde 503 indicando qué hacer; con `SIGT_AUTO_MIGRATE=1` migra ella sola al arrancar. La primera migración crea las tablas (o completa una base creada antes de Alembic sin perder datos), deja un *trigger* que impide UPDATE/DELETE en `bitacora` y activa RLS en las tablas (la API REST pública de Supabase queda sin acceso; la aplicación usa el rol `postgres`). Si el usuario de la base no tiene permisos para ello, ejecute `scripts/supabase_hardening.sql` en el SQL Editor. **Importante:** la migración `0003` cifra la contraseña de los reportes con `SIGT_SECRET`; ejecútela con la misma `SIGT_SECRET` que usa la aplicación. En Vercel (sin paso de despliegue) la aplicación migra sola al arrancar (con la `SIGT_SECRET` del proyecto); `SIGT_AUTO_MIGRATE=0` lo desactiva si prefiere migrar desde su equipo o CI.
 5. Ingrese como administrador y siga la guía de configuración inicial: **Organización** (áreas y usuarios) → **Indicadores** (fichas).
 
@@ -64,7 +64,7 @@ Los tests son independientes entre sí: cada uno crea sus propios datos (`tests/
 - **Gestión de indicadores:** `POST/PUT/DELETE /api/indicadores`, el código sugerido y la validación/prueba de fórmulas aceptan a `gerente` y `admin`; `GET /api/indicadores?gestion=true` incluye los archivados para ellos y `GET /api/usuarios/opciones` entrega los encargados disponibles. Importar fichas, usuarios y áreas siguen siendo solo del administrador.
 
 ## Reglas y seguridad
-- Semáforo «mayor es mejor»: verde ≥ meta, amarillo ≥ límite, rojo < límite; el inverso es simétrico.
+- Semáforo «mayor es mejor»: verde ≥ nivel óptimo, amarillo ≥ límite, rojo < límite; el inverso es simétrico.
 - Cada carga guarda meta/límite vigentes; editar la ficha no altera el histórico. Cargas enviadas/aprobadas no se modifican; si se devuelven, se reenvían (versión +1).
 - Eliminar un indicador con historial lo archiva; a un usuario sin actividad se le puede eliminar (botón «Eliminar») y con actividad solo se inhabilita (no puede ingresar y su historial se conserva); un área con indicadores o usuarios no se elimina.
 - Fórmulas con evaluador AST restringido (sin `eval`).
@@ -81,7 +81,7 @@ Acceso a todo el sistema: fichas, áreas y usuarios; carga de datos en cualquier
 Búsqueda y filtros (área, frecuencia, estado), duplicar, archivar/restaurar, eliminar (con cargas se archiva), claves de variables generadas automáticamente, reordenar variables, validación de fórmula con aviso de variables sin usar y probador con resultado y semáforo en vivo. Con cargas registradas no se puede cambiar la frecuencia ni las claves de las variables; los cambios de meta o fórmula quedan en la bitácora y no alteran el histórico.
 
 ## Panel de control
-`GET /api/tablero` (gerente / administrador; `app/servicios/tablero.py`) calcula, para un rango de meses (máx. 60) y una granularidad (`mes`, `bimestre`, `trimestre`, `cuatrimestre`, `semestre`, `anio`), con filtros por área, frecuencia, seguimiento, indicador y «solo aprobadas»: indicadores clave con variación contra el rango anterior de igual duración, serie por período (semáforos, presupuesto, estado de cargas, carga al día), estado actual, comparativo por dimensión, detalle por indicador (tendencia, mapa de calor, desviación del presupuesto), puntualidad por responsable y atención requerida. La pantalla (`js/panel.js`, `vistas/panel.html`) solo dibuja. No hay vista semanal: la frecuencia mínima de un indicador es mensual. Las cargas importadas desde Excel no cuentan en puntualidad ni en tiempos de aprobación.
+`GET /api/tablero` (gerente / administrador; `app/servicios/tablero.py`) calcula, para un rango de meses (máx. 60) y una granularidad (`mes`, `bimestre`, `trimestre`, `cuatrimestre`, `semestre`, `anio`), con filtros por área, frecuencia, seguimiento, indicador y «solo aprobadas»: indicadores clave con variación contra el rango anterior de igual duración, serie por período (semáforos, meta, estado de cargas, carga al día), estado actual, comparativo por dimensión, detalle por indicador (tendencia, mapa de calor, desviación de la meta), puntualidad por responsable y atención requerida. La pantalla (`js/panel.js`, `vistas/panel.html`) solo dibuja. No hay vista semanal: la frecuencia mínima de un indicador es mensual. Las cargas importadas desde Excel no cuentan en puntualidad ni en tiempos de aprobación.
 
 ## Rendimiento y seguridad (capacidad)
 - **Carga:** HTML, JS, CSS y JSON viajan con gzip; scripts y estilos llevan huella de contenido (`?v=`) y se guardan un año en el navegador (`plantilla.py`, `main.py`), de modo que una segunda visita casi no descarga nada; Chart.js (200 KB) solo se descarga al abrir una pantalla con gráficos; tras ingresar, los datos iniciales se piden en paralelo. Pantalla de arranque, barra de progreso, aviso sin conexión y panel «Reintentar» si el servidor no responde.
@@ -100,14 +100,14 @@ Administrador y gerente ven qué encargado de proceso tiene períodos pendientes
 ## Robustez y calidad del código
 - **Errores:** toda excepción termina en JSON claro (`app/main.py`): restricción única/llave foránea → 409, valor fuera de rango → 422, base caída → 503 y cualquier otra → 500 con un **código** que se registra en el log con su traza (el usuario nunca ve detalles técnicos). `/healthz` responde 503 si la base no contesta. La interfaz (`nucleo.api`) convierte falta de conexión, tiempo agotado y respuestas no válidas en avisos en español, y avisa de cualquier error no controlado.
 - **Entradas:** ids, años y paginación se validan con rangos (`api/deps.py`: `IdRuta`, `AnioRuta`, `Limite`…); textos y diccionarios tienen tope de tamaño (`schemas.py`). La búsqueda por usuario en la bitácora trata `%` y `_` como texto.
-- **Base de datos (migración `0005`):** índices en llaves foráneas y columnas de filtro/orden, y restricciones `CHECK` en rol, sentido, frecuencia, estados y semáforo (si una base trae datos que no las cumplen, esa restricción se omite con un aviso en vez de tumbar el despliegue). Las relaciones que siempre se muestran juntas se cargan con la misma consulta (`lazy="joined"`/`selectin`) para evitar el problema N+1; las copias de presupuesto se confirman en una sola transacción.
+- **Base de datos (migración `0005`):** índices en llaves foráneas y columnas de filtro/orden, y restricciones `CHECK` en rol, sentido, frecuencia, estados y semáforo (si una base trae datos que no las cumplen, esa restricción se omite con un aviso en vez de tumbar el despliegue). Las relaciones que siempre se muestran juntas se cargan con la misma consulta (`lazy="joined"`/`selectin`) para evitar el problema N+1; las copias de meta se confirman en una sola transacción.
 - **Fechas:** `calendario.hoy()` usa la hora de Venezuela (UTC−4); `date.today()` usaría la del servidor (UTC en Vercel) y correría períodos y cierres entre las 8 p. m. y la medianoche.
 - Las pruebas de `tests/api/test_robustez.py` fijan estos comportamientos.
 
 ## Reportes en Excel
 Todos los libros son **en blanco y negro, sin logo ni gráficos**; cada hoja empieza solo con el nombre de la empresa de Parámetros (`app/excel/comun.py` define el estilo).
-- `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento del presupuesto por área e indicador), *Real vs Presupuesto* (una fila por indicador y período: presupuestado, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el encargado de proceso solo obtiene su área.
-- `GET /api/reportes/fichas.xlsx`: una hoja por indicador en el formato de la ficha, con la sección «Real vs presupuesto».
+- `GET /api/reportes/general.xlsx` (botón en **Reportes**): hojas *Resumen* (cumplimiento de la meta por área e indicador), *Real vs Meta* (una fila por indicador y período: meta, real, diferencia, %, cumple), *Matriz <ejercicio>* (meses en columnas), *Plan de mejora* (ISO 9001: 9.1.3 y 10.2) e *Indicadores*. Diferencia, % y «cumple» son fórmulas vivas. Filtros por año, área y estado; el encargado de proceso solo obtiene su área.
+- `GET /api/reportes/fichas.xlsx`: una hoja por indicador en el formato de la ficha, con la sección «Real vs meta».
 - `GET /api/reportes/bitacora.xlsx` (solo administrador). Cada descarga queda en la bitácora.
 
 ## Un ejercicio fiscal a la vez
@@ -146,20 +146,20 @@ Al arrancar, `app/servicios/arranque.py` agrega automáticamente las columnas nu
 El sistema cubre todo lo que se llevaba en el libro «Ficha técnica de indicador de gestión» (formato NC-16-7):
 - **Ficha completa:** seguimiento (proceso / objetivo organizacional / proveedor), proceso y su objetivo, sigla, gerencia, departamento, líder de proceso, responsables de medición/registro/análisis, fuente, meta («96 Mín.», «3 Máx.»), semáforo con franjas Mín./Máx., fórmula documentada con su leyenda de símbolos y notas. Vista en pantalla (**Ver ficha**), imprimible y exportable.
 - **Ejercicio fiscal** configurable (p. ej. octubre–septiembre) y frecuencias **mensual, bimestral, trimestral, cuatrimestral, semestral, anual y eventual**; los períodos se alinean al ejercicio (trimestres que cierran en Dic./Mar./Jun./Sep.).
-- **Resultados por período** con cálculo automático, análisis de resultados y correcciones / oportunidades de mejora por período, y la tabla «Real vs presupuesto» de cada período.
+- **Resultados por período** con cálculo automático, análisis de resultados y correcciones / oportunidades de mejora por período, y la tabla «Real vs meta» de cada período.
 - **Listas de apoyo** (gerencias, procesos con su objetivo, objetivos organizacionales, cargos) administrables en Organización.
-- **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño (en blanco y negro) y la comparación real vs presupuesto.
+- **Excel por indicador en el formato de la ficha** (`Reportes → Fichas técnicas`): una hoja por indicador con el mismo diseño (en blanco y negro) y la comparación real vs meta.
 - **Importación de años anteriores** (`Importar`): lee el Excel de fichas (una hoja por indicador), traduce la fórmula, propone indicadores y mediciones, muestra una vista previa editable y los carga como aprobados, con registro en la bitácora. Si el ejercicio fiscal del archivo difiere del configurado, avisa antes de importar.
 
-## Flujo anual: período fiscal → presupuesto → carga mensual
+## Flujo anual: período fiscal → meta → carga mensual
 
 El sistema se usa siempre en este orden (la pantalla **Puesta en marcha** del administrador lo muestra con el estado de cada paso):
 
-1. **Organización y equipo** (áreas y usuarios) → 2. **Indicadores** → 3. **Crear el período fiscal** (`POST /api/ejercicios`) → 4. **Presupuestar** cada indicador (`PUT /api/ejercicios/{anio}/presupuesto/{indicador_id}`) → 5. **Carga mensual** del dato real, que se compara con el presupuesto del período.
+1. **Organización y equipo** (áreas y usuarios) → 2. **Indicadores** → 3. **Crear el período fiscal** (`POST /api/ejercicios`) → 4. **Fijar metas** cada indicador (`PUT /api/ejercicios/{anio}/metas/{indicador_id}`) → 5. **Carga mensual** del dato real, que se compara con la meta del período.
 
-- El presupuesto se guarda por período de la frecuencia del indicador (`presupuestos`); se ingresa período a período o con un valor anual repartido (`igual` / `repetir`, `app/dominio/presupuesto.py`). Los indicadores `eventual` no se presupuestan.
-- Sin período fiscal creado no se presupuesta ni se carga; sin presupuesto de un período no se carga ese período (un reenvío de una carga devuelta conserva el presupuesto con que nació).
-- Cada carga copia su presupuesto (`mediciones.presupuesto`) y la API devuelve `vs_presupuesto` (`desviacion`, `porcentaje`, `cumple`). Un período con dato real ya no admite cambiar su presupuesto. Todo queda en la bitácora (`EJERCICIO_CREADO`, `PRESUPUESTO_GUARDADO`).
+- La meta se guarda por período de la frecuencia del indicador (`metas`); se ingresa período a período o con un valor anual repartido (`igual` / `repetir`, `app/dominio/metas.py`). Los indicadores `eventual` no llevan meta.
+- Sin período fiscal creado no se fijan metas ni se carga; sin meta de un período no se carga ese período (un reenvío de una carga devuelta conserva la meta con que nació).
+- Cada carga copia su meta (`mediciones.meta`) y la API devuelve `vs_meta` (`desviacion`, `porcentaje`, `cumple`). Un período con dato real ya no admite cambiar su meta. Todo queda en la bitácora (`EJERCICIO_CREADO`, `META_GUARDADA`).
 - `GET /api/puesta-en-marcha` (administrador) informa el estado de los cinco pasos. La migración `0004` deja como períodos creados los años que ya tenían cargas.
 
 ## Manual de usuario

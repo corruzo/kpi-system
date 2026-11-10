@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from .. import security
 from ..errores import Conflicto, Invalido, NoEncontrado
-from ..models import Area, Bitacora, Catalogo, Ejercicio, Indicador, Medicion, NotaAuditoria, Presupuesto, Usuario
+from ..models import Area, Bitacora, Catalogo, Ejercicio, Indicador, Medicion, Meta, NotaAuditoria, Usuario
 from . import auditoria
 from .sesion import limite_intentos
 
@@ -130,14 +130,14 @@ def editar_usuario(db: Session, admin: Usuario, usuario_id: int, datos) -> Usuar
 
 
 def ids_con_historial(db: Session, ids: list[int] | None = None) -> set[int]:
-    """Usuarios que figuran en algún registro (bitácora, cargas, revisiones, notas, ejercicios o presupuestos). A esos no se
+    """Usuarios que figuran en algún registro (bitácora, cargas, revisiones, notas, ejercicios o metas). A esos no se
     les puede borrar sin romper la trazabilidad: se inhabilitan."""
     consultas = [select(Bitacora.usuario_id), select(Medicion.cargado_por_id), select(Medicion.revisado_por_id),
                  select(NotaAuditoria.usuario_id), select(Ejercicio.creado_por_id), select(Ejercicio.cerrado_por_id),
-                 select(Ejercicio.reabierto_por_id), select(Presupuesto.actualizado_por_id)]
+                 select(Ejercicio.reabierto_por_id), select(Meta.actualizado_por_id)]
     if ids is not None:   # solo los usuarios de la página: cada consulta se acota con su propio filtro
         columnas = [Bitacora.usuario_id, Medicion.cargado_por_id, Medicion.revisado_por_id, NotaAuditoria.usuario_id,
-                    Ejercicio.creado_por_id, Ejercicio.cerrado_por_id, Ejercicio.reabierto_por_id, Presupuesto.actualizado_por_id]
+                    Ejercicio.creado_por_id, Ejercicio.cerrado_por_id, Ejercicio.reabierto_por_id, Meta.actualizado_por_id]
         consultas = [select(c).where(c.in_(ids)) for c in columnas]
     return {i for i in db.scalars(union(*consultas)) if i is not None}
 

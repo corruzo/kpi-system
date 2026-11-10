@@ -21,7 +21,7 @@ def admin(client):
 @pytest.mark.parametrize("metodo,ruta", [
     ("GET", f"/api/indicadores/{GIGANTE}/periodos"), ("GET", f"/api/indicadores/{GIGANTE}/ficha"), ("PUT", f"/api/areas/{GIGANTE}"),
     ("DELETE", f"/api/areas/{GIGANTE}"), ("POST", f"/api/mediciones/{GIGANTE}/revision"), ("GET", f"/api/ejercicios/{GIGANTE}/verificacion"),
-    ("GET", "/api/ejercicios/0/presupuesto"), ("GET", "/api/ejercicios/-4/presupuesto"), ("GET", "/api/ejercicios/1/verificacion"),
+    ("GET", "/api/ejercicios/0/metas"), ("GET", "/api/ejercicios/-4/metas"), ("GET", "/api/ejercicios/1/verificacion"),
     ("GET", f"/api/mediciones?indicador_id={GIGANTE}"), ("GET", f"/api/dashboard?ejercicio={GIGANTE}"),
     ("GET", "/api/reportes/general.xlsx?anio=1"), ("GET", f"/api/reportes/fichas.xlsx?ejercicio={GIGANTE}"),
     ("GET", "/api/indicadores?ejercicio=-1"), ("GET", "/api/mediciones?limite=0"), ("GET", "/api/bitacora?limite=-3"),
@@ -42,7 +42,7 @@ def test_textos_y_diccionarios_desmedidos_se_rechazan(admin, escenario):
     assert admin.post("/api/mediciones", json={**base, "analisis": "x" * 5000}).status_code == 422
     assert admin.post("/api/calcular", json={"indicador_id": ind, "valores": {f"v{i}": 1 for i in range(100)}}).status_code == 422
     assert admin.post("/api/mediciones/1/revision", json={"accion": "observar", "nota": "x" * 3000}).status_code == 422
-    assert admin.put(f"/api/ejercicios/{calendario.ejercicio_de_fecha(calendario.hoy())}/presupuesto/{ind}",
+    assert admin.put(f"/api/ejercicios/{calendario.ejercicio_de_fecha(calendario.hoy())}/metas/{ind}",
                      json={"valores": {f"2026-{i}": 1 for i in range(100)}}).status_code == 422
 
 

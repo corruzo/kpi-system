@@ -11,7 +11,7 @@ def _crudo(client, ruta, cuerpo: dict):
     return client.post(ruta, content=json.dumps(cuerpo, allow_nan=True), headers=CABECERA)
 
 
-@pytest.mark.parametrize("campo", ["meta", "limite", "meta_tope", "limite_tope"])
+@pytest.mark.parametrize("campo", ["nivel_optimo", "limite", "nivel_optimo_tope", "limite_tope"])
 @pytest.mark.parametrize("malo", [float("nan"), float("inf"), float("-inf")])
 def test_ficha_rechaza_numeros_no_finitos(client, campo, malo):
     area = crear_area(client)
@@ -36,5 +36,5 @@ def test_variable_y_constante_rechazan_nan(client):
 def test_calcular_rechaza_valores_no_finitos(client):
     entrar(client, "admin", "clave-admin-123")
     assert _crudo(client, "/api/calcular", {"indicador_id": 1, "valores": {"x": float("inf")}}).status_code == 422
-    assert _crudo(client, "/api/formula/probar", {"formula": "a", "valores": {"a": float("nan")}, "meta": 1, "limite": 1,
+    assert _crudo(client, "/api/formula/probar", {"formula": "a", "valores": {"a": float("nan")}, "nivel_optimo": 1, "limite": 1,
                                                   "sentido": "mayor"}).status_code == 422

@@ -3,7 +3,7 @@
     <div class="flex h-20 shrink-0 items-center gap-3 px-6">
       <img x-show="logoUrl" :src="logoUrl" alt="Logo de la empresa" class="h-10 max-w-[170px] object-contain">
       <svg x-show="!logoUrl" class="h-11 w-11 shrink-0" viewBox="0 0 32 32"><rect width="32" height="32" rx="10" fill="#0b3558"/><path d="M8 22V12m5 10V15m5 7V9m5 13V13" stroke="#006bff" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>
-      <div class="min-w-0 leading-tight" x-show="!logoUrl"><div class="text-base font-extrabold">SGC • TRIPOLIVEN</div><div class="truncate text-[11px] text-slate-500">Gestión de la Calidad</div></div>
+      <div class="min-w-0 leading-tight" x-show="!logoUrl"><div class="text-base font-extrabold">SPE TPV</div><div class="truncate text-[11px] text-slate-500">Gestión de la Calidad</div></div>
     </div>
     <nav class="flex-1 overflow-y-auto px-3 pb-3">
       <template x-for="g in navGrupos()" :key="g.grupo">
@@ -19,5 +19,5 @@
         </div>
       </template>
     </nav>
-    <div class="shrink-0 px-6 py-4 text-[11px] leading-tight text-slate-400">SGC • TRIPOLIVEN · ISO 9001:2015</div>
+    <div class="shrink-0 px-6 py-4 text-[11px] leading-tight text-slate-400">SPE TPV · ISO 9001:2015</div>
   </aside>

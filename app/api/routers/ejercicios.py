@@ -32,7 +32,7 @@ def listar(detalle: bool = False, db: Session = Depends(get_db), u: Usuario = De
 
 @router.post("/ejercicios", status_code=201)
 def crear(datos: schemas.EjercicioIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere("admin")), _=Depends(escritura)):
-    """Paso 1 del flujo anual: crea el período fiscal (hay que crearlo antes de presupuestar o cargar datos)."""
+    """Paso 1 del flujo anual: crea el período fiscal (hay que crearlo antes de fijar metas o cargar datos)."""
     ejercicios.crear(db, u, datos.anio, datos.nota)
     return ser.ejercicio(ejercicios.descripcion(db, datos.anio, calendario.hoy()))
 

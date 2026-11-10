@@ -15,18 +15,18 @@ SIGT.modulos.recordatorios = () => ({
     PLANTILLAS: {
       amable: {
         titulo: 'Recordatorio amable',
-        asunto: 'Recordatorio: carga de indicadores en SGC • TRIPOLIVEN',
-        cuerpo: 'Estimado(a) {nombre}:\n\nLe recordamos cargar su información en la aplicación SGC • TRIPOLIVEN. Tiene pendiente:\n\n{lista}\n\nPuede ingresar aquí: {enlace}\n\nMuchas gracias por su colaboración.\n\nSaludos cordiales,\n{remitente}',
+        asunto: 'Recordatorio: carga de indicadores en SPE TPV',
+        cuerpo: 'Estimado(a) {nombre}:\n\nLe recordamos cargar su información en la aplicación SPE TPV. Tiene pendiente:\n\n{lista}\n\nPuede ingresar aquí: {enlace}\n\nMuchas gracias por su colaboración.\n\nSaludos cordiales,\n{remitente}',
       },
       urgente: {
         titulo: 'Urgente (carga vencida)',
-        asunto: 'URGENTE: carga de indicadores vencida en SGC • TRIPOLIVEN',
-        cuerpo: 'Estimado(a) {nombre}:\n\nSu carga de información en la aplicación SGC • TRIPOLIVEN se encuentra vencida y es necesario completarla a la brevedad. Pendiente:\n\n{lista}\n\nIngrese aquí para cargarla: {enlace}\n\nSi tiene algún inconveniente para hacerlo, avíseme para apoyarle.\n\nSaludos cordiales,\n{remitente}',
+        asunto: 'URGENTE: carga de indicadores vencida en SPE TPV',
+        cuerpo: 'Estimado(a) {nombre}:\n\nSu carga de información en la aplicación SPE TPV se encuentra vencida y es necesario completarla a la brevedad. Pendiente:\n\n{lista}\n\nIngrese aquí para cargarla: {enlace}\n\nSi tiene algún inconveniente para hacerlo, avíseme para apoyarle.\n\nSaludos cordiales,\n{remitente}',
       },
       devuelta: {
         titulo: 'Carga devuelta para corregir',
-        asunto: 'Corrección pendiente de su carga en SGC • TRIPOLIVEN',
-        cuerpo: 'Estimado(a) {nombre}:\n\nTiene cargas devueltas o pendientes en la aplicación SGC • TRIPOLIVEN que requieren su atención. Le recordamos revisarlas y completarlas:\n\n{lista}\n\nIngrese aquí: {enlace}\n\nGracias por su pronta gestión.\n\nSaludos cordiales,\n{remitente}',
+        asunto: 'Corrección pendiente de su carga en SPE TPV',
+        cuerpo: 'Estimado(a) {nombre}:\n\nTiene cargas devueltas o pendientes en la aplicación SPE TPV que requieren su atención. Le recordamos revisarlas y completarlas:\n\n{lista}\n\nIngrese aquí: {enlace}\n\nGracias por su pronta gestión.\n\nSaludos cordiales,\n{remitente}',
       },
     },
 

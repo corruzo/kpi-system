@@ -45,7 +45,7 @@ SIGT.modulos.indicadores = () => ({
       try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?area_id=${this.ficha.area_id}`)).codigo; } catch { this.codigoSugerido = ''; }
     },
     nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', meta: 90, limite: 80, meta_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
+      this.ficha = { codigo: '', nombre: '', objetivo: '', area_id: this.areas[0]?.id, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» y los atajos de la fórmula como ayuda.');
       this.cambioDeArea();
     },
@@ -67,8 +67,8 @@ SIGT.modulos.indicadores = () => ({
     mover(idx, d) { const a = this.ficha.variables, j = idx + d; if (j < 0 || j >= a.length) return; [a[idx], a[j]] = [a[j], a[idx]]; },
     semaforoAyuda() {
       const f = this.ficha, u = f.unidad;
-      return f.sentido === 'mayor' ? `Verde: ≥ ${f.meta} · Amarillo: entre ${f.limite} y ${f.meta} · Rojo: < ${f.limite} (${u})`
-        : `Verde: ≤ ${f.meta} · Amarillo: entre ${f.meta} y ${f.limite} · Rojo: > ${f.limite} (${u})`;
+      return f.sentido === 'mayor' ? `Verde: ≥ ${f.nivel_optimo} · Amarillo: entre ${f.limite} y ${f.nivel_optimo} · Rojo: < ${f.limite} (${u})`
+        : `Verde: ≤ ${f.nivel_optimo} · Amarillo: entre ${f.nivel_optimo} y ${f.limite} · Rojo: > ${f.limite} (${u})`;
     },
     insertar(t, atras = 0) {
       const el = this.$refs.formula, f = this.ficha.formula || '';
@@ -94,15 +94,15 @@ SIGT.modulos.indicadores = () => ({
         if (x === '' || x === undefined || x === null) { if (!v.opcional) { this.prueba.res = null; return; } valores[v.clave] = Number(v.defecto || 0); } else valores[v.clave] = Number(x);
       }
       const constantes = Object.fromEntries((f.constantes || []).filter(c => c.clave).map(c => [c.clave, Number(c.valor)]));
-      try { this.prueba.res = await this.api('/api/formula/probar', { method: 'POST', body: { formula: f.formula, valores, constantes, decimales: Number(f.decimales), meta: Number(f.meta), limite: Number(f.limite), meta_tope: f.meta_tope === '' ? null : f.meta_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, sentido: f.sentido } }, true); } catch { }
+      try { this.prueba.res = await this.api('/api/formula/probar', { method: 'POST', body: { formula: f.formula, valores, constantes, decimales: Number(f.decimales), nivel_optimo: Number(f.nivel_optimo), limite: Number(f.limite), nivel_optimo_tope: f.nivel_optimo_tope === '' ? null : f.nivel_optimo_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, sentido: f.sentido } }, true); } catch { }
     },
     cuerpoFicha(f) {
       return {
         codigo: f.id ? f.codigo : '', encargado_id: f.encargado_id || null, nombre: f.nombre, objetivo: f.objetivo, area_id: f.area_id, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
         variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta, ayuda: v.ayuda || '', unidad: v.unidad || '', opcional: !!v.opcional, defecto: Number(v.defecto || 0), negativo: !!v.negativo })),
         constantes: (f.constantes || []).map(c => ({ clave: c.clave, etiqueta: c.etiqueta, valor: Number(c.valor) })),
-        decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', meta: f.meta, limite: f.limite,
-        meta_tope: f.meta_tope === '' ? null : f.meta_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, activo: f.activo,
+        decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', nivel_optimo: f.nivel_optimo, limite: f.limite,
+        nivel_optimo_tope: f.nivel_optimo_tope === '' ? null : f.nivel_optimo_tope, limite_tope: f.limite_tope === '' ? null : f.limite_tope, activo: f.activo,
         seguimiento: f.seguimiento || 'proceso', ref_nombre: f.ref_nombre || '', ref_detalle: f.ref_detalle || '', sigla: f.sigla || '', gerencia: f.gerencia || '',
         lider: f.lider || '', resp_medicion: f.resp_medicion || '', resp_registro: f.resp_registro || '', resp_analisis: f.resp_analisis || ''
       };

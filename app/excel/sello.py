@@ -18,10 +18,10 @@ HOJA_CONTROL = "Control"
 
 
 # ------------------------------------------------------------------ semáforo con fórmula
-def formula_semaforo(resultado: str, meta, limite, mayor: bool) -> str:
+def formula_semaforo(resultado: str, nivel_optimo, limite, mayor: bool) -> str:
     """Fórmula de Excel con la misma regla que `dominio.semaforo.clasificar` (sin topes)."""
     op = ">=" if mayor else "<="
-    return (f'=IF({resultado}="","",IF({resultado}{op}{meta!r},"Cumple",'
+    return (f'=IF({resultado}="","",IF({resultado}{op}{nivel_optimo!r},"Cumple",'
             f'IF({resultado}{op}{limite!r},"Alerta","Crítico")))')
 
 
@@ -84,7 +84,7 @@ def proteger(wb, clave: str) -> None:
 
 
 def leer_control(contenido: bytes) -> dict:
-    """Datos de la hoja «Control» y huella recalculada; {} si el archivo no es un reporte del SGC • TRIPOLIVEN."""
+    """Datos de la hoja «Control» y huella recalculada; {} si el archivo no es un reporte de SPE TPV."""
     try:
         wb = load_workbook(io.BytesIO(contenido))
     except Exception:

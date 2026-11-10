@@ -23,7 +23,7 @@
                 <span class="block text-xs text-slate-500"><span class="nc" x-text="etiquetaNC" title="Formato de ficha técnica del SGC"></span> <span x-text="m.codigo + ' · ' + m.periodo_etiqueta + ' · ' + m.area"></span></span>
                 <span class="block truncate font-semibold" x-text="m.indicador"></span>
               </span>
-              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="block text-[11px] font-semibold" x-show="m.vs_presupuesto" :class="m.vs_presupuesto && m.vs_presupuesto.cumple ? 'text-green-700' : 'text-red-700'" x-text="m.vs_presupuesto ? 'Ppto. ' + fmt(m.presupuesto, m.unidad, m.decimales) + ' · ' + (m.vs_presupuesto.cumple ? 'cumple' : 'no alcanza') : ''"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
+              <span class="text-right"><span class="block text-lg font-bold" x-text="fmt(m.resultado, m.unidad, m.decimales)"></span><span class="block text-[11px] font-semibold" x-show="m.vs_meta" :class="m.vs_meta && m.vs_meta.cumple ? 'text-green-700' : 'text-red-700'" x-text="m.vs_meta ? 'Meta. ' + fmt(m.meta, m.unidad, m.decimales) + ' · ' + (m.vs_meta.cumple ? 'cumple' : 'no alcanza') : ''"></span><span class="chip" :class="estadoClase(m.estado)" x-text="estadoTxt(m.estado)"></span></span>
             </button>
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>

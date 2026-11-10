@@ -1,7 +1,7 @@
 """Conversión de los modelos y resultados de servicios al JSON que consume la interfaz."""
 from ..dominio import calendario
-from ..dominio.ficha_texto import meta_texto
-from ..dominio.presupuesto import comparar
+from ..dominio.ficha_texto import nivel_optimo_texto
+from ..dominio.meta import comparar
 from ..models import Area, Bitacora, Catalogo, Indicador, Medicion, Usuario
 
 
@@ -31,8 +31,8 @@ def indicador(i: Indicador) -> dict:
     return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "area_id": i.area_id,
             "encargado_id": i.encargado_id, "area": i.area.nombre, "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
             "formula": i.formula, "variables": i.variables, "constantes": i.constantes or [], "decimales": i.precision,
-            "fuente": i.fuente or "", "notas": i.notas or "", "meta": i.meta, "limite": i.limite,
-            "meta_tope": i.meta_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",
+            "fuente": i.fuente or "", "notas": i.notas or "", "nivel_optimo": i.nivel_optimo, "limite": i.limite,
+            "nivel_optimo_tope": i.nivel_optimo_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",
             "ref_nombre": i.ref_nombre or "", "ref_detalle": i.ref_detalle or "", "sigla": i.sigla or "",
             "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
             "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
@@ -52,9 +52,9 @@ def medicion(m: Medicion) -> dict:
             "ejercicio": (anio := m.ejercicio or calendario.ejercicio_de(i.frecuencia, m.periodo)),
             "ejercicio_etiqueta": calendario.etiqueta_ejercicio(anio),
             "valores": m.valores, "resultado": m.resultado, "decimales": m.precision, "formula": m.formula_aplicada,
-            "constantes": m.constantes_aplicadas, "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite,
-            "meta_tope": m.meta_tope, "limite_tope": m.limite_tope, "sentido": m.sentido, "estado": m.estado,
-            "presupuesto": m.presupuesto, "vs_presupuesto": comparar(m.resultado, m.presupuesto, m.sentido),
+            "constantes": m.constantes_aplicadas, "semaforo": m.semaforo, "nivel_optimo": m.nivel_optimo, "limite": m.limite,
+            "nivel_optimo_tope": m.nivel_optimo_tope, "limite_tope": m.limite_tope, "sentido": m.sentido, "estado": m.estado,
+            "meta": m.meta, "vs_meta": comparar(m.resultado, m.meta, m.sentido),
             "analisis": m.analisis, "plan_mejora": m.plan_mejora, "version": m.version,
             "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
             "revisado_por": m.revisado_por.nombre if m.revisado_por else None, "revisado_en": iso(m.revisado_en),
@@ -90,17 +90,17 @@ def fila_del_panel(f: dict) -> dict:
                         "resultado": ultimo.resultado, "semaforo": ultimo.semaforo, "estado": ultimo.estado}
                        if ultimo else None),
             "serie": [{"periodo": m.periodo, "etiqueta": calendario.etiqueta(f_, m.periodo), "resultado": m.resultado,
-                       "semaforo": m.semaforo, "meta": m.meta, "limite": m.limite, "presupuesto": m.presupuesto}
+                       "semaforo": m.semaforo, "nivel_optimo": m.nivel_optimo, "limite": m.limite, "meta": m.meta}
                       for m in f["validas"]],
-            "vs_presupuesto": _resumen_presupuesto(f["validas"]),
+            "vs_meta": _resumen_meta(f["validas"]),
             "celdas": f["celdas"], "faltantes": [calendario.etiqueta(f_, p) for p in f["faltantes"]],
             "devueltas": f["devueltas"], "tendencia": f["tendencia"]}
 
 
-def _resumen_presupuesto(validas) -> dict:
-    """Cuántas cargas tenían presupuesto y cuántas lo alcanzaron."""
-    con = [m for m in validas if m.presupuesto is not None]
-    return {"con_presupuesto": len(con), "cumplen": sum(comparar(m.resultado, m.presupuesto, m.sentido)["cumple"] for m in con)}
+def _resumen_meta(validas) -> dict:
+    """Cuántas cargas tenían meta y cuántas la alcanzaron."""
+    con = [m for m in validas if m.meta is not None]
+    return {"con_meta": len(con), "cumplen": sum(comparar(m.resultado, m.meta, m.sentido)["cumple"] for m in con)}
 
 
 def ficha_periodos(periodos: list[dict]) -> list[dict]:
@@ -109,4 +109,4 @@ def ficha_periodos(periodos: list[dict]) -> list[dict]:
 
 
 def indicador_en_ficha(i: Indicador) -> dict:
-    return {**indicador(i), "meta_texto": meta_texto(i)}
+    return {**indicador(i), "nivel_optimo_texto": nivel_optimo_texto(i)}

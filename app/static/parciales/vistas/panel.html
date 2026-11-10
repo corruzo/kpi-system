@@ -59,10 +59,10 @@
             <div class="card"><div class="card-h"><div><h2>Estado actual</h2><p class="text-xs text-slate-500">Última medición de cada indicador.</p></div></div><div class="card-b"><div class="h-72"><canvas id="ch-actual"></canvas></div></div></div>
           </div>
 
-          <!-- presupuesto y cargas -->
+          <!-- meta y cargas -->
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="card"><div class="card-h"><div><h2>Cumplimiento del presupuesto</h2><p class="text-xs text-slate-500">Períodos cuyo resultado real alcanzó lo presupuestado.</p></div></div><div class="card-b"><div class="h-72"><canvas id="ch-ppto"></canvas></div>
-              <p class="mt-2 text-center text-sm text-slate-500" x-show="!tb.kpis.con_ppto">No hay períodos presupuestados con carga en este rango.</p></div></div>
+            <div class="card"><div class="card-h"><div><h2>Cumplimiento de la meta</h2><p class="text-xs text-slate-500">Períodos cuyo resultado real alcanzó la meta.</p></div></div><div class="card-b"><div class="h-72"><canvas id="ch-meta"></canvas></div>
+              <p class="mt-2 text-center text-sm text-slate-500" x-show="!tb.kpis.con_meta">No hay períodos con_meta con carga en este rango.</p></div></div>
             <div class="card"><div class="card-h"><div><h2>Estado de las cargas</h2><p class="text-xs text-slate-500">Aprobadas, en revisión, devueltas y períodos que faltan por cargar.</p></div></div><div class="card-b"><div class="h-72"><canvas id="ch-carga"></canvas></div></div></div>
           </div>
 
@@ -71,7 +71,7 @@
             <div class="card lg:col-span-3"><div class="card-h flex-wrap">
               <div><h2>Comparativo</h2><p class="text-xs text-slate-500">Cómo le va a cada grupo en el rango elegido.</p></div>
               <div class="flex flex-wrap gap-2"><select class="inp !min-h-[40px] !w-auto !py-1 text-sm" x-model="pf.dimension" @change="cargarTablero()" aria-label="Agrupar por"><template x-for="d in PANEL_DIM" :key="d[0]"><option :value="d[0]" x-text="'Por ' + d[1].toLowerCase()"></option></template></select>
-                <select class="inp !min-h-[40px] !w-auto !py-1 text-sm" x-model="pf.metrica" @change="dibujar()" aria-label="Medida"><option value="semaforo">Semáforo</option><option value="presupuesto">Presupuesto</option></select></div></div>
+                <select class="inp !min-h-[40px] !w-auto !py-1 text-sm" x-model="pf.metrica" @change="dibujar()" aria-label="Medida"><option value="semaforo">Semáforo</option><option value="meta">Meta</option></select></div></div>
               <div class="card-b"><div :style="'height:' + Math.max(15, 3.4 * tb.por_dimension.length + 6) + 'rem'"><canvas id="ch-dim"></canvas></div></div></div>
             <div class="card lg:col-span-2" data-tour="panel-atencion"><div class="card-h"><h2>Requiere atención</h2><span class="chip border-slate-200 bg-slate-100 text-slate-600" x-text="tb.atencion.length"></span></div>
               <ul class="max-h-[26rem] divide-y divide-slate-100 overflow-y-auto px-2 pb-2 pt-1">
@@ -85,7 +85,7 @@
 
           <!-- tendencia y puntualidad -->
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div class="card lg:col-span-2"><div class="card-h flex-wrap"><div><h2>Tendencia de un indicador</h2><p class="text-xs text-slate-500">Resultado contra presupuesto, meta y límite crítico.</p></div>
+            <div class="card lg:col-span-2"><div class="card-h flex-wrap"><div><h2>Tendencia de un indicador</h2><p class="text-xs text-slate-500">Resultado contra meta, nivel óptimo y límite crítico.</p></div>
               <select class="inp !min-h-[40px] !w-full !py-1 text-sm sm:!w-auto sm:max-w-xs" x-model.number="tendInd" @change="dibujar()" aria-label="Indicador"><template x-for="i in tb.indicadores" :key="i.id"><option :value="i.id" x-text="i.codigo + ' · ' + i.nombre"></option></template></select></div>
               <div class="card-b"><div class="h-72" x-show="(tb.indicadores.find(i => i.id === tendInd) || {serie: []}).serie.length"><canvas id="ch-tend"></canvas></div>
                 <p class="flex h-72 items-center justify-center text-sm text-slate-500" x-show="!(tb.indicadores.find(i => i.id === tendInd) || {serie: []}).serie.length">Este indicador no tiene mediciones en el rango.</p></div></div>
@@ -95,14 +95,14 @@
 
           <!-- rankings -->
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <template x-for="r in [['Indicadores más rezagados', 'Menor % de mediciones que cumplen', peores, 'pct'], ['Mejor desempeño', 'Mayor % de mediciones que cumplen', mejores, 'pct'], ['Mayor desviación del presupuesto', 'Real ÷ presupuestado más lejos de 100 %', desviados, 'ppto']]" :key="r[0]">
+            <template x-for="r in [['Indicadores más rezagados', 'Menor % de mediciones que cumplen', peores, 'pct'], ['Mejor desempeño', 'Mayor % de mediciones que cumplen', mejores, 'pct'], ['Mayor desviación de la meta', 'Real ÷ meta más lejos de 100 %', desviados, 'meta']]" :key="r[0]">
               <div class="card"><div class="card-h"><div><h2 class="!text-lg" x-text="r[0]"></h2><p class="text-xs text-slate-500" x-text="r[1]"></p></div></div>
                 <ol class="space-y-1 px-3 pb-4 pt-2">
                   <template x-for="(i, k) in r[2]" :key="i.id"><li><button class="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50" @click="verFicha(i.id)">
                     <span class="w-5 shrink-0 text-center text-xs font-extrabold text-slate-400" x-text="k + 1"></span>
                     <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold" x-text="i.codigo + ' · ' + i.nombre"></span>
-                      <span class="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100"><span class="block h-full rounded-full" :class="r[3]==='pct' ? 'bg-brand' : 'bg-magenta'" :style="'width:' + Math.min(100, r[3]==='pct' ? i.pct_verde : i.real_vs_ppto) + '%'"></span></span></span>
-                    <span class="text-sm font-extrabold" x-text="pctTxt(r[3]==='pct' ? i.pct_verde : i.real_vs_ppto)"></span></button></li></template>
+                      <span class="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100"><span class="block h-full rounded-full" :class="r[3]==='pct' ? 'bg-brand' : 'bg-magenta'" :style="'width:' + Math.min(100, r[3]==='pct' ? i.pct_verde : i.real_vs_meta) + '%'"></span></span></span>
+                    <span class="text-sm font-extrabold" x-text="pctTxt(r[3]==='pct' ? i.pct_verde : i.real_vs_meta)"></span></button></li></template>
                 </ol>
                 <p class="px-6 pb-6 text-center text-sm text-slate-500" x-show="!r[2].length">Sin datos en el rango.</p></div>
             </template>
@@ -121,12 +121,12 @@
           <div class="card overflow-hidden"><div class="card-h flex-wrap"><div><h2>Todos los indicadores</h2><p class="text-xs text-slate-500">Toque un encabezado para ordenar; toque un indicador para abrir su ficha.</p></div><span class="chip border-slate-200 bg-slate-100 text-slate-600" x-text="tb.indicadores.length + ' indicadores'"></span></div>
             <div class="overflow-x-auto"><table class="w-full min-w-[860px]">
               <thead><tr>
-                <template x-for="c in [['codigo','Código'],['nombre','Indicador'],['area','Área'],['frecuencia','Frecuencia'],['n','Medic.'],['pct_verde','% cumple'],['real_vs_ppto','Real / ppto.'],['faltantes','Sin cargar'],['ultimo','Último']]" :key="c[0]"><th class="th cursor-pointer select-none hover:text-brand" @click="ordenar(c[0])" x-text="c[1] + ' ' + flecha(c[0])"></th></template>
+                <template x-for="c in [['codigo','Código'],['nombre','Indicador'],['area','Área'],['frecuencia','Frecuencia'],['n','Medic.'],['pct_verde','% cumple'],['real_vs_meta','Real / meta.'],['faltantes','Sin cargar'],['ultimo','Último']]" :key="c[0]"><th class="th cursor-pointer select-none hover:text-brand" @click="ordenar(c[0])" x-text="c[1] + ' ' + flecha(c[0])"></th></template>
                 <th class="th">Semáforo</th></tr></thead>
               <tbody><template x-for="i in tabla" :key="i.id"><tr class="cursor-pointer transition hover:bg-slate-50" @click="verFicha(i.id)">
                 <td class="td whitespace-nowrap font-bold" x-text="i.codigo"></td><td class="td" x-text="i.nombre"></td><td class="td" x-text="i.area"></td><td class="td" x-text="cap(i.frecuencia)"></td>
                 <td class="td text-center" x-text="i.n"></td><td class="td font-bold" x-text="pctTxt(i.pct_verde)"></td>
-                <td class="td font-bold" :class="i.real_vs_ppto === null ? '' : ((i.sentido==='mayor' ? i.real_vs_ppto >= 100 : i.real_vs_ppto <= 100) ? 'text-green-700' : 'text-red-700')" x-text="pctTxt(i.real_vs_ppto)"></td>
+                <td class="td font-bold" :class="i.real_vs_meta === null ? '' : ((i.sentido==='mayor' ? i.real_vs_meta >= 100 : i.real_vs_meta <= 100) ? 'text-green-700' : 'text-red-700')" x-text="pctTxt(i.real_vs_meta)"></td>
                 <td class="td text-center" :class="i.faltantes ? 'font-bold text-amber-700' : ''" x-text="i.faltantes"></td>
                 <td class="td whitespace-nowrap"><span x-text="i.ultimo ? fmt(i.ultimo.resultado, i.unidad, i.decimales) : '—'" class="font-bold"></span><span class="block text-[11px] text-slate-500" x-text="i.ultimo ? i.ultimo.etiqueta : ''"></span></td>
                 <td class="td"><span x-show="i.ultimo" class="chip border-transparent text-white" :class="semBg(i.ultimo && i.ultimo.semaforo)" x-text="semTxt(i.ultimo && i.ultimo.semaforo)"></span></td></tr></template></tbody></table></div></div>

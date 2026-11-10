@@ -3,10 +3,10 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..dominio import calendario, formulas, presupuesto, semaforo
+from ..dominio import calendario, formulas, meta, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
 from ..models import Indicador, Medicion, NotaAuditoria, Usuario, ahora
-from . import acceso, auditoria, ejercicios, indicadores, presupuestos
+from . import acceso, auditoria, ejercicios, indicadores, metas
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
 MIN_TEXTO_NOTA = 5
@@ -34,18 +34,18 @@ def evaluar_carga(ind: Indicador, valores: dict) -> dict:
         resultado = formulas.evaluar(ind.formula, finales, constantes, ind.precision)
     except formulas.FormulaError as e:
         return {"ok": False, "error": str(e)}
-    color = semaforo.clasificar(resultado, ind.meta, ind.limite, ind.sentido, ind.meta_tope, ind.limite_tope)
+    color = semaforo.clasificar(resultado, ind.nivel_optimo, ind.limite, ind.sentido, ind.nivel_optimo_tope, ind.limite_tope)
     return {"ok": True, "resultado": resultado, "semaforo": color, "requiere_analisis": color != "verde", "valores": finales}
 
 
 def calcular(db: Session, u: Usuario, indicador_id: int, valores: dict, periodo: str | None = None) -> dict:
-    """Resultado en vivo; con `periodo` incluye la comparación contra lo presupuestado para ese período."""
+    """Resultado en vivo; con `periodo` incluye la comparación contra la meta para ese período."""
     ind = indicadores.obtener_visible(db, u, indicador_id)
     r = evaluar_carga(ind, valores)
     if r["ok"] and periodo and calendario.periodo_valido(ind.frecuencia, periodo):
         existente = db.scalar(select(Medicion).where(Medicion.indicador_id == ind.id, Medicion.periodo == periodo))
-        base = existente.presupuesto if existente and existente.presupuesto is not None else presupuestos.del_periodo(db, ind.id, periodo)
-        r["vs_presupuesto"] = presupuesto.comparar(r["resultado"], base, ind.sentido)
+        base = existente.meta if existente and existente.meta is not None else metas.del_periodo(db, ind.id, periodo)
+        r["vs_meta"] = meta.comparar(r["resultado"], base, ind.sentido)
     return r
 
 
@@ -56,9 +56,9 @@ def _exigir_periodo_cargable(ind: Indicador, periodo: str) -> None:
 
 
 def _copiar_foto_del_indicador(m: Medicion, ind: Indicador) -> None:
-    """La medición conserva la meta, el semáforo y la fórmula vigentes al cargar: editar la ficha no cambia el pasado."""
-    m.meta, m.limite, m.sentido = ind.meta, ind.limite, ind.sentido
-    m.meta_tope, m.limite_tope = ind.meta_tope, ind.limite_tope
+    """La medición conserva el nivel óptimo, el semáforo y la fórmula vigentes al cargar: editar la ficha no cambia el pasado."""
+    m.nivel_optimo, m.limite, m.sentido = ind.nivel_optimo, ind.limite, ind.sentido
+    m.nivel_optimo_tope, m.limite_tope = ind.nivel_optimo_tope, ind.limite_tope
     m.formula, m.constantes, m.decimales = ind.formula, ind.constantes or [], ind.precision
 
 
@@ -76,18 +76,18 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
         raise Invalido(r["error"])
     analisis, plan = datos.analisis.strip(), datos.plan_mejora.strip()
     if r["requiere_analisis"] and (len(analisis) < MIN_TEXTO_ANALISIS or len(plan) < MIN_TEXTO_ANALISIS):
-        raise Invalido("El indicador está fuera de meta: el análisis de resultados y las correcciones / plan de "
+        raise Invalido("El indicador está fuera del nivel óptimo: el análisis de resultados y las correcciones / plan de "
                        "mejora son obligatorios (ISO 9001:2015, 9.1.3 y 10.2).")
     m = db.scalar(select(Medicion).where(Medicion.indicador_id == ind.id, Medicion.periodo == datos.periodo))
     if m and m.estado != "observado":
         raise Conflicto("Este período ya fue cargado y no puede modificarse.")
     reenvio = m is not None
     if m is None:
-        base = presupuestos.exigir_presupuestado(db, ind, datos.periodo)   # sin presupuesto no hay con qué comparar
-        m = Medicion(indicador_id=ind.id, periodo=datos.periodo, version=1, presupuesto=base)
+        base = metas.exigir_meta(db, ind, datos.periodo)   # sin meta no hay con qué comparar
+        m = Medicion(indicador_id=ind.id, periodo=datos.periodo, version=1, meta=base)
         db.add(m)
     else:
-        m.version += 1   # un reenvío conserva el presupuesto con que se cargó por primera vez
+        m.version += 1   # un reenvío conserva la meta con que se cargó por primera vez
     m.valores, m.resultado, m.semaforo, m.ejercicio = r["valores"], r["resultado"], r["semaforo"], anio
     _copiar_foto_del_indicador(m, ind)
     m.estado, m.analisis, m.plan_mejora = "enviado", analisis, plan
@@ -97,7 +97,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
     db.flush()
     auditoria.registrar(db, u, "REENVIO" if reenvio else "CARGA", "medicion", m.id,
                         {"periodo": m.periodo, "valores": m.valores, "resultado": m.resultado, "semaforo": m.semaforo,
-                         "presupuesto": m.presupuesto, "analisis": analisis, "plan_mejora": plan, "version": m.version}, ind)
+                         "meta": m.meta, "analisis": analisis, "plan_mejora": plan, "version": m.version}, ind)
     db.commit()
     return m
 

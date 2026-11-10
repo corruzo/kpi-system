@@ -69,7 +69,7 @@ def test_la_pagina_viaja_comprimida_y_con_huellas_de_version(client):
     html = client.get("/", headers={"Accept-Encoding": "identity"}).text
     assert re.findall(r'src="/static/js/nucleo\.js\?v=[0-9a-f]{10}"', html) and re.search(r'href="/static/tailwind\.css\?v=[0-9a-f]{10}"', html)
     assert not re.search(r"<script[^>]+chart\.umd", html)            # los gráficos se piden solo cuando hacen falta
-    assert 'name="sgc-chart"' in html and "chart.umd.js?v=" in html
+    assert 'name="spe-chart"' in html and "chart.umd.js?v=" in html
 
 
 def test_los_estaticos_con_huella_se_guardan_un_anio_y_la_api_nunca(client):

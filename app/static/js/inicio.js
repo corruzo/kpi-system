@@ -14,9 +14,9 @@ SIGT.modulos.inicio = () => ({
       const txt = {
         org: { t: 'Organización y equipo', d: 'Registre las áreas de la empresa y a las personas: un encargado de proceso por área (carga datos) y un gerente / auditor (aprueba).', b: 'Crear áreas y usuarios', ir: () => this.go('org') },
         fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia (mensual, trimestral…) y su semáforo.', b: 'Crear indicadores', ir: () => this.go('fichas') },
-        periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se puede presupuestar ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
-        presupuesto: { t: 'Presupuesto del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar presupuesto', ir: () => this.go('presupuesto') },
-        carga: { t: 'Carga mensual de datos', d: 'Cada mes el encargado de proceso ingresa su dato real; el sistema lo compara con lo presupuestado y el gerente lo aprueba.', b: 'Ver cargas', ir: () => this.go('carga') },
+        periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se pueden fijar metas ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
+        meta: { t: 'Meta del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar meta', ir: () => this.go('meta') },
+        carga: { t: 'Carga mensual de datos', d: 'Cada mes el encargado de proceso ingresa su dato real; el sistema lo compara con la meta y el gerente lo aprueba.', b: 'Ver cargas', ir: () => this.go('carga') },
       };
       let ahora = true;
       return this.marcha.pasos.map((p, i) => {
@@ -58,7 +58,7 @@ SIGT.modulos.inicio = () => ({
     irATarea(t) { return t.ejercicio ? this.irAEjercicio(t.ejercicio) : this.go(t.id); },
     accesos() { return this.nav().filter(n => n.id !== 'inicio'); },
     descripcionAcceso(id) {
-      return { presupuesto: 'Cree el año fiscal y presupueste cada indicador.', carga: 'Registre los datos del período y obtenga el semáforo al instante.', historial: 'Consulte el estado de cada carga y sus observaciones.',
+      return { meta: 'Cree el año fiscal y fije la meta de cada indicador.', carga: 'Registre los datos del período y obtenga el semáforo al instante.', historial: 'Consulte el estado de cada carga y sus observaciones.',
         reportes: 'Descargue informes y fichas técnicas en Excel.', panel: 'Resultados, tendencias y mapa de calor del ejercicio.',
         bandeja: 'Apruebe o devuelva las cargas enviadas.', ejercicios: 'Verifique, cierre y archive cada año fiscal.',
         fichas: 'Cree y mantenga las fichas técnicas de los indicadores.', org: 'Áreas, usuarios, listas y parámetros.',

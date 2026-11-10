@@ -12,7 +12,7 @@ def test_formula_con_variables_inexistentes_o_nombres_reservados_se_rechaza(clie
 def test_formula_con_constantes_y_variable_opcional(client):
     area = crear_area(client)
     ficha = ficha_base(
-        area, unidad="índice", frecuencia="anual", decimales=3, meta=5, limite=10,
+        area, unidad="índice", frecuencia="anual", decimales=3, nivel_optimo=5, limite=10,
         formula="si(horas > 0, accidentes × factor ÷ horas, 0) + extra",
         variables=[{"clave": "accidentes", "etiqueta": "Accidentes"}, {"clave": "horas", "etiqueta": "Horas-hombre"},
                    {"clave": "extra", "etiqueta": "Ajuste", "opcional": True, "defecto": 1, "negativo": True}],
@@ -35,7 +35,7 @@ def test_formula_con_constantes_y_variable_opcional(client):
 def test_probar_y_validar_formulas_sin_guardar(client):
     entrar(client, "admin", "clave-admin-123")
     prueba = client.post("/api/formula/probar", json={"formula": "ok / total * 100", "valores": {"ok": 99, "total": 100},
-                                                       "meta": 98, "limite": 95, "sentido": "mayor"}).json()
+                                                       "nivel_optimo": 98, "limite": 95, "sentido": "mayor"}).json()
     assert prueba["ok"] and prueba["semaforo"] == "verde"
     r = client.post("/api/formula/validar", json={"formula": "ok * 2", "claves": ["ok", "total"]})
     assert r.json()["sin_usar"] == ["total"]
@@ -51,12 +51,12 @@ def test_con_cargas_la_ficha_no_cambia_frecuencia_ni_claves(client, escenario):
     ficha = next(i for i in client.get("/api/indicadores").json() if i["id"] == ind["id"])
     assert ficha["n_mediciones"] == 1
     base = {k: ficha[k] for k in ("codigo", "nombre", "objetivo", "area_id", "unidad", "sentido", "formula",
-                                  "variables", "meta", "limite", "activo")}
+                                  "variables", "nivel_optimo", "limite", "activo")}
     assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "trimestral"}).status_code == 422
     nuevas = [{"clave": "dias", "etiqueta": "Días"}, {"clave": "tk", "etiqueta": "Tickets"}]
     assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "mensual", "variables": nuevas,
                                                              "formula": "dias / tk"}).status_code == 422
-    assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "mensual", "meta": 3}).status_code == 200
+    assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "mensual", "nivel_optimo": 3}).status_code == 200
 
 
 def test_eliminar_un_indicador_con_cargas_lo_archiva(client, escenario):

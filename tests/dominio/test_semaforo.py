@@ -25,4 +25,4 @@ def test_umbrales_incoherentes_se_rechazan():
     with pytest.raises(ValueError):
         semaforo.validar_umbrales(3, 2, "menor")
     with pytest.raises(ValueError):
-        semaforo.validar_umbrales(96, 85, "mayor", meta_tope=50)
+        semaforo.validar_umbrales(96, 85, "mayor", nivel_optimo_tope=50)

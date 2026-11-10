@@ -69,7 +69,7 @@ def test_las_cargas_y_los_reportes_no_filtran_datos_de_otro_encargado(client, do
 def test_un_encargado_no_accede_a_funciones_de_otros_roles(client, dos_encargados):
     entrar(client, dos_encargados["a"])
     for metodo, url in (("get", "/api/usuarios"), ("get", "/api/bitacora"), ("get", "/api/tablero"), ("get", "/api/dashboard"),
-                        ("get", "/api/ejercicios?detalle=true"), ("get", "/api/ejercicios/2026/presupuesto"),
+                        ("get", "/api/ejercicios?detalle=true"), ("get", "/api/ejercicios/2026/metas"),
                         ("get", "/api/indicadores/codigo-sugerido?area_id=1"), ("get", "/api/puesta-en-marcha")):
         assert getattr(client, metodo)(url).status_code == 403, url
 

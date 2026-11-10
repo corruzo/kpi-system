@@ -1,4 +1,4 @@
-# Arquitectura de SGC • TRIPOLIVEN
+# Arquitectura de SPE TPV
 
 ## Capas (la dependencia va siempre hacia abajo)
 
@@ -9,7 +9,7 @@
  app/api/routers/*      HTTP: valida entrada (schemas.py), declara el rol exigido (deps.requiere), traduce errores
  app/api/serializadores salida JSON explícita (nunca se devuelve un modelo tal cual)
  app/servicios/*        reglas de negocio y transacciones; no conocen HTTP
- app/dominio/*          lógica pura sin base de datos: calendario fiscal, fórmulas, semáforo, presupuesto
+ app/dominio/*          lógica pura sin base de datos: calendario fiscal, fórmulas, semáforo, meta
  app/models.py          esquema (SQLAlchemy 2) — la verdad del modelo de datos
  migrations/versions    única vía para cambiar el esquema (Alembic); `alembic check` impide divergencias
 ```

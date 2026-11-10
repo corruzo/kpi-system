@@ -176,14 +176,14 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
     r_u = r_nom + 1
     unidad_raw = _txt(V(r_u, 4))
     unidad = UNIDADES.get(unidad_raw.lower(), unidad_raw[:12] or "cantidad")
-    meta_txt = _txt(V(r_u, 11))
-    m = re.search(r"(-?\d+(?:[.,]\d+)?)\s*(m[ií]n|m[aá]x)", meta_txt, re.I)
+    optimo_txt = _txt(V(r_u, 11))
+    m = re.search(r"(-?\d+(?:[.,]\d+)?)\s*(m[ií]n|m[aá]x)", optimo_txt, re.I)
     if m:
-        meta, sentido = float(m.group(1).replace(",", ".")), "mayor" if m.group(2).lower().startswith("mí") or \
+        nivel_optimo, sentido = float(m.group(1).replace(",", ".")), "mayor" if m.group(2).lower().startswith("mí") or \
             m.group(2).lower().startswith("mi") else "menor"
     else:
-        meta, sentido = _num(V(r_u, 11)) or 0.0, "mayor"
-        av.append(f"No se pudo interpretar la meta «{meta_txt}»: verifique meta y sentido.")
+        nivel_optimo, sentido = _num(V(r_u, 11)) or 0.0, "mayor"
+        av.append(f"No se pudo interpretar la «Meta» de la planilla («{optimo_txt}»): verifique el nivel óptimo y el sentido.")
     frec = _txt(V(r_u, 16)).lower()
     if frec not in calendario.FRECUENCIAS:
         av.append(f"Frecuencia «{frec}» no reconocida: se usó «mensual».")
@@ -192,17 +192,17 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
     vv = lambda r, c: _num(V(r_nom + r, c))  # noqa: E731
     v13, w13, v14, w14 = vv(2, 22), vv(2, 23), vv(3, 22), vv(3, 23)
     if sentido == "mayor":
-        meta_tope = w13 if w13 is not None and w13 >= meta else None
-        limite = v14 if v14 is not None and v14 <= meta else meta
+        nivel_optimo_tope = w13 if w13 is not None and w13 >= nivel_optimo else None
+        limite = v14 if v14 is not None and v14 <= nivel_optimo else nivel_optimo
         limite_tope = w14 if w14 is not None and w14 >= limite else None
     else:
-        meta_tope = v13 if v13 is not None and v13 <= meta else None
-        limite = w14 if w14 is not None and w14 >= meta else meta
+        nivel_optimo_tope = v13 if v13 is not None and v13 <= nivel_optimo else None
+        limite = w14 if w14 is not None and w14 >= nivel_optimo else nivel_optimo
         limite_tope = v14 if v14 is not None and v14 <= limite else None
     try:
-        semaforo.validar_umbrales(meta, limite, sentido, meta_tope, limite_tope)
+        semaforo.validar_umbrales(nivel_optimo, limite, sentido, nivel_optimo_tope, limite_tope)
     except ValueError:
-        meta_tope = limite_tope = None
+        nivel_optimo_tope = limite_tope = None
     r_f = (f.get("formula de calculo") or [r_nom + 2])[0]
     doc = _txt(ws.cell(r_f, 4).value) if ws.cell(r_f, 4).value else _txt(V(r_f, 4))
     doc_raw = str(V(r_f, 4) or "")
@@ -282,7 +282,7 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
                 continue
             ra = r_ah + 1 + slots.index((c, etq))
             mediciones.append({"periodo": per, "etiqueta": etq, "valores": vals, "resultado": res,
-                               "semaforo": semaforo.clasificar(res, meta, limite, sentido, meta_tope, limite_tope),
+                               "semaforo": semaforo.clasificar(res, nivel_optimo, limite, sentido, nivel_optimo_tope, limite_tope),
                                "analisis": _txt(V(ra, 4)), "plan_mejora": _txt(V(ra, 13))})
     notas = ""
     r_nt = (f.get("notas") or [0])[0]
@@ -294,8 +294,8 @@ def _hoja(ws, wv, nombre_hoja: str) -> dict | None:
         "hoja": nombre_hoja, "codigo": "", "nombre": nombre, "sigla": sigla, "area": area, "gerencia": gerencia,
         "seguimiento": seg, "ref_nombre": ref_nombre, "ref_detalle": ref_detalle, "lider": lider,
         "resp_medicion": resp_med, "resp_registro": resp_reg, "resp_analisis": resp_ana,
-        "unidad": unidad, "frecuencia": frec, "sentido": sentido, "meta": meta, "limite": limite,
-        "meta_tope": meta_tope, "limite_tope": limite_tope, "decimales": dec, "fuente": fuente,
+        "unidad": unidad, "frecuencia": frec, "sentido": sentido, "nivel_optimo": nivel_optimo, "limite": limite,
+        "nivel_optimo_tope": nivel_optimo_tope, "limite_tope": limite_tope, "decimales": dec, "fuente": fuente,
         "objetivo": ref_detalle, "notas": " · ".join(x for x in (notas, doc_nota) if x)[:2000],
         "formula": formula, "variables": [{"clave": c, "etiqueta": e} for c, e in zip(claves, etiquetas, strict=False)],
         "ejercicio": ejercicio_txt, "inicio_ejercicio": inicio, "mediciones": mediciones, "avisos": av,

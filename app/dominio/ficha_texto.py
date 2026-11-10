@@ -2,9 +2,9 @@
 import re
 
 
-def meta_texto(i) -> str:
-    """Meta como se escribía en la ficha en papel: «96 Mín.» o «3 Máx.»."""
-    return f"{i.meta:g} {'Mín.' if i.sentido == 'mayor' else 'Máx.'}"
+def nivel_optimo_texto(i) -> str:
+    """Nivel óptimo como se escribía en la ficha en papel: «96 Mín.» o «3 Máx.»."""
+    return f"{i.nivel_optimo:g} {'Mín.' if i.sentido == 'mayor' else 'Máx.'}"
 
 
 def formula_documentada(i) -> str:
@@ -28,7 +28,7 @@ def formula_en_palabras(formula: str, variables, constantes=()) -> str:
 def franjas(i):
     """((mín, máx) verde, (mín, máx) amarillo, (texto, texto) rojo): la tabla «Min./Max.» del semáforo."""
     mayor = i.sentido == "mayor"
-    verde = (i.meta, i.meta_tope) if mayor else (i.meta_tope, i.meta)
+    verde = (i.nivel_optimo, i.nivel_optimo_tope) if mayor else (i.nivel_optimo_tope, i.nivel_optimo)
     amarillo = (i.limite, i.limite_tope) if mayor else (i.limite_tope, i.limite)
     if mayor:
         rojo = (f"< {i.limite:g}", f"> {i.limite_tope:g}" if i.limite_tope is not None else "")

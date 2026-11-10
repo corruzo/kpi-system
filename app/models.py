@@ -1,4 +1,4 @@
-"""Modelo de datos del SGC • TRIPOLIVEN."""
+"""Modelo de datos de SPE TPV."""
 from datetime import UTC, datetime
 
 from sqlalchemy import (
@@ -55,10 +55,10 @@ class Ejercicio(Base):
     cerrado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[cerrado_por_id])
 
 
-class Presupuesto(Base):
-    """Lo que se presupuesta para un indicador en un período de su frecuencia (paso 3 del flujo anual).
-    Al cargar el dato real, el presupuesto vigente se copia a la medición y se compara con el resultado."""
-    __tablename__ = "presupuestos"
+class Meta(Base):
+    """La meta de un indicador en un período de su frecuencia (paso 3 del flujo anual).
+    Al cargar el dato real, la meta vigente se copia a la medición y se compara con el resultado."""
+    __tablename__ = "metas"
     __table_args__ = (UniqueConstraint("indicador_id", "periodo"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     ejercicio: Mapped[int] = mapped_column(ForeignKey("ejercicios.anio"), index=True)
@@ -124,7 +124,7 @@ class Indicador(Base):
     sentido: Mapped[str] = mapped_column(String(10))       # mayor | menor  (mayor/menor es mejor)
     formula: Mapped[str] = mapped_column(String(300))
     variables: Mapped[list] = mapped_column(JSON)          # [{"clave":..., "etiqueta":...}]
-    meta: Mapped[float] = mapped_column(Float)             # límite de zona verde
+    nivel_optimo: Mapped[float] = mapped_column(Float)             # límite de zona verde
     limite: Mapped[float] = mapped_column(Float)           # límite de zona amarilla (más allá = rojo)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
@@ -143,7 +143,7 @@ class Indicador(Base):
     resp_medicion: Mapped[str | None] = mapped_column(String(150), default="")
     resp_registro: Mapped[str | None] = mapped_column(String(150), default="")
     resp_analisis: Mapped[str | None] = mapped_column(String(150), default="")
-    meta_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
+    nivel_optimo_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
     limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
     area: Mapped[Area] = relationship(lazy="joined")
 
@@ -168,7 +168,7 @@ class Medicion(Base):
     valores: Mapped[dict] = mapped_column(JSON)
     resultado: Mapped[float] = mapped_column(Float)
     semaforo: Mapped[str] = mapped_column(String(10))      # verde | amarillo | rojo
-    meta: Mapped[float] = mapped_column(Float)
+    nivel_optimo: Mapped[float] = mapped_column(Float)
     limite: Mapped[float] = mapped_column(Float)
     sentido: Mapped[str] = mapped_column(String(10))
     estado: Mapped[str] = mapped_column(String(12), index=True)   # enviado | aprobado | observado
@@ -184,9 +184,9 @@ class Medicion(Base):
     formula: Mapped[str | None] = mapped_column(Text)
     constantes: Mapped[list | None] = mapped_column(JSON)
     decimales: Mapped[int | None] = mapped_column(Integer)
-    meta_tope: Mapped[float | None] = mapped_column(Float)
+    nivel_optimo_tope: Mapped[float | None] = mapped_column(Float)
     limite_tope: Mapped[float | None] = mapped_column(Float)
-    presupuesto: Mapped[float | None] = mapped_column(Float)  # lo presupuestado para el período, copiado al cargar
+    meta: Mapped[float | None] = mapped_column(Float)  # la meta para el período, copiado al cargar
     ejercicio: Mapped[int | None] = mapped_column(Integer, index=True)   # año en que termina el ejercicio fiscal del período
     # Toda carga se muestra con su indicador, quién la cargó y revisó y sus notas: se traen en la misma consulta (o en una
     # sola adicional para las notas) en vez de una consulta por fila (problema N+1: 500 cargas = 2.000 consultas).

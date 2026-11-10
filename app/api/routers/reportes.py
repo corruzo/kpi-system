@@ -31,7 +31,7 @@ def fichas(ejercicio: AnioConsulta = None, area_id: IdConsulta = None, indicador
 
 @router.post("/verificar")
 async def verificar(archivo: UploadFile = File(...), db: Session = Depends(get_db), _: Usuario = Depends(requiere("admin", "gerente"))):
-    """Comprueba que un Excel descargado del SGC • TRIPOLIVEN conserva exactamente lo que el sistema emitió."""
+    """Comprueba que un Excel descargado de SPE TPV conserva exactamente lo que el sistema emitió."""
     contenido = await archivo.read(reportes.MAX_BYTES_VERIFICAR + 1)
     return await run_in_threadpool(reportes.verificar, db, contenido)   # openpyxl y la base no deben bloquear el servidor
 

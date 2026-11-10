@@ -1,5 +1,5 @@
 """Ficha técnica de indicador en Excel (una hoja por indicador), con el formato del SGC y la comparación de lo real
-contra lo presupuestado. Blanco y negro, sin logo y sin gráficos."""
+contra la meta. Blanco y negro, sin logo y sin gráficos."""
 import re
 
 from openpyxl import Workbook
@@ -7,7 +7,7 @@ from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 
 from ..dominio import calendario
-from ..dominio.ficha_texto import formula_documentada, franjas, meta_texto
+from ..dominio.ficha_texto import formula_documentada, franjas, nivel_optimo_texto
 from ..dominio.formula_excel import a_excel
 from .comun import (
     BORDE,
@@ -72,7 +72,7 @@ def _nombre_hoja(ind, usados: set[str]) -> str:
 
 
 def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
-    """fichas: [(Indicador, ejercicio, periodos[{periodo, etiqueta, corta, presupuesto, medicion}])]. Una hoja por indicador."""
+    """fichas: [(Indicador, ejercicio, periodos[{periodo, etiqueta, corta, meta, medicion}])]. Una hoja por indicador."""
     wb = Workbook()
     wb.remove(wb.active)
     empresa = params.get("empresa", "")
@@ -119,7 +119,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         nombre_ind = ind.nombre + (f" ({ind.sigla})" if ind.sigla and f"({ind.sigla})" not in ind.nombre else "")
         _par(ws, d + 1, 1, "Nombre del indicador", 2, 7, nombre_ind, 30)
         _par(ws, d + 2, 1, "Unidad de medida", 2, 3, ind.unidad)
-        _par(ws, d + 2, 4, "Meta", 5, 7, meta_texto(ind))
+        _par(ws, d + 2, 4, "Nivel óptimo", 5, 7, nivel_optimo_texto(ind))
         _par(ws, d + 3, 1, "Frecuencia de medición", 2, 7, ind.frecuencia.capitalize())
         _par(ws, d + 4, 1, "Fórmula de cálculo", 2, 7, formula_documentada(ind), mono=True)
         ws.merge_cells(start_row=d + 4, start_column=2, end_row=d + 6, end_column=7)
@@ -204,13 +204,13 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
                     c.number_format = "#,##0.##"
             fila += 1
 
-        # --- real contra presupuesto, período por período; ocupa todo el ancho de la ficha (13 columnas)
-        # columnas: A período · B-C presupuestado · D-E real · F-G diferencia · H-I real/presupuesto · J-K cumple · L semáforo · M estado
+        # --- real contra meta, período por período; ocupa todo el ancho de la ficha (13 columnas)
+        # columnas: A período · B-C meta · D-E real · F-G diferencia · H-I real/meta · J-K cumple · L semáforo · M estado
         fila += 1
-        _banda(ws, fila, "REAL VS PRESUPUESTO")
+        _banda(ws, fila, "REAL VS META")
         fila += 1
-        grupos = [(1, 1, "Período"), (2, 3, "Presupuestado"), (4, 5, "Real"), (6, 7, "Diferencia"), (8, 9, "Real / presupuesto"),
-                  (10, 11, "Cumple presupuesto"), (12, 12, "Semáforo"), (13, 13, "Estado")]
+        grupos = [(1, 1, "Período"), (2, 3, "Meta"), (4, 5, "Real"), (6, 7, "Diferencia"), (8, 9, "Real / meta"),
+                  (10, 11, "Cumple meta"), (12, 12, "Semáforo"), (13, 13, "Estado")]
         for c1, c2, t in grupos:
             if c2 > c1:
                 ws.merge_cells(start_row=fila, start_column=c1, end_row=fila, end_column=c2)
@@ -226,11 +226,11 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         for idx, per in enumerate(periodos):
             fila += 1
             m = per["medicion"] if per["medicion"] and per["medicion"].estado != "observado" else None
-            ppto = m.presupuesto if m is not None and m.presupuesto is not None else per.get("presupuesto")
+            meta = m.meta if m is not None and m.meta is not None else per.get("meta")
             dif, pct, cumple = _formulas_comparacion(fila, "B", "D", mayor)
             estado = {"enviado": "En revisión", "aprobado": "Aprobado"}.get(m.estado, "") if m else \
                 ("Devuelto" if per["medicion"] else "Sin cargar")
-            valores = {1: per["etiqueta"], 2: ppto, 4: m.resultado if m else None, 6: dif, 8: pct, 10: cumple, 12: "", 13: estado}
+            valores = {1: per["etiqueta"], 2: meta, 4: m.resultado if m else None, 6: dif, 8: pct, 10: cumple, 12: "", 13: estado}
             for c1, c2, _ in grupos:
                 if c2 > c1:
                     ws.merge_cells(start_row=fila, start_column=c1, end_row=fila, end_column=c2)
@@ -252,8 +252,8 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
                 formula = a_excel(m.formula_aplicada, celdas, m.precision)
                 if formula:
                     ws.cell(fila, 4).value = formula
-                if m.meta_tope is None and m.limite_tope is None:
-                    ws.cell(fila, 12).value = formula_semaforo(f"D{fila}", m.meta, m.limite, m.sentido == "mayor")
+                if m.nivel_optimo_tope is None and m.limite_tope is None:
+                    ws.cell(fila, 12).value = formula_semaforo(f"D{fila}", m.nivel_optimo, m.limite, m.sentido == "mayor")
                 else:
                     ws.cell(fila, 12).value = SEMAFORO[m.semaforo]
 
@@ -278,7 +278,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         if not con_texto:
             fila += 1
             ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=NCOLS)
-            ws.cell(fila, 1, "Sin análisis registrados: todos los períodos cargados están dentro de meta.").font = fuente(cursiva=True)
+            ws.cell(fila, 1, "Sin análisis registrados: todos los períodos cargados están dentro del nivel óptimo.").font = fuente(cursiva=True)
             ws.cell(fila, 1).alignment = Alignment(indent=1)
         for per, m in con_texto:                       # solo los períodos con análisis: sin filas en blanco
             fila += 1

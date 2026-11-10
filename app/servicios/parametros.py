@@ -10,7 +10,7 @@ from .. import cifrado
 from ..database import SessionLocal
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
-from ..models import Ejercicio, Indicador, Medicion, Parametro, Presupuesto, Usuario
+from ..models import Ejercicio, Indicador, Medicion, Meta, Parametro, Usuario
 from . import auditoria, ejercicios, marca
 
 _SEGUNDOS_CACHE = 30
@@ -90,9 +90,9 @@ def actualizar(db: Session, usuario: Usuario, datos) -> dict:
         if db.scalar(select(Medicion.id).join(Indicador).where(~Indicador.frecuencia.in_(("mensual", "eventual"))).limit(1)):
             raise Conflicto("Ya existen cargas bimestrales, trimestrales, cuatrimestrales, semestrales o anuales: "
                             "cambiar el mes de inicio del ejercicio fiscal alteraría sus períodos.")
-        if db.scalar(select(Presupuesto.id).limit(1)):
-            raise Conflicto("Ya hay presupuestos ingresados: cambiar el mes de inicio del ejercicio fiscal los desalinearía de sus "
-                            "períodos. Defina el mes de inicio antes de presupuestar.")
+        if db.scalar(select(Meta.id).limit(1)):
+            raise Conflicto("Ya hay metas ingresadas: cambiar el mes de inicio del ejercicio fiscal los desalinearía de sus "
+                            "períodos. Defina el mes de inicio antes de fijar metas.")
     nueva_clave = datos.clave_reportes.strip()
     if datos.proteger_reportes and not (nueva_clave or actuales.get("clave_reportes")):
         raise Invalido("Defina la contraseña con la que se bloquearán los reportes en Excel.")

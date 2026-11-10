@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, semaforo
 from ..errores import Invalido, NoEncontrado
-from ..models import Area, Indicador, Medicion, Presupuesto, Usuario
+from ..models import Area, Indicador, Medicion, Meta, Usuario
 from . import acceso, auditoria, ejercicios
 
 
@@ -91,9 +91,9 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
     todos = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
     pendientes, otros = _dividir_pendientes(ind, todos, anio)
     periodos = calendario.periodos_hasta_hoy(ind.frecuencia, anio, hoy)
-    presupuestados = {p.periodo: p.valor for p in db.scalars(select(Presupuesto).where(Presupuesto.indicador_id == ind.id))}
+    con_meta = {p.periodo: p.valor for p in db.scalars(select(Meta).where(Meta.indicador_id == ind.id))}
     return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "pendientes_otros": otros, "ejercicio": anio,
-            "presupuestos": presupuestados, "creado": ejercicios.creado(db, anio),
+            "metas": con_meta, "creado": ejercicios.creado(db, anio),
             "cerrados": ejercicios.anios_cerrados(db), "periodos": periodos}
 
 
@@ -106,9 +106,9 @@ def contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
     disponibles = sorted(set(con_datos) | {vigente}, reverse=True)
     # sin ejercicio pedido: el vigente, o el más reciente con datos si el vigente aún está vacío
     anio = ejercicio if ejercicio in disponibles else (vigente if vigente in con_datos or not con_datos else con_datos[0])
-    presupuestados = {p.periodo: p.valor for p in db.scalars(select(Presupuesto).where(Presupuesto.indicador_id == ind.id))}
+    con_meta = {p.periodo: p.valor for p in db.scalars(select(Meta).where(Meta.indicador_id == ind.id))}
     periodos = [{"periodo": p, "etiqueta": calendario.etiqueta(f, p), "corta": calendario.etiqueta_corta(f, p),
-                 "presupuesto": presupuestados.get(p), "medicion": medidas.get(p)}
+                 "meta": con_meta.get(p), "medicion": medidas.get(p)}
                 for p in calendario.periodos_del_ejercicio(f, anio)]
     return anio, disponibles, periodos
 
@@ -133,7 +133,7 @@ def validar_ficha(db: Session, datos, propio_id: int | None = None) -> None:
         raise Invalido(f"La clave «{reservadas[0]}» está reservada (función o palabra del lenguaje).")
     try:
         formulas.validar(datos.formula, nombres, variables)
-        semaforo.validar_umbrales(datos.meta, datos.limite, datos.sentido, datos.meta_tope, datos.limite_tope)
+        semaforo.validar_umbrales(datos.nivel_optimo, datos.limite, datos.sentido, datos.nivel_optimo_tope, datos.limite_tope)
     except (formulas.FormulaError, ValueError) as e:
         raise Invalido(str(e)) from None
     if not db.get(Area, datos.area_id):
@@ -156,12 +156,12 @@ def revisar_formula(datos) -> dict:
 def probar_formula(datos) -> dict:
     """Resultado y semáforo con valores de ejemplo, antes de guardar la ficha."""
     try:
-        semaforo.validar_umbrales(datos.meta, datos.limite, datos.sentido, datos.meta_tope, datos.limite_tope)
+        semaforo.validar_umbrales(datos.nivel_optimo, datos.limite, datos.sentido, datos.nivel_optimo_tope, datos.limite_tope)
         resultado = formulas.evaluar(datos.formula, datos.valores, datos.constantes, datos.decimales)
     except (formulas.FormulaError, ValueError) as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "resultado": resultado,
-            "semaforo": semaforo.clasificar(resultado, datos.meta, datos.limite, datos.sentido, datos.meta_tope, datos.limite_tope)}
+            "semaforo": semaforo.clasificar(resultado, datos.nivel_optimo, datos.limite, datos.sentido, datos.nivel_optimo_tope, datos.limite_tope)}
 
 
 # ---------------------------------------------------------------- código automático
@@ -202,7 +202,7 @@ def crear(db: Session, admin: Usuario, datos) -> Indicador:
     db.add(ind)
     db.flush()
     auditoria.registrar(db, admin, "INDICADOR_CREADO", "indicador", ind.id,
-                        {"codigo": ind.codigo, "nombre": ind.nombre, "encargado_id": ind.encargado_id, "formula": ind.formula, "meta": ind.meta,
+                        {"codigo": ind.codigo, "nombre": ind.nombre, "encargado_id": ind.encargado_id, "formula": ind.formula, "nivel_optimo": ind.nivel_optimo,
                          "limite": ind.limite, "sentido": ind.sentido}, ind)
     db.commit()
     return ind
@@ -230,8 +230,8 @@ def editar(db: Session, admin: Usuario, indicador_id: int, datos) -> Indicador:
     nuevos = campos_de_ficha(datos)
     cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items()
                if getattr(ind, k) != v and not (not getattr(ind, k) and not v)}
-    if "frecuencia" in cambios:   # sus períodos cambian: el presupuesto por período ya no corresponde y debe ingresarse de nuevo
-        db.execute(delete(Presupuesto).where(Presupuesto.indicador_id == ind.id))
+    if "frecuencia" in cambios:   # sus períodos cambian: la meta por período ya no corresponde y debe ingresarse de nuevo
+        db.execute(delete(Meta).where(Meta.indicador_id == ind.id))
     for k, v in nuevos.items():
         setattr(ind, k, v)
     if cambios:
@@ -251,7 +251,7 @@ def eliminar(db: Session, admin: Usuario, indicador_id: int) -> bool:
         db.commit()
         return True
     auditoria.registrar(db, admin, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
-    db.execute(delete(Presupuesto).where(Presupuesto.indicador_id == ind.id))   # sin cargas: su presupuesto se va con él
+    db.execute(delete(Meta).where(Meta.indicador_id == ind.id))   # sin cargas: su meta se va con él
     db.delete(ind)
     db.commit()
     return False

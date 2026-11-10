@@ -86,7 +86,7 @@
           <div class="card-b grid grid-cols-1 gap-4 md:grid-cols-2">
             <form class="space-y-3 rounded-2xl border border-slate-200 p-4" @submit.prevent="descargarRespaldo()">
               <h3 class="font-semibold">Exportar</h3>
-              <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, presupuestos y bitácora). Solo se abre con la frase de paso que escriba: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
+              <p class="text-sm text-slate-600">Descarga una copia <b>cifrada</b> de toda la información (usuarios, indicadores, cargas, metas y bitácora). Solo se abre con la frase de paso que escriba: <b>el sistema no la guarda</b>; si la pierde, el respaldo no se puede recuperar. Guarde el archivo fuera de este servidor.</p>
               <div><label class="lbl" for="frase-resp">Frase de paso (mínimo 12 caracteres)</label><input id="frase-resp" type="password" class="inp" x-model="respFrase" minlength="12" maxlength="200" autocomplete="new-password" required></div>
               <button class="btn btn-p" :disabled="busy || respFrase.length < 12">Descargar respaldo cifrado</button>
             </form>

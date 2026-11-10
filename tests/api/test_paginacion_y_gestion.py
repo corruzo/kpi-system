@@ -36,7 +36,7 @@ def test_el_gerente_crea_edita_archiva_y_elimina_indicadores(client, escenario):
     assert editado.status_code == 200 and editado.json()["nombre"] == "Renombrado"
     assert client.delete(f"/api/indicadores/{ind['id']}").json() == {"ok": True, "archivado": False}   # sin cargas: se elimina
     # y la gerencia ve los archivados en la lista de gestión
-    archivado = crear_indicador(client, area, presupuesto=False)
+    archivado = crear_indicador(client, area, meta=False)
     entrar(client, "admin", CLAVE_ADMIN)
     client.put(f"/api/indicadores/{archivado['id']}", json={**ficha_base(area), "codigo": archivado["codigo"], "activo": False})
     entrar(client, escenario["gerente"])
@@ -91,7 +91,7 @@ def test_indicadores_y_usuarios_paginados_con_filtros_en_el_servidor(client):
     area = crear_area(client)
     nombres = [f"Paginado {k}" for k in range(3)]
     for n in nombres:
-        crear_indicador(client, area, presupuesto=False, nombre=n)
+        crear_indicador(client, area, meta=False, nombre=n)
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.get(f"/api/indicadores?gestion=true&area_id={area}&limite=2&desde=0")
     assert int(r.headers["X-Total-Count"]) == 3 and len(r.json()) == 2

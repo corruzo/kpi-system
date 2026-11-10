@@ -3,7 +3,7 @@ window.SIGT = { modulos: {} };   // cada archivo de js/ registra aquí su módul
 
 const SEM = { verde: '#16a34a', amarillo: '#f59e0b', rojo: '#dc2626', sin_datos: '#a6bbd1' };
 const NAVY = '#0b3558', BRAND = '#006bff';
-const ACCIONES = ['RECORDATORIO', 'PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION', 'EJERCICIO_CREADO', 'PRESUPUESTO_GUARDADO', 'USUARIO_ELIMINADO', 'SESIONES_CERRADAS', 'ACCESOS_DESBLOQUEADOS', 'LOGO_ACTUALIZADO', 'LOGO_ELIMINADO', 'EJERCICIO_CERRADO', 'EJERCICIO_REABIERTO'];
+const ACCIONES = ['RECORDATORIO', 'PARAMETROS_EDITADOS', 'CATALOGO_CREADO', 'CATALOGO_EDITADO', 'CATALOGO_ELIMINADO', 'IMPORTACION', 'CARGA', 'REENVIO', 'APROBACION', 'OBSERVACION', 'NOTA_AUDITORIA', 'INDICADOR_CREADO', 'INDICADOR_EDITADO', 'INDICADOR_ARCHIVADO', 'INDICADOR_ELIMINADO', 'AREA_CREADA', 'AREA_EDITADA', 'AREA_ELIMINADA', 'USUARIO_CREADO', 'USUARIO_EDITADO', 'CLAVE_CAMBIADA', 'REAPERTURA', 'REPORTE_EXPORTADO', 'INICIO_SESION', 'EJERCICIO_CREADO', 'META_GUARDADA', 'USUARIO_ELIMINADO', 'SESIONES_CERRADAS', 'ACCESOS_DESBLOQUEADOS', 'LOGO_ACTUALIZADO', 'LOGO_ELIMINADO', 'EJERCICIO_CERRADO', 'EJERCICIO_REABIERTO'];
 const ICONOS = {
   recordatorios: 'M3 8l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
   inicio: 'M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10',
@@ -16,7 +16,7 @@ const ICONOS = {
   importar: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12',
   ficha: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   ejercicios: 'M8 7V3m8 4V3M5 11h14M6 5h12a1 1 0 011 1v13a1 1 0 01-1 1H6a1 1 0 01-1-1V6a1 1 0 011-1z',
-  presupuesto: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  meta: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   reportes: 'M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4',
   bitacora: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
 };
@@ -29,11 +29,11 @@ const VISTA_INICIAL = 'inicio';       // primera vista tras ingresar
 // Secciones por rol, en el orden del flujo de trabajo. Cada una pertenece a un grupo del menú (GRUPOS_NAV).
 const MENU_POR_ROL = {
   jefe: ['inicio', 'carga', 'historial', 'reportes'],
-  gerente: ['inicio', 'bandeja', 'recordatorios', 'historial', 'panel', 'fichas', 'presupuesto', 'reportes', 'ejercicios'],
-  admin: ['inicio', 'org', 'fichas', 'presupuesto', 'carga', 'bandeja', 'recordatorios', 'historial', 'panel', 'reportes', 'ejercicios', 'importar', 'bitacora'],
+  gerente: ['inicio', 'bandeja', 'recordatorios', 'historial', 'panel', 'fichas', 'meta', 'reportes', 'ejercicios'],
+  admin: ['inicio', 'org', 'fichas', 'meta', 'carga', 'bandeja', 'recordatorios', 'historial', 'panel', 'reportes', 'ejercicios', 'importar', 'bitacora'],
 };
 const GRUPOS_NAV = {            // sección → grupo del menú lateral
-  inicio: '', org: 'Configurar', fichas: 'Configurar', presupuesto: 'Configurar',
+  inicio: '', org: 'Configurar', fichas: 'Configurar', meta: 'Configurar',
   carga: 'Operar', bandeja: 'Operar', recordatorios: 'Operar', historial: 'Operar',
   panel: 'Analizar', reportes: 'Analizar', ejercicios: 'Control', importar: 'Control', bitacora: 'Control',
 };

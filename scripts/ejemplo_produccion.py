@@ -17,17 +17,17 @@ import httpx
 
 AREA = "Producción"
 
-# (código, nombre, objetivo, unidad, sentido, fórmula, variables [(clave, etiqueta, ayuda)], meta, límite, decimales, fuente)
+# (código, nombre, objetivo, unidad, sentido, fórmula, variables [(clave, etiqueta, ayuda)], nivel_optimo, límite, decimales, fuente)
 INDICADORES = [
-    ("PRO-01", "Cumplimiento del plan de producción", "Producir lo presupuestado cada mes.", "%", "mayor",
-     "real / plan * 100", [("plan", "Producción presupuestada (kg)", "Lo presupuestado para el mes"),
+    ("PRO-01", "Cumplimiento del plan de producción", "Producir la meta cada mes.", "%", "mayor",
+     "real / plan * 100", [("plan", "Producción planificada (kg)", "La meta para el mes"),
                            ("real", "Producción real (kg)", "Lo efectivamente producido")], 95, 85, 1, "Reporte de planta"),
     ("PRO-02", "Producto conforme a la primera", "Producir sin retrabajos.", "%", "mayor",
      "conformes / producidas * 100", [("producidas", "Unidades producidas", ""), ("conformes", "Unidades conformes", "")],
      98, 95, 1, "Control de calidad"),
-    ("PRO-03", "Paradas no presupuestadas", "Reducir el tiempo perdido por averías.", "%", "menor",
-     "horas_parada / horas_presupuestadas * 100", [("horas_parada", "Horas de parada", ""),
-                                                ("horas_presupuestadas", "Horas presupuestadas", "")], 5, 8, 1, "Bitácora de mantenimiento"),
+    ("PRO-03", "Paradas no programadas", "Reducir el tiempo perdido por averías.", "%", "menor",
+     "horas_parada / horas_previstas * 100", [("horas_parada", "Horas de parada", ""),
+                                                ("horas_previstas", "Horas previstas", "")], 5, 8, 1, "Bitácora de mantenimiento"),
     ("PRO-04", "Merma de materia prima", "Aprovechar la materia prima.", "%", "menor",
      "merma / materia_prima * 100", [("merma", "Merma (kg)", ""), ("materia_prima", "Materia prima usada (kg)", "")],
      2, 3.5, 2, "Balance de materiales"),
@@ -44,7 +44,7 @@ DATOS = {
     "PRO-04": [(210, 11000), (230, 11200), (330, 10800), (520, 9700), (240, 10900), (200, 11300),
                (260, 11000), (480, 9400), (250, 10800), (190, 11100), (240, 10600), (210, 11200)],
 }
-ANALISIS = ("El resultado quedó fuera de la meta por causas del período (paradas y reprocesos).",
+ANALISIS = ("El resultado quedó fuera del nivel óptimo por causas del período (paradas y reprocesos).",
             "Se programó mantenimiento preventivo y revisión del plan con el área de compras.")
 DEVUELTO = 8   # índice (0 = enero): este mes el gerente pide corregir y el jefe reenvía
 
@@ -92,10 +92,10 @@ def main() -> None:
         exigir(adm.post("/api/usuarios", json={"username": usuario, "nombre": nombre, "rol": rol,
                                                "area_id": area if rol == "jefe" else None, "password": clave}), f"Crear {usuario}")
     ids = {}
-    for cod, nombre, objetivo, unidad, sentido, formula, variables, meta, limite, dec, fuente in INDICADORES:
+    for cod, nombre, objetivo, unidad, sentido, formula, variables, nivel_optimo, limite, dec, fuente in INDICADORES:
         ids[cod] = exigir(adm.post("/api/indicadores", json={
             "codigo": cod, "nombre": nombre, "objetivo": objetivo, "area_id": area, "unidad": unidad, "frecuencia": "mensual",
-            "sentido": sentido, "formula": formula, "meta": meta, "limite": limite, "decimales": dec, "fuente": fuente,
+            "sentido": sentido, "formula": formula, "nivel_optimo": nivel_optimo, "limite": limite, "decimales": dec, "fuente": fuente,
             "seguimiento": "proceso", "ref_nombre": "Proceso de Producción", "ref_detalle": "Fabricar según el plan, con calidad y sin desperdicio",
             "variables": [{"clave": k, "etiqueta": e, "ayuda": h} for k, e, h in variables]}), f"Crear {cod}")["id"]
 

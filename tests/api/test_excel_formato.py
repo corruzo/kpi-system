@@ -84,7 +84,7 @@ def test_cada_hoja_empieza_con_el_nombre_de_la_empresa(libros, client):
         assert ws["A1"].value == empresa, nombre
 
 
-def test_la_ficha_compara_real_y_presupuesto(libros):
+def test_la_ficha_compara_real_y_meta(libros):
     ws = libros["fichas"].worksheets[0]
     textos = [c.value for fila in ws.iter_rows() for c in fila if isinstance(c.value, str)]
-    assert "REAL VS PRESUPUESTO" in textos and "Presupuestado" in textos and "Cumple presupuesto" in textos
+    assert "REAL VS META" in textos and "Meta" in textos and "Cumple meta" in textos
