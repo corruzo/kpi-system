@@ -133,9 +133,26 @@ def _convertir(tabla, fila: dict) -> dict:
     return {k: _de_json(v) for k, v in fila.items() if k in tabla.c}
 
 
+def _padres_primero(tabla, filas: list[dict]) -> list[dict]:
+    """En una tabla que se referencia a sí misma (el árbol `unidades`) un hijo puede tener un id menor que el de su padre
+    (tras mover un nodo): se insertan los padres antes que los hijos para no violar la llave foránea."""
+    autoref = next((fk.parent.name for fk in tabla.foreign_keys if fk.column.table is tabla), None)
+    if autoref is None:
+        return filas
+    ids, pendientes, salida, puestos = {f["id"] for f in filas}, list(filas), [], set()
+    while pendientes:
+        listos = [f for f in pendientes if f[autoref] is None or f[autoref] in puestos or f[autoref] not in ids]
+        if not listos:
+            raise Invalido(f"El respaldo está dañado: la tabla «{tabla.name}» tiene referencias circulares.")
+        salida += listos
+        puestos |= {f["id"] for f in listos}
+        pendientes = [f for f in pendientes if f["id"] not in puestos]
+    return salida
+
+
 def restaurar(db: Session, archivo: bytes, frase: str, reemplazar: bool = False) -> dict:
     """Carga el respaldo. Por defecto solo en una base recién migrada (`alembic upgrade head`) y vacía.
-    Con `reemplazar=True` (administrador, desde la interfaz) primero BORRA todo lo que hay. Todo o nada: si algo falla,
+    Con `reemplazar=True` (Desarrollador, desde la interfaz) primero BORRA todo lo que hay. Todo o nada: si algo falla,
     la base queda exactamente como estaba."""
     c = abrir(archivo, frase)
     actual = _revision(db)
@@ -143,8 +160,9 @@ def restaurar(db: Session, archivo: bytes, frase: str, reemplazar: bool = False)
         raise Conflicto(f"La base está en la revisión {actual} y el respaldo en la {c['alembic']}: ejecute `alembic upgrade head` "
                         "con la misma versión del sistema con que se hizo el respaldo.")
     if reemplazar:
-        if not any(u.get("rol") == "admin" and u.get("activo") for u in c["tablas"]["usuarios"]["filas"]):
-            raise Invalido("El respaldo no contiene ningún administrador activo: restaurarlo dejaría el sistema sin acceso.")
+        devs = {r["id"] for r in c["tablas"]["roles"]["filas"] if r.get("clave") == "desarrollador"}
+        if not any(u.get("rol_id") in devs and u.get("activo") for u in c["tablas"]["usuarios"]["filas"]):
+            raise Invalido("El respaldo no contiene ningún Desarrollador activo: restaurarlo dejaría el sistema sin acceso.")
     for t in Base.metadata.sorted_tables if not reemplazar else []:
         if db.scalar(select(func.count()).select_from(t)):
             raise Conflicto(f"La tabla «{t.name}» ya tiene datos: restaure únicamente en una base vacía (sin SIGT_ADMIN_PASSWORD "
@@ -153,7 +171,7 @@ def restaurar(db: Session, archivo: bytes, frase: str, reemplazar: bool = False)
         if reemplazar:
             reinicio.vaciar_tablas(db)
         for t in Base.metadata.sorted_tables:
-            filas = [_convertir(t, f) for f in c["tablas"][t.name]["filas"]]
+            filas = _padres_primero(t, [_convertir(t, f) for f in c["tablas"][t.name]["filas"]])
             for i in range(0, len(filas), 1000):
                 db.execute(insert(t), filas[i:i + 1000])
         if db.get_bind().dialect.name == "postgresql":   # las secuencias deben seguir después del mayor id restaurado

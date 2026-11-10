@@ -126,7 +126,7 @@ def test_copiar_el_meta_de_otro_ejercicio(client):
 def test_puesta_en_marcha_informa_cada_paso(client):
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.get("/api/puesta-en-marcha").json()
-    assert [p["id"] for p in r["pasos"]] == ["org", "fichas", "periodo", "meta", "carga"]
+    assert [p["id"] for p in r["pasos"]] == ["cuentas", "estructura", "personas", "fichas", "periodo", "meta", "carga"]
     entrar(client, crear_usuario(client, "gerente"))
     assert client.get("/api/puesta-en-marcha").status_code == 403
 
@@ -142,7 +142,7 @@ def test_eliminar_un_indicador_sin_cargas_borra_su_meta_y_cambiar_frecuencia_lo_
     fila = next(i for i in client.get(f"/api/ejercicios/{vigente()}/metas").json()["indicadores"] if i["indicador_id"] == ind["id"])
     assert fila["con_valor"] == 0 and len(fila["periodos"]) == 4          # la meta mensual anterior ya no aplica
     client.put(f"/api/ejercicios/{vigente()}/metas/{ind['id']}", json={"anual": 2, "reparto": "repetir"})
-    assert client.delete(f"/api/indicadores/{ind['id']}").json()["archivado"] is False   # sin cargas: se elimina de verdad
+    assert client.delete(f"/api/indicadores/{ind['id']}").json() == {"ok": True}   # sin cargas: se elimina de verdad
 
 
 def test_con_metas_no_se_cambia_el_mes_de_inicio_del_ejercicio(client):
@@ -171,7 +171,7 @@ def test_el_reporte_general_compara_real_con_meta(client):
     assert client.post("/api/mediciones", json={**carga(esc, periodo, dias=30, tickets=10), "analisis": "Retraso del proveedor",
                                                 "plan_mejora": "Segundo proveedor"}).status_code == 201
     entrar(client, "admin", CLAVE_ADMIN)
-    r = client.get(f"/api/reportes/general.xlsx?anio={vigente()}&area_id={esc['area']}")
+    r = client.get(f"/api/reportes/general.xlsx?anio={vigente()}&nodo_id={esc['area']}")
     assert r.status_code == 200 and "real_vs_meta" in r.headers["content-disposition"]
     libro = load_workbook(BytesIO(r.content))
     ws = libro["Real vs Meta"]

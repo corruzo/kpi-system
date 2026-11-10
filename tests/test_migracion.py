@@ -1,4 +1,4 @@
-"""Migraciones de Alembic: base antigua, base nueva, equivalencia con los modelos, ida y vuelta, y política de arranque.
+"""Migraciones de Alembic: base nueva (esquema v2), equivalencia con los modelos, ida y vuelta, y política de arranque.
 
 Cada caso corre en un proceso aparte (el motor de la app se crea al importar) con su propia base SQLite temporal.
 """
@@ -8,14 +8,6 @@ import subprocess
 import sys
 
 SECRETO = "s" * 40
-
-ANTIGUA = """CREATE TABLE areas (id INTEGER PRIMARY KEY, nombre VARCHAR(80) UNIQUE);
-INSERT INTO areas (nombre) VALUES ('Existente');
-CREATE TABLE indicadores (id INTEGER PRIMARY KEY, codigo VARCHAR(20), nombre VARCHAR(150), objetivo TEXT,
-  area_id INTEGER, unidad VARCHAR(20), frecuencia VARCHAR(20), sentido VARCHAR(10), formula VARCHAR(300),
-  variables JSON, meta FLOAT, limite FLOAT, activo BOOLEAN, creado_en DATETIME);
-INSERT INTO indicadores VALUES (1,'OLD-01','Viejo','',1,'%','mensual','mayor','a / b * 100',
-  '[{"clave":"a","etiqueta":"A"},{"clave":"b","etiqueta":"B"}]',90,80,1,'2026-01-01 00:00:00');"""
 
 
 def correr(tmp_path, codigo: str, **entorno) -> subprocess.CompletedProcess:
@@ -28,20 +20,6 @@ def correr_ok(tmp_path, codigo: str, **entorno) -> str:
     r = correr(tmp_path, codigo, **entorno)
     assert r.returncode == 0, r.stderr
     return r.stdout.strip()
-
-
-def test_una_base_anterior_a_alembic_se_completa_sin_perder_datos(tmp_path):
-    with sqlite3.connect(tmp_path / "base.db") as cx:
-        cx.executescript(ANTIGUA)
-    salida = correr_ok(tmp_path, (
-        "from app.servicios.arranque import preparar_base; from app.servicios import migraciones; "
-        "from app.database import SessionLocal; from app.models import Indicador; preparar_base(); "
-        "db = SessionLocal(); i = db.get(Indicador, 1); "
-        "print(i.codigo, i.decimales, i.constantes, migraciones.revision_actual() == migraciones.revision_cabeza())"))
-    assert salida == "OLD-01 None None True"
-    with sqlite3.connect(tmp_path / "base.db") as cx:
-        tablas = {f[0] for f in cx.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert {"usuarios", "bitacora", "intentos_fallidos", "alembic_version"} <= tablas
 
 
 def test_el_esquema_migrado_coincide_con_los_modelos(tmp_path):
@@ -82,22 +60,22 @@ def test_en_produccion_se_puede_optar_por_migrar_al_arrancar(tmp_path):
     assert correr_ok(tmp_path, codigo, SIGT_ENV="production", SIGT_AUTO_MIGRATE="1") == "listo"
 
 
-def test_la_migracion_3_cifra_la_clave_de_reportes_existente_y_se_puede_revertir(tmp_path):
-    correr_ok(tmp_path, ("from alembic import command; from app.servicios import migraciones as m; "
-                         "command.upgrade(m.configuracion(), '0002')"))
-    with sqlite3.connect(tmp_path / "base.db") as cx:
-        cx.execute("INSERT INTO parametros (clave, valor) VALUES ('clave_reportes', 'texto-plano-123')")
-    salida = correr_ok(tmp_path, (
-        "from alembic import command; from app import cifrado; from app.database import engine; "
-        "from app.servicios import migraciones as m; from sqlalchemy import text; cfg = m.configuracion(); "
-        "leer = lambda: engine.connect().execute(text(\"SELECT valor FROM parametros WHERE clave='clave_reportes'\")).scalar(); "
-        "command.upgrade(cfg, 'head'); v = leer(); print(v.startswith('fernet:'), 'texto-plano' in v, cifrado.descifrar(v)); "
-        "command.downgrade(cfg, '0002'); print(leer())"))
-    assert salida.splitlines() == ["True False texto-plano-123", "texto-plano-123"]
-
-
 def test_en_vercel_migra_solo_salvo_que_se_desactive(tmp_path):
     codigo = "from app.servicios.arranque import preparar_base; preparar_base(); print('listo')"
     assert correr_ok(tmp_path, codigo, SIGT_ENV="production", VERCEL="1") == "listo"
     r = correr(tmp_path / "otra", codigo, SIGT_ENV="production", VERCEL="1", SIGT_AUTO_MIGRATE="0") if (tmp_path / "otra").mkdir() is None else None
     assert r.returncode != 0 and "alembic upgrade head" in r.stderr
+
+
+def test_la_base_desde_cero_queda_con_el_esquema_v2_y_la_migracion_de_endurecimiento_es_inocua(tmp_path):
+    """Una sola migración base (v2_0001) más la de endurecimiento (v2_0002, que en SQLite no hace nada)."""
+    salida = correr_ok(tmp_path, (
+        "from app.servicios import migraciones as m; from sqlalchemy import inspect; from app.database import engine; "
+        "m.actualizar(); t = set(inspect(engine).get_table_names()); print(m.revision_actual()); "
+        "print(sorted(t & {'unidades','roles','rol_permisos','usuario_unidades','indicador_cargadores','metas'}))"))
+    ahora, tablas = salida.splitlines()
+    assert ahora == "v2_0002"
+    assert tablas == str(sorted(["unidades", "roles", "rol_permisos", "usuario_unidades", "indicador_cargadores", "metas"]))
+    t = correr_ok(tmp_path, "from app.servicios import migraciones as m; from sqlalchemy import inspect; from app.database import engine; "
+                  "print(sorted(set(inspect(engine).get_table_names()) & {'presupuestos', 'areas'}))")
+    assert t == "[]"   # nada del esquema v1

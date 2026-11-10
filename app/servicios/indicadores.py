@@ -1,4 +1,5 @@
-"""Fichas técnicas de indicadores: consulta según el rol, alta, edición, archivado y ficha por ejercicio."""
+"""Fichas técnicas de indicadores: consulta según el alcance de cada persona, alta, edición, asignación (nodo, responsable
+y cargadores), archivado y ficha por ejercicio. Quién ve y quién modifica lo decide `acceso`."""
 
 import unicodedata
 
@@ -6,8 +7,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..dominio import calendario, formulas, semaforo
-from ..errores import Invalido, NoEncontrado
-from ..models import Area, Indicador, Medicion, Meta, Usuario
+from ..errores import Conflicto, Invalido, Prohibido
+from ..models import Indicador, Medicion, Meta, Unidad, Usuario
 from . import acceso, auditoria, ejercicios
 
 
@@ -39,16 +40,17 @@ def _dividir_pendientes(ind: Indicador, pendientes: list[str], ejercicio: int) -
     return aqui, otros
 
 
-def _consulta(u: Usuario, *, gestion: bool, q: str | None, area_id: int | None, frecuencia: str | None, activo: bool | None):
-    """Indicadores visibles y filtrados. En gestión (administrador y gerente/auditor) se incluyen los archivados."""
-    consulta = select(Indicador)
-    if not (gestion and u.rol in ("admin", "gerente")):
-        consulta = acceso.restringir(consulta, u)
+def _consulta(u: Usuario, *, gestion: bool, q: str | None, nodo_id: int | None, frecuencia: str | None, activo: bool | None,
+              cargables: bool = False):
+    """Indicadores visibles y filtrados. `gestion` incluye los archivados (para quien los tiene en su ámbito o es su
+    responsable); `cargables` deja solo aquellos a los que la persona puede cargar datos; `nodo_id` abarca su subárbol."""
+    consulta = select(Indicador).where(acceso.condicion_carga(u) if cargables else acceso.condicion_visible(u, archivados=gestion))
     if q and q.strip():
         patron = "%" + q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-        consulta = consulta.join(Area).where(func.lower(Indicador.codigo + " " + Indicador.nombre + " " + Area.nombre).like(patron, escape="\\"))
-    if area_id:
-        consulta = consulta.where(Indicador.area_id == area_id)
+        consulta = consulta.join(Unidad, Unidad.id == Indicador.nodo_id).where(
+            func.lower(Indicador.codigo + " " + Indicador.nombre + " " + Unidad.nombre).like(patron, escape="\\"))
+    if nodo_id:
+        consulta = consulta.where(acceso.en_nodo(nodo_id))
     if frecuencia:
         consulta = consulta.where(Indicador.frecuencia == frecuencia)
     if activo is not None:
@@ -56,17 +58,18 @@ def _consulta(u: Usuario, *, gestion: bool, q: str | None, area_id: int | None, 
     return consulta
 
 
-def contar(db: Session, u: Usuario, *, gestion=False, q=None, area_id=None, frecuencia=None, activo=None) -> int:
-    base = _consulta(u, gestion=gestion, q=q, area_id=area_id, frecuencia=frecuencia, activo=activo).order_by(None)
+def contar(db: Session, u: Usuario, *, gestion=False, q=None, nodo_id=None, frecuencia=None, activo=None, cargables=False) -> int:
+    base = _consulta(u, gestion=gestion, q=q, nodo_id=nodo_id, frecuencia=frecuencia, activo=activo, cargables=cargables).order_by(None)
     return db.scalar(select(func.count()).select_from(base.subquery())) or 0
 
 
-def listar(db: Session, u: Usuario, ejercicio: int | None = None, *, gestion=False, q=None, area_id=None, frecuencia=None,
-           activo=None, desde=0, limite=None) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
+def listar(db: Session, u: Usuario, ejercicio: int | None = None, *, gestion=False, q=None, nodo_id=None, frecuencia=None,
+           activo=None, desde=0, limite=None, cargables=False) -> list[tuple[Indicador, int, list[str], dict[int, int]]]:
     """(indicador, cargas registradas, pendientes del ejercicio, pendientes de otros ejercicios) de los indicadores
     visibles para el usuario, con filtros y paginación opcionales. Sin `ejercicio` se usa el vigente. Las cargas y los
     estados se consultan solo de los indicadores devueltos (no de toda la tabla)."""
-    consulta = _consulta(u, gestion=gestion, q=q, area_id=area_id, frecuencia=frecuencia, activo=activo).order_by(Indicador.codigo)
+    consulta = _consulta(u, gestion=gestion, q=q, nodo_id=nodo_id, frecuencia=frecuencia, activo=activo,
+                         cargables=cargables).order_by(Indicador.codigo)
     if limite is not None:
         consulta = consulta.offset(max(desde, 0)).limit(max(1, min(limite, 500)))
     inds = list(db.scalars(consulta))
@@ -136,9 +139,6 @@ def validar_ficha(db: Session, datos, propio_id: int | None = None) -> None:
         semaforo.validar_umbrales(datos.nivel_optimo, datos.limite, datos.sentido, datos.nivel_optimo_tope, datos.limite_tope)
     except (formulas.FormulaError, ValueError) as e:
         raise Invalido(str(e)) from None
-    if not db.get(Area, datos.area_id):
-        raise Invalido("Área inexistente.")
-    _validar_encargado(db, datos)
     repetido = db.scalar(select(Indicador).where(Indicador.codigo == datos.codigo))
     if repetido and repetido.id != propio_id:
         raise Invalido(f"Ya existe un indicador con el código {datos.codigo}.")
@@ -165,44 +165,86 @@ def probar_formula(datos) -> dict:
 
 
 # ---------------------------------------------------------------- código automático
-def _prefijo(area: Area) -> str:
-    """Tres letras del área, sin tildes ni símbolos (p. ej. «Calidad y Mejora» → CAL)."""
-    base = "".join(c for c in unicodedata.normalize("NFD", area.nombre) if c.isalnum() and ord(c) < 128).upper()
+def _prefijo(nodo: Unidad) -> str:
+    """Tres letras del nodo, sin tildes ni símbolos (p. ej. «Calidad y Mejora» → CAL)."""
+    base = "".join(c for c in unicodedata.normalize("NFD", nodo.nombre) if c.isalnum() and ord(c) < 128).upper()
     return (base or "IND")[:3]
 
 
-def sugerir_codigo(db: Session, area_id: int) -> str:
-    """Próximo código libre del área: PREFIJO-NN, con NN consecutivo entre los códigos ya registrados con ese prefijo.
+def sugerir_codigo(db: Session, nodo_id: int) -> str:
+    """Próximo código libre del nodo: PREFIJO-NN, con NN consecutivo entre los códigos ya registrados con ese prefijo.
     No reutiliza números de indicadores eliminados ni archivados (los archivados siguen en la tabla)."""
-    area = db.get(Area, area_id)
-    if not area:
-        raise Invalido("Área inexistente.")
-    prefijo = _prefijo(area)
+    nodo = db.get(Unidad, nodo_id)
+    if not nodo:
+        raise Invalido("Nodo de la estructura inexistente.")
+    prefijo = _prefijo(nodo)
     usados = list(db.scalars(select(Indicador.codigo).where(Indicador.codigo.like(f"{prefijo}-%"))))
     numeros = [int(c[len(prefijo) + 1:]) for c in usados if c[len(prefijo) + 1:].isdigit()]
     return f"{prefijo}-{max(numeros, default=0) + 1:02d}"
 
 
-def _validar_encargado(db: Session, datos) -> None:
-    if datos.encargado_id is None:
-        return
-    e = db.get(Usuario, datos.encargado_id)
-    if not e or e.rol != "jefe" or not e.activo:
-        raise Invalido("El encargado de proceso debe ser un usuario activo con ese rol.")
-    if e.area_id != datos.area_id:
-        raise Invalido("El encargado de proceso debe pertenecer al área del indicador.")
+# ---------------------------------------------------------------- asignación: nodo, responsable y cargadores
+def _personas(db: Session, ids: list[int]) -> list[Usuario]:
+    encontradas = {x.id: x for x in db.scalars(select(Usuario).where(Usuario.id.in_(ids)))} if ids else {}
+    if len(encontradas) != len(set(ids)):
+        raise Invalido("Alguna de las personas indicadas no existe.")
+    return [encontradas[i] for i in dict.fromkeys(ids)]
+
+
+def _resolver_asignacion(db: Session, u: Usuario, nodo_id: int, responsable_id: int | None, cargadores: list[int] | None):
+    """(nodo, responsable, cargadores) ya validados contra la regla «a sí mismo o a personas debajo de él».
+    Sin responsable indicado lo es quien crea; sin cargadores indicados, carga el responsable."""
+    nodo = db.get(Unidad, nodo_id)
+    if not nodo:
+        raise Invalido("Nodo de la estructura inexistente.")
+    responsable = _personas(db, [responsable_id or u.id])[0]
+    quienes = _personas(db, cargadores if cargadores else [responsable.id])
+    if acceso.contexto(responsable).clave == acceso.DESARROLLADOR and not acceso.es_desarrollador(u):
+        raise Invalido("Alguna de las personas indicadas no existe.")
+    acceso.exigir_asignacion(db, u, nodo, responsable, quienes)
+    return nodo, responsable, quienes
+
+
+def asignar(db: Session, u: Usuario, indicador_id: int, nodo_id: int, responsable_id: int, cargadores: list[int]) -> Indicador:
+    """Cambia el nodo, el responsable y quienes cargan. Puede hacerlo quien tiene el indicador en su ámbito o es su
+    responsable, y solo hacia sí mismo o personas debajo de él (los roles de sistema, sin restricción)."""
+    ind = obtener_visible(db, u, indicador_id)
+    if not (acceso.alcance_total(u) or acceso.en_ambito(u, ind) or acceso.es_responsable(u, ind)):
+        raise Prohibido("Solo puede reasignar indicadores de su ámbito o de los que es responsable.")
+    if not cargadores:
+        raise Invalido("Indique al menos una persona que cargue el indicador.")
+    nodo, responsable, quienes = _resolver_asignacion(db, u, nodo_id, responsable_id, cargadores)
+    antes = {"nodo": ind.nodo.nombre, "responsable": ind.responsable.nombre if ind.responsable else None,
+             "cargadores": sorted(x.nombre for x in ind.cargadores)}
+    despues = {"nodo": nodo.nombre, "responsable": responsable.nombre, "cargadores": sorted(x.nombre for x in quienes)}
+    if antes != despues:
+        ind.nodo_id, ind.responsable_id, ind.cargadores = nodo.id, responsable.id, quienes
+        ind.nodo, ind.responsable = nodo, responsable
+        auditoria.registrar(db, u, "INDICADOR_ASIGNADO", "indicador", ind.id,
+                            {"codigo": ind.codigo, "cambios": {k: [antes[k], despues[k]] for k in antes if antes[k] != despues[k]}}, ind)
+    db.commit()
+    return ind
 
 
 # ---------------------------------------------------------------- alta, edición y baja
-def crear(db: Session, admin: Usuario, datos) -> Indicador:
+SOLO_AL_CREAR = ("codigo", "nodo_id", "responsable_id", "activo")   # la edición de la ficha no los toca (ver `asignar` y `archivar`)
+
+
+def crear(db: Session, u: Usuario, datos) -> Indicador:
+    nodo, responsable, quienes = _resolver_asignacion(db, u, datos.nodo_id, datos.responsable_id, datos.cargadores)
     if not datos.codigo:
-        datos.codigo = sugerir_codigo(db, datos.area_id) if db.get(Area, datos.area_id) else ""
+        datos.codigo = sugerir_codigo(db, nodo.id)
     validar_ficha(db, datos)
-    ind = Indicador(**campos_de_ficha(datos))
+    campos = campos_de_ficha(datos)
+    if not campos.get("gerencia"):   # por defecto, la gerencia de la que cuelga el nodo
+        campos["gerencia"] = db.get(Unidad, int(nodo.ruta.strip("/").split("/")[0])).nombre
+    ind = Indicador(**{**campos, "responsable_id": responsable.id, "activo": True})
+    ind.cargadores = quienes
     db.add(ind)
     db.flush()
-    auditoria.registrar(db, admin, "INDICADOR_CREADO", "indicador", ind.id,
-                        {"codigo": ind.codigo, "nombre": ind.nombre, "encargado_id": ind.encargado_id, "formula": ind.formula, "nivel_optimo": ind.nivel_optimo,
+    auditoria.registrar(db, u, "INDICADOR_CREADO", "indicador", ind.id,
+                        {"codigo": ind.codigo, "nombre": ind.nombre, "nodo": nodo.nombre, "responsable": responsable.nombre,
+                         "cargadores": [x.nombre for x in quienes], "formula": ind.formula, "nivel_optimo": ind.nivel_optimo,
                          "limite": ind.limite, "sentido": ind.sentido}, ind)
     db.commit()
     return ind
@@ -219,15 +261,21 @@ def _proteger_historial(ind: Indicador, datos) -> None:
                        "registradas. Archívelo y cree uno nuevo.")
 
 
-def editar(db: Session, admin: Usuario, indicador_id: int, datos) -> Indicador:
-    ind = db.get(Indicador, indicador_id)
-    if not ind:
-        raise NoEncontrado("Indicador no encontrado.")
+def _modificable(db: Session, u: Usuario, indicador_id: int) -> Indicador:
+    """El indicador, si la persona lo ve (si no, 404) y además es su responsable (si no, 403)."""
+    ind = obtener_visible(db, u, indicador_id)
+    acceso.exigir_modificable(u, ind)
+    return ind
+
+
+def editar(db: Session, u: Usuario, indicador_id: int, datos) -> Indicador:
+    """Cambia la ficha (no el nodo, el responsable, los cargadores ni el estado: eso va por `asignar` y `archivar`)."""
+    ind = _modificable(db, u, indicador_id)
     datos.codigo = ind.codigo   # el código identifica al indicador en bitácora y reportes: no se cambia
     validar_ficha(db, datos, indicador_id)
     if db.scalar(select(Medicion.id).where(Medicion.indicador_id == indicador_id).limit(1)):
         _proteger_historial(ind, datos)
-    nuevos = campos_de_ficha(datos)
+    nuevos = {k: v for k, v in campos_de_ficha(datos).items() if k not in SOLO_AL_CREAR}
     cambios = {k: [getattr(ind, k), v] for k, v in nuevos.items()
                if getattr(ind, k) != v and not (not getattr(ind, k) and not v)}
     if "frecuencia" in cambios:   # sus períodos cambian: la meta por período ya no corresponde y debe ingresarse de nuevo
@@ -235,23 +283,27 @@ def editar(db: Session, admin: Usuario, indicador_id: int, datos) -> Indicador:
     for k, v in nuevos.items():
         setattr(ind, k, v)
     if cambios:
-        auditoria.registrar(db, admin, "INDICADOR_EDITADO", "indicador", ind.id, {"codigo": ind.codigo, "cambios": cambios}, ind)
+        auditoria.registrar(db, u, "INDICADOR_EDITADO", "indicador", ind.id, {"codigo": ind.codigo, "cambios": cambios}, ind)
     db.commit()
     return ind
 
 
-def eliminar(db: Session, admin: Usuario, indicador_id: int) -> bool:
-    """Elimina el indicador; si ya tiene cargas se archiva para conservar la trazabilidad. Devuelve True si se archivó."""
-    ind = db.get(Indicador, indicador_id)
-    if not ind:
-        raise NoEncontrado("Indicador no encontrado.")
-    if db.scalar(select(Medicion.id).where(Medicion.indicador_id == indicador_id).limit(1)):
-        ind.activo = False
-        auditoria.registrar(db, admin, "INDICADOR_ARCHIVADO", "indicador", ind.id, {"codigo": ind.codigo}, ind)
-        db.commit()
-        return True
-    auditoria.registrar(db, admin, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
-    db.execute(delete(Meta).where(Meta.indicador_id == ind.id))   # sin cargas: su meta se va con él
-    db.delete(ind)
+def archivar(db: Session, u: Usuario, indicador_id: int, archivado: bool) -> Indicador:
+    """Archiva (deja de ofrecerse para cargar; conserva su historial) o restaura un indicador."""
+    ind = _modificable(db, u, indicador_id)
+    if ind.activo == archivado:
+        ind.activo = not archivado
+        auditoria.registrar(db, u, "INDICADOR_ARCHIVADO" if archivado else "INDICADOR_RESTAURADO", "indicador", ind.id, {"codigo": ind.codigo}, ind)
     db.commit()
-    return False
+    return ind
+
+
+def eliminar(db: Session, u: Usuario, indicador_id: int) -> None:
+    """Elimina definitivamente un indicador sin cargas. Con cargas no se borra (trazabilidad): se archiva."""
+    ind = _modificable(db, u, indicador_id)
+    if db.scalar(select(Medicion.id).where(Medicion.indicador_id == indicador_id).limit(1)):
+        raise Conflicto(f"{ind.codigo} tiene cargas registradas: no se puede eliminar sin perder la trazabilidad. Archívelo.")
+    auditoria.registrar(db, u, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
+    db.execute(delete(Meta).where(Meta.indicador_id == ind.id))   # sin cargas: su meta se va con él
+    db.delete(ind)   # la relación `cargadores` borra también sus filas de asignación
+    db.commit()

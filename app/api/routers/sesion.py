@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 from ... import schemas, security
 from ...config import PRODUCCION
 from ...models import Usuario
-from ...servicios import marca, parametros, sesion
+from ...servicios import acceso, marca, parametros, sesion
 from .. import serializadores as ser
-from ..deps import escritura, get_db, origen_cliente, usuario_actual
+from ..deps import cuenta_propia, escritura, get_db, origen_cliente
 
 router = APIRouter(prefix="/api", tags=["sesión"])
 
@@ -22,7 +22,8 @@ def ingresar(datos: schemas.LoginIn, request: Request, response: Response, db: S
              _=Depends(escritura)):
     u = sesion.autenticar(db, datos.username, datos.password, origen_cliente(request))
     _abrir_sesion(response, u)
-    return ser.usuario(u)
+    acceso.preparar(db, u)
+    return ser.sesion(u)
 
 
 @router.post("/logout")
@@ -34,20 +35,20 @@ def salir(request: Request, response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def perfil(u: Usuario = Depends(usuario_actual)):
-    return ser.usuario(u)
+def perfil(u: Usuario = Depends(cuenta_propia)):
+    return ser.sesion(u)
 
 
 @router.post("/cambiar-clave")
 def cambiar_clave(datos: schemas.ClaveIn, response: Response, db: Session = Depends(get_db),
-                  u: Usuario = Depends(usuario_actual), _=Depends(escritura)):
+                  u: Usuario = Depends(cuenta_propia), _=Depends(escritura)):
     sesion.cambiar_clave(db, u, datos.actual, datos.nueva)
     _abrir_sesion(response, u)   # la sesión actual se renueva; las demás quedan invalidadas
     return {"ok": True}
 
 
 @router.post("/tour")
-def marcar_guia(datos: schemas.TourIn, db: Session = Depends(get_db), u: Usuario = Depends(usuario_actual)):
+def marcar_guia(datos: schemas.TourIn, db: Session = Depends(get_db), u: Usuario = Depends(cuenta_propia)):
     return {"tour_visto": sesion.marcar_guia(db, u, datos.visto)}
 
 

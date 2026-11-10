@@ -116,5 +116,5 @@ def actualizar(db: Session, usuario: Usuario, datos) -> dict:
     db.commit()
     leer(db)
     if cambia_inicio:
-        ejercicios.recalcular(db, solo_nulos=False)
+        ejercicios.recalcular(db)
     return resumen(db)

@@ -1,4 +1,4 @@
-"""Arranque del sistema: esquema al día (Alembic), primer administrador, parámetros y calendario fiscal.
+"""Arranque del sistema: esquema al día (Alembic), roles de sistema, primer Desarrollador, parámetros y calendario fiscal.
 
 `iniciar()` se ejecuta una sola vez por proceso (en serverless puede invocarse desde la primera petición).
 """
@@ -13,7 +13,7 @@ from .. import security
 from ..config import PRODUCCION
 from ..database import SessionLocal
 from ..models import Usuario
-from . import auditoria, ejercicios, migraciones, parametros
+from . import acceso, auditoria, migraciones, parametros, roles
 
 log = logging.getLogger("sigt")
 _candado = threading.Lock()
@@ -36,47 +36,49 @@ def preparar_base() -> None:
     migraciones.exigir_al_dia()
 
 
-# ---------------------------------------------------------------- primer administrador
-def crear_admin(username: str, nombre: str, password: str) -> Usuario:
+# ---------------------------------------------------------------- primer Desarrollador
+def crear_desarrollador(username: str, nombre: str, password: str) -> Usuario:
     with SessionLocal() as db:
-        u = Usuario(username=username.lower(), nombre=nombre, rol="admin", password_hash=security.hash_password(password))
+        roles.sembrar(db)
+        u = Usuario(username=username.lower(), nombre=nombre, rol_id=roles.de_sistema(db, acceso.DESARROLLADOR).id,
+                    password_hash=security.hash_password(password))
         db.add(u)
         db.flush()
-        auditoria.registrar(db, u, "USUARIO_CREADO", "usuario", u.id, {"username": u.username, "rol": "admin", "origen": "bootstrap"})
+        auditoria.registrar(db, u, "USUARIO_CREADO", "usuario", u.id, {"username": u.username, "rol": "Desarrollador", "origen": "bootstrap"})
         db.commit()
         return u
 
 
-def crear_admin_inicial() -> None:
-    """Con la base vacía, crea el administrador definido en SIGT_ADMIN_USER / SIGT_ADMIN_PASSWORD."""
+def crear_desarrollador_inicial() -> None:
+    """Con la base vacía, crea el primer Desarrollador definido en SIGT_ADMIN_USER / SIGT_ADMIN_PASSWORD."""
     with SessionLocal() as db:
         if db.scalar(select(func.count(Usuario.id))):
             return
     usuario, clave = os.getenv("SIGT_ADMIN_USER"), os.getenv("SIGT_ADMIN_PASSWORD")
     if not (usuario and clave):
-        log.warning("Base vacía: defina SIGT_ADMIN_USER y SIGT_ADMIN_PASSWORD para crear el primer administrador, "
+        log.warning("Base vacía: defina SIGT_ADMIN_USER y SIGT_ADMIN_PASSWORD para crear el primer Desarrollador, "
                     "o ejecute «python -m app.crear_admin».")
         return
     if len(clave) < 10:
         raise RuntimeError("SIGT_ADMIN_PASSWORD debe tener al menos 10 caracteres.")
-    crear_admin(usuario, os.getenv("SIGT_ADMIN_NAME", "Administrador SGC"), clave)
-    log.warning("Primer administrador «%s» creado. Elimine SIGT_ADMIN_PASSWORD del entorno.", usuario)
+    crear_desarrollador(usuario, os.getenv("SIGT_ADMIN_NAME", "Desarrollador"), clave)
+    log.warning("Primer Desarrollador «%s» creado. Elimine SIGT_ADMIN_PASSWORD del entorno.", usuario)
 
 
 # ---------------------------------------------------------------- orquestación
 def iniciar() -> None:
-    """Deja el sistema listo: tablas → administrador → parámetros → calendario fiscal → ejercicio de cada medición."""
+    """Deja el sistema listo: tablas → roles de sistema → primer Desarrollador → parámetros → calendario fiscal."""
     global _iniciado
     with _candado:
         if _iniciado:
             return
         preparar_base()
-        crear_admin_inicial()
+        with SessionLocal() as db:
+            roles.sembrar(db)
+        crear_desarrollador_inicial()
         with SessionLocal() as db:
             parametros.crear_faltantes(db)
         parametros.refrescar(forzar=True)
-        with SessionLocal() as db:
-            ejercicios.recalcular(db)
         _iniciado = True
 
 

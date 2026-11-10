@@ -1,12 +1,12 @@
-"""Bitácora de trazabilidad: visible únicamente para el Administrador SGC."""
+"""Bitácora de trazabilidad: permiso técnico, solo del Desarrollador."""
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from ...servicios import auditoria, bitacora
 from .. import serializadores as ser
-from ..deps import Desde, IdConsulta, Limite, con_total, get_db, requiere
+from ..deps import Desde, IdConsulta, Limite, con_total, get_db, requiere_permiso
 
-router = APIRouter(prefix="/api/bitacora", tags=["bitácora"], dependencies=[Depends(requiere("admin"))])
+router = APIRouter(prefix="/api/bitacora", tags=["bitácora"], dependencies=[Depends(requiere_permiso("bitacora.ver"))])
 
 
 @router.get("")

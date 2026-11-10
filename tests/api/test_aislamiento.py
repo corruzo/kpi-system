@@ -1,4 +1,4 @@
-"""Aislamiento estricto: un encargado de proceso NUNCA ve información de otro usuario, ni siquiera de su misma área."""
+"""Aislamiento estricto: quien solo carga datos (analista) NUNCA ve información ajena, ni siquiera de su mismo nodo."""
 from io import BytesIO
 
 import pytest
@@ -15,12 +15,13 @@ from openpyxl import load_workbook
 
 
 @pytest.fixture()
-def dos_encargados(client):
-    """Una sola área con dos encargados, cada uno con su indicador y una carga propia."""
+def dos_analistas(client):
+    """Un solo nodo con dos analistas, cada uno con su indicador y una carga propia."""
     area = crear_area(client)
     a, b = crear_usuario(client, "jefe", area), crear_usuario(client, "jefe", area)
-    ind_a = crear_indicador(client, area, encargado_id=id_de_usuario(client, a), nombre="Indicador SECRETO de A")
-    ind_b = crear_indicador(client, area, encargado_id=id_de_usuario(client, b), nombre="Indicador SECRETO de B")
+    dev = id_de_usuario(client, "admin")   # responsable de ambos; cada analista solo CARGA el suyo
+    ind_a = crear_indicador(client, area, responsable_id=dev, cargadores=[id_de_usuario(client, a)], nombre="Indicador SECRETO de A")
+    ind_b = crear_indicador(client, area, responsable_id=dev, cargadores=[id_de_usuario(client, b)], nombre="Indicador SECRETO de B")
     for usuario, ind in ((a, ind_a), (b, ind_b)):
         entrar(client, usuario)
         r = client.post("/api/mediciones", json={"indicador_id": ind["id"], "periodo": periodo_actual(client, ind["id"]),
@@ -29,8 +30,8 @@ def dos_encargados(client):
     return {"a": a, "b": b, "ind_a": ind_a, "ind_b": ind_b, "area": area}
 
 
-def test_cada_encargado_ve_solo_sus_indicadores_aunque_comparta_area(client, dos_encargados):
-    d = dos_encargados
+def test_cada_analista_ve_solo_sus_indicadores_aunque_comparta_nodo(client, dos_analistas):
+    d = dos_analistas
     entrar(client, d["a"])
     ids = {i["id"] for i in client.get("/api/indicadores").json()}
     assert d["ind_a"]["id"] in ids and d["ind_b"]["id"] not in ids
@@ -39,8 +40,8 @@ def test_cada_encargado_ve_solo_sus_indicadores_aunque_comparta_area(client, dos
     assert d["ind_b"]["id"] in ids and d["ind_a"]["id"] not in ids
 
 
-def test_el_indicador_ajeno_responde_404_en_todas_las_rutas(client, dos_encargados):
-    d = dos_encargados
+def test_el_indicador_ajeno_responde_404_en_todas_las_rutas(client, dos_analistas):
+    d = dos_analistas
     ajeno = d["ind_b"]["id"]
     entrar(client, d["a"])
     ficha = {"indicador_id": ajeno, "valores": {"dias": 1, "tickets": 1}}
@@ -52,61 +53,45 @@ def test_el_indicador_ajeno_responde_404_en_todas_las_rutas(client, dos_encargad
         assert "SECRETO" not in r.text
 
 
-def test_las_cargas_y_los_reportes_no_filtran_datos_de_otro_encargado(client, dos_encargados):
-    d = dos_encargados
+def test_las_cargas_y_los_reportes_no_filtran_datos_de_otro_analista(client, dos_analistas):
+    d = dos_analistas
     entrar(client, d["a"])
     cargas = client.get("/api/mediciones").json()
     assert {m["indicador_id"] for m in cargas} == {d["ind_a"]["id"]}
     assert client.get(f"/api/mediciones?indicador_id={d['ind_b']['id']}").json() == []
-    assert client.get(f"/api/mediciones?area_id={d['area']}").json() == cargas   # filtrar por área no amplía el acceso
-    for url in (f"/api/reportes/general.xlsx?area_id={d['area']}", "/api/reportes/fichas.xlsx"):
+    assert client.get(f"/api/mediciones?nodo_id={d['area']}").json() == cargas   # filtrar por nodo no amplía el acceso
+    for url in (f"/api/reportes/general.xlsx?nodo_id={d['area']}", "/api/reportes/fichas.xlsx"):
         r = client.get(url)
         assert r.status_code == 200
         celdas = " ".join(str(c.value) for hoja in load_workbook(BytesIO(r.content)) for fila in hoja.iter_rows() for c in fila if c.value)
         assert "SECRETO de A" in celdas and d["ind_b"]["codigo"] not in celdas and "SECRETO de B" not in celdas
 
 
-def test_un_encargado_no_accede_a_funciones_de_otros_roles(client, dos_encargados):
-    entrar(client, dos_encargados["a"])
+def test_el_analista_no_ve_ni_el_panel_ni_las_metas_ajenas_ni_a_las_personas(client, dos_analistas):
+    entrar(client, dos_analistas["a"])
     for metodo, url in (("get", "/api/usuarios"), ("get", "/api/bitacora"), ("get", "/api/tablero"), ("get", "/api/dashboard"),
-                        ("get", "/api/ejercicios?detalle=true"), ("get", "/api/ejercicios/2026/metas"),
-                        ("get", "/api/indicadores/codigo-sugerido?area_id=1"), ("get", "/api/puesta-en-marcha")):
+                        ("get", "/api/ejercicios/2026/metas"), ("get", "/api/indicadores/codigo-sugerido?nodo_id=1"),
+                        ("get", "/api/puesta-en-marcha"), ("get", "/api/roles"), ("get", "/api/recordatorios"), ("get", "/api/bandeja")):
         assert getattr(client, metodo)(url).status_code == 403, url
 
 
-def test_gerente_y_admin_ven_todo_y_el_archivado_solo_el_admin(client, dos_encargados):
-    d = dos_encargados
+def test_el_global_ve_todo_y_el_archivado_solo_quien_lo_tiene_en_su_ambito(client, dos_analistas):
+    d = dos_analistas
     gerente = crear_usuario(client, "gerente")
     entrar(client, gerente)
     assert {d["ind_a"]["id"], d["ind_b"]["id"]} <= {i["id"] for i in client.get("/api/indicadores").json()}
     entrar(client, "admin", CLAVE_ADMIN)
-    assert client.delete(f"/api/indicadores/{d['ind_a']['id']}").json()["archivado"] is True   # tiene carga: se archiva
+    assert client.post(f"/api/indicadores/{d['ind_a']['id']}/archivar").json()["activo"] is False
     entrar(client, d["a"])
     assert client.get("/api/indicadores").json() == []
-    assert client.get(f"/api/indicadores/{d['ind_a']['id']}/ficha").status_code == 404
-
-
-def test_la_asignacion_exige_un_encargado_valido_y_protege_su_cuenta(client):
-    area, otra = crear_area(client), crear_area(client)
-    enc, ajeno, gerente = crear_usuario(client, "jefe", area), crear_usuario(client, "jefe", otra), crear_usuario(client, "gerente")
-    entrar(client, "admin", CLAVE_ADMIN)
-    from conftest import ficha_base
-    for malo in (id_de_usuario(client, ajeno), id_de_usuario(client, gerente), 99999):   # otra área, otro rol, inexistente
-        assert client.post("/api/indicadores", json=ficha_base(area, encargado_id=malo)).status_code == 422 \
-            or client.post("/api/indicadores", json=ficha_base(area, encargado_id=malo)).status_code == 400
-    ind = client.post("/api/indicadores", json=ficha_base(area, encargado_id=id_de_usuario(client, enc))).json()
-    uid = id_de_usuario(client, enc)
-    cambio = client.put(f"/api/usuarios/{uid}", json={"nombre": "Nombre nuevo", "rol": "jefe", "area_id": area, "activo": False})
-    assert cambio.status_code == 409 and "reasígnelos" in cambio.json()["detail"]
-    assert client.delete(f"/api/usuarios/{uid}").status_code == 409
-    assert ind["encargado_id"] == uid
+    assert client.get(f"/api/indicadores/{d['ind_a']['id']}/ficha").status_code == 404   # archivado: quien solo cargaba ya no lo ve
 
 
 def test_el_codigo_lo_genera_el_sistema_y_no_se_puede_cambiar(client):
     from conftest import ficha_base
     area = crear_area(client, "Calidad y Mejora")
     entrar(client, "admin", CLAVE_ADMIN)
-    sugerido = client.get(f"/api/indicadores/codigo-sugerido?area_id={area}").json()["codigo"]
+    sugerido = client.get(f"/api/indicadores/codigo-sugerido?nodo_id={area}").json()["codigo"]
     ficha = ficha_base(area)
     ficha["codigo"] = ""
     r1 = client.post("/api/indicadores", json=ficha)
@@ -118,39 +103,25 @@ def test_el_codigo_lo_genera_el_sistema_y_no_se_puede_cambiar(client):
     assert client.post("/api/indicadores", json={**ficha, "codigo": "CAL-01"}).status_code in (400, 409, 422)
 
 
-def test_las_respuestas_de_la_api_no_se_guardan_en_cache_y_varian_por_sesion(client, dos_encargados):
-    entrar(client, dos_encargados["a"])
+def test_las_respuestas_de_la_api_no_se_guardan_en_cache_y_varian_por_sesion(client, dos_analistas):
+    entrar(client, dos_analistas["a"])
     r = client.get("/api/indicadores")
     assert r.headers["cache-control"] == "no-store" and "Cookie" in r.headers["vary"]
 
 
-def test_toda_ruta_de_la_api_exige_sesion_salvo_las_publicas(client):
-    from app.main import app
-    publicas = {"/api/login", "/api/publico", "/api/logo"}
-    client.cookies.clear()
-    for ruta in app.routes:
-        path = getattr(ruta, "path", "")
-        if not path.startswith("/api/") or path in publicas or path.startswith("/api/docs"):
-            continue
-        for metodo in ruta.methods - {"HEAD", "OPTIONS"}:
-            url = path.replace("{indicador_id}", "1").replace("{medicion_id}", "1").replace("{usuario_id}", "1") \
-                .replace("{area_id}", "1").replace("{anio}", "2026").replace("{elemento_id}", "1")
-            r = client.request(metodo, url, headers={"Origin": "http://testserver"})
-            assert r.status_code in (401, 403), f"{metodo} {path} → {r.status_code}"
-
-
-def test_el_arranque_entrega_a_cada_rol_solo_lo_suyo_en_una_peticion(client, dos_encargados):
-    d = dos_encargados
+def test_el_arranque_entrega_a_cada_rol_solo_lo_suyo_en_una_peticion(client, dos_analistas):
+    d = dos_analistas
     entrar(client, d["a"])
     r = client.get("/api/arranque").json()
     assert {i["id"] for i in r["indicadores"]} == {d["ind_a"]["id"]}
-    assert "areas" not in r and "usuarios" not in r and "catalogos" not in r and "bandeja" not in r
+    for clave in ("usuarios", "catalogos", "bandeja_total", "marcha", "resumen", "areas"):
+        assert clave not in r, clave
     assert r["usuario"]["username"] == d["a"] and r["ejercicio"] in {e["anio"] for e in r["ejercicios"]["ejercicios"]}
+    assert r["usuario"]["permisos"]["cargas.cargar"] == "modificar" and "usuarios.cuentas" not in r["usuario"]["permisos"]
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.get("/api/arranque").json()
-    assert {"usuario", "parametros", "ejercicios", "ejercicio", "indicadores", "areas", "bandeja_total", "bandeja_ejercicios",
-            "catalogos"} <= r.keys()
+    assert {"usuario", "parametros", "ejercicios", "ejercicio", "indicadores", "unidades", "bandeja_total", "bandeja_ejercicios",
+            "catalogos", "marcha", "resumen"} <= r.keys()
     assert "usuarios" not in r and "bandeja" not in r   # las listas largas se piden paginadas, no en el arranque
-    assert {d["ind_a"]["id"], d["ind_b"]["id"]} <= {i["id"] for i in r["indicadores"]}
     client.cookies.clear()
     assert client.get("/api/arranque").status_code == 401

@@ -11,13 +11,13 @@ def test_reinicio_de_fabrica(tmp_path):
         from fastapi.testclient import TestClient
         from app.main import app
         from app.database import SessionLocal
-        from app.models import Area, Bitacora, Indicador, Medicion, Usuario
+        from app.models import Bitacora, Indicador, Medicion, Rol, Unidad, Usuario
 
         with TestClient(app) as c:
             c.post("/api/login", json={"username": "admin", "password": "clave-admin-123"})
-            area = c.post("/api/areas", json={"nombre": "Sistemas"}).json()["id"]
-            c.post("/api/usuarios", json={"username": "jefe", "nombre": "Jefe", "rol": "jefe", "area_id": area, "password": "clave-segura-123"})
-            c.post("/api/indicadores", json={"codigo": "X-1", "nombre": "Indicador", "area_id": area, "unidad": "%", "frecuencia": "mensual",
+            area = c.post("/api/unidades", json={"nombre": "Sistemas", "nivel": "gerencia"}).json()["id"]
+            c.post("/api/usuarios", json={"username": "jefe", "nombre": "Jefe sin rol", "password": "clave-segura-123"})
+            c.post("/api/indicadores", json={"codigo": "X-1", "nombre": "Indicador", "nodo_id": area, "unidad": "%", "frecuencia": "mensual",
                    "sentido": "mayor", "formula": "a / b * 100", "nivel_optimo": 90, "limite": 80,
                    "variables": [{"clave": "a", "etiqueta": "A"}, {"clave": "b", "etiqueta": "B"}]})
             r = c.post("/api/sistema/reiniciar", json={"confirmacion": "borrar", "password": "clave-admin-123"})
@@ -33,12 +33,13 @@ def test_reinicio_de_fabrica(tmp_path):
             assert r.status_code == 200, r.text
             with SessionLocal() as db:
                 assert [u.username for u in db.query(Usuario)] == ["admin"]
-                assert db.query(Area).count() == db.query(Indicador).count() == db.query(Medicion).count() == db.query(Bitacora).count() == 0
+                assert {r.clave for r in db.query(Rol)} == {"desarrollador", "coordinador"}   # los roles de sistema se conservan
+                assert db.query(Unidad).count() == db.query(Indicador).count() == db.query(Medicion).count() == db.query(Bitacora).count() == 0
             assert c.get("/api/me").status_code == 200                      # la sesión del administrador sigue viva
-            assert c.get("/api/indicadores").json() == [] and c.get("/api/areas").json() == []
+            assert c.get("/api/indicadores").json() == [] and c.get("/api/unidades").json() == []
             assert c.get("/api/bitacora/verificar").json()["total"] == 0
             assert c.get("/api/parametros").json()["empresa"]                # parámetros de fábrica
-            assert c.post("/api/areas", json={"nombre": "Nueva"}).status_code == 201   # el sistema vuelve a funcionar
+            assert c.post("/api/unidades", json={"nombre": "Nueva", "nivel": "gerencia"}).status_code == 201   # el sistema vuelve a funcionar
         print("OK")
     """)
     env = {**os.environ, "SIGT_DATA_DIR": str(tmp_path), "SIGT_ADMIN_USER": "admin", "SIGT_ADMIN_PASSWORD": "clave-admin-123"}

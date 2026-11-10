@@ -75,7 +75,7 @@ def test_restaurar_desde_la_interfaz_reemplaza_todo_y_exige_confirmaciones(clien
     from conftest import CLAVE_ADMIN
     entrar(client, "admin", CLAVE_ADMIN)
     archivo = client.post("/api/respaldo", json={"frase": FRASE}).content
-    areas_antes = {a["id"] for a in client.get("/api/areas").json()}
+    areas_antes = {a["id"] for a in client.get("/api/unidades").json()}
     nueva = crear_area(client, "Area posterior al respaldo")
     entrar(client, "admin", CLAVE_ADMIN)
 
@@ -86,11 +86,11 @@ def test_restaurar_desde_la_interfaz_reemplaza_todo_y_exige_confirmaciones(clien
     assert restaurar(confirmacion="no").status_code == 422
     assert restaurar(password="incorrecta-123").status_code == 401
     assert restaurar(frase="otra-frase-distinta-1").status_code == 422
-    assert nueva in {a["id"] for a in client.get("/api/areas").json()}   # nada cambió con los intentos fallidos
+    assert nueva in {a["id"] for a in client.get("/api/unidades").json()}   # nada cambió con los intentos fallidos
     r = restaurar()
     assert r.status_code == 200, r.text
     entrar(client, "admin", CLAVE_ADMIN)
-    assert {a["id"] for a in client.get("/api/areas").json()} == areas_antes
+    assert {a["id"] for a in client.get("/api/unidades").json()} == areas_antes
     assert client.get("/api/bitacora/verificar").json()["ok"] is True
     jefe = crear_usuario(client, "jefe", crear_area(client))
     from conftest import CLAVE

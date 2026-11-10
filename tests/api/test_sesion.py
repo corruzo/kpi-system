@@ -38,7 +38,7 @@ def test_guia_de_bienvenida_se_marca_una_sola_vez(client):
 
 
 def test_el_administrador_inicial_existe(client):
-    assert entrar(client, "admin", CLAVE_ADMIN)["rol"] == "admin"
+    assert entrar(client, "admin", CLAVE_ADMIN)["rol"] == "Desarrollador"
 
 
 # ---------------------------------------------------------------- endurecimiento del ingreso

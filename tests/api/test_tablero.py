@@ -27,7 +27,7 @@ def con_datos(client):
 
 
 def test_el_tablero_resume_indicadores_semaforos_y_meta(client, con_datos):
-    d = client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}").json()
+    d = client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}").json()
     k = d["kpis"]
     assert k["indicadores"] == 1 and k["mediciones"] == 2 and k["verde"] == 1 and k["amarillo"] == 1 and k["cumplimiento"] == 50.0
     assert k["con_meta"] == 2 and k["cumplen_meta"] == 1 and k["cumplimiento_meta"] == 50.0 and k["real_vs_meta"] == 100.0   # (50 % + 150 %) / 2
@@ -41,7 +41,7 @@ def test_el_tablero_resume_indicadores_semaforos_y_meta(client, con_datos):
 
 @pytest.mark.parametrize("agrupar,max_cubetas", [("mes", 12), ("bimestre", 6), ("trimestre", 4), ("cuatrimestre", 3), ("semestre", 2), ("anio", 1)])
 def test_la_vista_se_agrupa_por_la_granularidad_elegida(client, con_datos, agrupar, max_cubetas):
-    d = client.get(f"/api/tablero?{rango_vigente()}&agrupar={agrupar}&area_id={con_datos['area']}").json()
+    d = client.get(f"/api/tablero?{rango_vigente()}&agrupar={agrupar}&nodo_id={con_datos['area']}").json()
     assert len(d["serie"]) == max_cubetas
     assert sum(c["total"] for c in d["serie"]) == d["kpis"]["mediciones"] == 2             # nada se pierde al agrupar
     assert sum(c["con_meta"] for c in d["serie"]) == 2
@@ -49,28 +49,28 @@ def test_la_vista_se_agrupa_por_la_granularidad_elegida(client, con_datos, agrup
 
 def test_el_rango_de_fechas_y_los_filtros_recortan_los_datos(client, con_datos):
     ini = calendario.hoy().replace(day=1)
-    solo_este_mes = f"desde={ini.year}-{ini.month:02d}&hasta={ini.year}-{ini.month:02d}&area_id={con_datos['area']}"
+    solo_este_mes = f"desde={ini.year}-{ini.month:02d}&hasta={ini.year}-{ini.month:02d}&nodo_id={con_datos['area']}"
     d = client.get(f"/api/tablero?{solo_este_mes}").json()
     assert d["kpis"]["mediciones"] == 1 and len(d["serie"]) == 1 and d["rango"]["meses"] == 1
     assert d["anterior"]["mediciones"] <= 1                                                  # rango anterior de igual duración (1 mes)
     otra_area = crear_area(client)
     entrar(client, con_datos["gerente"])
-    assert client.get(f"/api/tablero?{rango_vigente()}&area_id={otra_area}").json()["kpis"]["indicadores"] == 0
-    assert client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}&frecuencia=anual").json()["kpis"]["indicadores"] == 0
-    assert client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}&indicador_id={con_datos['ind']['id']}").json()["kpis"]["mediciones"] == 2
-    solo_aprobadas = client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}&solo_aprobadas=true").json()
+    assert client.get(f"/api/tablero?{rango_vigente()}&nodo_id={otra_area}").json()["kpis"]["indicadores"] == 0
+    assert client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}&frecuencia=anual").json()["kpis"]["indicadores"] == 0
+    assert client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}&indicador_id={con_datos['ind']['id']}").json()["kpis"]["mediciones"] == 2
+    solo_aprobadas = client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}&solo_aprobadas=true").json()
     assert solo_aprobadas["kpis"]["mediciones"] == 1 and solo_aprobadas["kpis"]["verde"] == 1
 
 
 def test_comparativo_por_dimension(client, con_datos):
     for dim in ("area", "gerencia", "seguimiento", "frecuencia", "proceso"):
-        d = client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}&dimension={dim}").json()
+        d = client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}&dimension={dim}").json()
         assert d["dimension"] == dim and sum(g["indicadores"] for g in d["por_dimension"]) == 1
 
 
 def test_parametros_invalidos_y_permisos(client, con_datos):
     for q in ("desde=2026-05&hasta=2026-01", "desde=2020-01&hasta=2026-01", "desde=abc&hasta=2026-01", "agrupar=semana", "frecuencia=semanal",
-              "dimension=otra", "area_id=0"):
+              "dimension=otra", "nodo_id=0"):
         assert client.get(f"/api/tablero?{q}").status_code == 422, q
     entrar(client, con_datos["jefe"])
     assert client.get("/api/tablero").status_code == 403
@@ -85,5 +85,5 @@ def test_las_cargas_importadas_no_cuentan_en_la_puntualidad(client, con_datos):
         m = db.query(Medicion).filter_by(indicador_id=con_datos["ind"]["id"], periodo=con_datos["anterior"]).one()
         m.nota_revision = "Importado desde Excel «x.xlsx» (hoja «y»)."
         db.commit()
-    d = client.get(f"/api/tablero?{rango_vigente()}&area_id={con_datos['area']}").json()
+    d = client.get(f"/api/tablero?{rango_vigente()}&nodo_id={con_datos['area']}").json()
     assert d["kpis"]["cargas"] == 2 and d["responsables"][0]["cargas"] == 1                # solo cuenta la carga hecha por el jefe

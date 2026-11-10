@@ -6,6 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from ..models import Bitacora, ahora
+from . import acceso
 from .concurrencia import ID_BLOQUEO_ESCRITURA
 
 GENESIS = "0" * 64
@@ -19,7 +20,7 @@ def _hash(anterior: str, contenido: dict) -> str:
 def _contenido(b: Bitacora) -> dict:
     return {"fecha": b.fecha.isoformat(), "usuario_id": b.usuario_id, "usuario_nombre": b.usuario_nombre,
             "rol": b.rol, "accion": b.accion, "entidad": b.entidad, "entidad_id": b.entidad_id,
-            "indicador_id": b.indicador_id, "area_id": b.area_id, "detalle": b.detalle}
+            "indicador_id": b.indicador_id, "nodo_id": b.nodo_id, "detalle": b.detalle}
 
 
 def registrar(db: Session, usuario, accion: str, entidad: str, entidad_id=None,
@@ -32,10 +33,10 @@ def registrar(db: Session, usuario, accion: str, entidad: str, entidad_id=None,
         fecha=fecha or ahora(),
         usuario_id=usuario.id if usuario else None,
         usuario_nombre=usuario.nombre if usuario else "Sistema",
-        rol=usuario.rol if usuario else "sistema",
+        rol=(acceso.contexto(usuario).rol or "sin rol") if usuario else "sistema",
         accion=accion, entidad=entidad, entidad_id=entidad_id,
         indicador_id=indicador.id if indicador else None,
-        area_id=indicador.area_id if indicador else (usuario.area_id if usuario else None),
+        nodo_id=indicador.nodo_id if indicador else None,
         detalle=detalle or {}, prev_hash=anterior, hash="",
     )
     b.hash = _hash(anterior, _contenido(b))

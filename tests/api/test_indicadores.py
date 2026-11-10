@@ -17,7 +17,7 @@ def test_formula_con_constantes_y_variable_opcional(client):
         variables=[{"clave": "accidentes", "etiqueta": "Accidentes"}, {"clave": "horas", "etiqueta": "Horas-hombre"},
                    {"clave": "extra", "etiqueta": "Ajuste", "opcional": True, "defecto": 1, "negativo": True}],
         constantes=[{"clave": "factor", "etiqueta": "Factor por millón", "valor": 1000000}])
-    ind = crear_indicador(client, area, **{k: v for k, v in ficha.items() if k not in ("codigo", "area_id")})
+    ind = crear_indicador(client, area, **{k: v for k, v in ficha.items() if k not in ("codigo", "nodo_id")})
     assert ind["frecuencia"] == "anual" and ind["decimales"] == 3
     sin_horas = client.post("/api/calcular", json={"indicador_id": ind["id"],
                                                     "valores": {"accidentes": 2, "horas": 0, "extra": None}}).json()
@@ -50,7 +50,7 @@ def test_con_cargas_la_ficha_no_cambia_frecuencia_ni_claves(client, escenario):
     entrar(client, "admin", "clave-admin-123")
     ficha = next(i for i in client.get("/api/indicadores").json() if i["id"] == ind["id"])
     assert ficha["n_mediciones"] == 1
-    base = {k: ficha[k] for k in ("codigo", "nombre", "objetivo", "area_id", "unidad", "sentido", "formula",
+    base = {k: ficha[k] for k in ("codigo", "nombre", "objetivo", "nodo_id", "unidad", "sentido", "formula",
                                   "variables", "nivel_optimo", "limite", "activo")}
     assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "trimestral"}).status_code == 422
     nuevas = [{"clave": "dias", "etiqueta": "Días"}, {"clave": "tk", "etiqueta": "Tickets"}]
@@ -59,13 +59,16 @@ def test_con_cargas_la_ficha_no_cambia_frecuencia_ni_claves(client, escenario):
     assert client.put(f"/api/indicadores/{ind['id']}", json={**base, "frecuencia": "mensual", "nivel_optimo": 3}).status_code == 200
 
 
-def test_eliminar_un_indicador_con_cargas_lo_archiva(client, escenario):
+def test_un_indicador_con_cargas_no_se_elimina_se_archiva(client, escenario):
     ind = escenario["indicador"]
     entrar(client, escenario["jefe"])
     client.post("/api/mediciones", json={"indicador_id": ind["id"], "periodo": periodo_actual(client, ind["id"]),
                                          "valores": {"dias": 2, "tickets": 1}})
     entrar(client, "admin", "clave-admin-123")
-    assert client.delete(f"/api/indicadores/{ind['id']}").json()["archivado"] is True
+    r = client.delete(f"/api/indicadores/{ind['id']}")
+    assert r.status_code == 409 and "Archívelo" in r.json()["detail"]      # con historial no se borra
+    assert client.post(f"/api/indicadores/{ind['id']}/archivar").json()["activo"] is False
+    assert client.post(f"/api/indicadores/{ind['id']}/restaurar").json()["activo"] is True
 
 
 def test_un_indicador_recien_creado_no_tiene_meses_pendientes(client, escenario):

@@ -1,14 +1,14 @@
-"""Reportes en Excel: consulta los datos según el rol y los filtros, y los entrega a los generadores de `excel/`."""
+"""Reportes en Excel: consulta los datos según el alcance de quien los pide y los filtros, y los entrega a los generadores de `excel/`."""
 import secrets
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import excel
 from ..dominio import calendario
 from ..errores import Invalido, NoEncontrado
 from ..excel import comun, sello
-from ..models import Area, Bitacora, Indicador, Medicion, Meta, Usuario
+from ..models import Bitacora, Indicador, Medicion, Meta, Unidad, Usuario
 from ..security import firmar_reporte
 from . import acceso, auditoria, bitacora, indicadores, parametros, zip_seguro
 
@@ -58,46 +58,39 @@ def verificar(db: Session, contenido: bytes) -> dict:
     return {"ok": ok, "numero": c["numero"], "tipo": c["tipo"], "generado_por": c["generado_por"], "fecha": c["fecha"], "motivo": motivo}
 
 
-def general(db: Session, u: Usuario, anio: int | None, area_id: int | None, estado: str | None) -> tuple[bytes, str]:
-    """Real contra meta. El encargado de proceso solo obtiene sus indicadores (ver `acceso`)."""
-    q_ind = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
-    q_med = acceso.restringir(select(Medicion).join(Indicador).order_by(Indicador.codigo, Medicion.periodo), u)
+def general(db: Session, u: Usuario, anio: int | None, nodo_id: int | None, estado: str | None) -> tuple[bytes, str]:
+    """Real contra meta, únicamente de los indicadores que la persona puede ver (ver `acceso`)."""
+    visible = acceso.condicion_visible(u)
+    en_nodo = acceso.en_nodo(nodo_id) if nodo_id else None
+    q_ind = select(Indicador).where(visible).order_by(Indicador.codigo)
+    q_med = select(Medicion).join(Indicador).where(visible).order_by(Indicador.codigo, Medicion.periodo)
+    q_meta = select(Meta).join(Indicador, Meta.indicador_id == Indicador.id).where(visible)
+    q_apr = select(func.count(Medicion.id)).join(Indicador).where(visible, Medicion.estado == "enviado")
     filtros = []
-    if area_id:
-        q_ind, q_med = q_ind.where(Indicador.area_id == area_id), q_med.where(Indicador.area_id == area_id)
-        area = db.get(Area, area_id)
-        filtros.append(f"Área: {area.nombre if area else area_id}")
+    if nodo_id:
+        q_ind, q_med, q_meta, q_apr = (q.where(en_nodo) for q in (q_ind, q_med, q_meta, q_apr))
+        nodo = db.get(Unidad, nodo_id)
+        filtros.append(f"Área: {nodo.nombre if nodo else nodo_id}")
     if anio:
+        q_med, q_meta = q_med.where(Medicion.ejercicio == int(anio)), q_meta.where(Meta.ejercicio == int(anio))
         filtros.append(f"Ejercicio fiscal: {calendario.etiqueta_ejercicio(int(anio))}")
     if estado:
         q_med = q_med.where(Medicion.estado == estado)
         filtros.append(f"Estado: {estado}")
-    inds, meds = db.scalars(q_ind).all(), db.scalars(q_med).all()
-    if anio:
-        meds = [m for m in meds if calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) == int(anio)]
-    q_pres = acceso.restringir(select(Meta).join(Indicador, Meta.indicador_id == Indicador.id), u)
-    if area_id:
-        q_pres = q_pres.where(Indicador.area_id == area_id)
-    if anio:
-        q_pres = q_pres.where(Meta.ejercicio == int(anio))
-    metas = {(p.indicador_id, p.periodo): p.valor for p in db.scalars(q_pres)}
-    anios = {int(anio)} if anio else ({m.ejercicio or calendario.ejercicio_de(m.indicador.frecuencia, m.periodo) for m in meds}
-                                      | {p.ejercicio for p in db.scalars(q_pres)})
-    q_apr = acceso.restringir(select(Medicion.id).join(Indicador).where(Medicion.estado == "enviado"), u)
-    if area_id:
-        q_apr = q_apr.where(Indicador.area_id == area_id)
-    por_aprobar = len(db.scalars(q_apr).all())
+    inds, meds, filas_meta = db.scalars(q_ind).all(), db.scalars(q_med).all(), db.scalars(q_meta).all()
+    metas = {(p.indicador_id, p.periodo): p.valor for p in filas_meta}
+    anios = {int(anio)} if anio else ({m.ejercicio for m in meds} | {p.ejercicio for p in filas_meta})
     empresa = parametros.datos_para_reportes(db)["empresa"]
     libro = excel.general.reporte_general(empresa, meds, inds, metas, sorted(anios), u.nombre, " · ".join(filtros),
-                                          por_aprobar, solo_cargadas=bool(estado))
+                                          db.scalar(q_apr) or 0, solo_cargadas=bool(estado))
     return _entregar(db, u, libro, "General", "real_vs_meta", {"filtros": filtros, "filas": len(meds)})
 
 
-def fichas(db: Session, u: Usuario, ejercicio: int | None, area_id: int | None, indicador_id: int | None) -> tuple[bytes, str]:
-    """Una hoja por indicador con el formato de la ficha técnica del SGC."""
-    q = acceso.restringir(select(Indicador).order_by(Indicador.codigo), u)
-    if area_id:
-        q = q.where(Indicador.area_id == area_id)
+def fichas(db: Session, u: Usuario, ejercicio: int | None, nodo_id: int | None, indicador_id: int | None) -> tuple[bytes, str]:
+    """Una hoja por indicador con el formato de la ficha técnica del SGC, de los que la persona puede ver."""
+    q = acceso.indicadores_visibles(select(Indicador).order_by(Indicador.codigo), u, archivados=bool(indicador_id))
+    if nodo_id:
+        q = q.where(acceso.en_nodo(nodo_id))
     if indicador_id:
         q = q.where(Indicador.id == indicador_id)
     inds = db.scalars(q).all()

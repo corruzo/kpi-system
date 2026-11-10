@@ -2,7 +2,8 @@
 from ..dominio import calendario
 from ..dominio.ficha_texto import nivel_optimo_texto
 from ..dominio.meta import comparar
-from ..models import Area, Bitacora, Catalogo, Indicador, Medicion, Usuario
+from ..models import Bitacora, Catalogo, Indicador, Medicion, Unidad, Usuario
+from ..servicios import acceso
 
 
 def iso(d):
@@ -15,39 +16,63 @@ def fecha_iso(d):
 
 
 def usuario(u: Usuario) -> dict:
-    return {"id": u.id, "username": u.username, "nombre": u.nombre, "rol": u.rol, "area_id": u.area_id,
-            "area": u.area.nombre if u.area else None, "email": u.email or "", "activo": u.activo, "tour_visto": bool(u.tour_visto)}
+    """Datos básicos de una cuenta (sin rol ni ámbito: eso lo agregan `sesion` y `persona`)."""
+    return {"id": u.id, "username": u.username, "nombre": u.nombre, "email": u.email or "", "activo": u.activo,
+            "tour_visto": bool(u.tour_visto)}
 
 
-def area(a: Area) -> dict:
-    return {"id": a.id, "nombre": a.nombre}
+def sesion(u: Usuario) -> dict:
+    """El usuario de la sesión con lo que la interfaz necesita para mostrar solo lo permitido (el servidor decide igual)."""
+    c = acceso.contexto(u)
+    return {**usuario(u), "rol": c.rol or None, "rol_clave": c.clave, "pendiente": not c.rol, "permisos": c.permisos,
+            "alcance_total": c.total, "alcance_global": c.global_, "ambito": [i for i, _ in c.ambito], "miembro": [i for i, _ in c.miembro]}
+
+
+def persona(u: Usuario, detalle: dict) -> dict:
+    return {**usuario(u), **detalle}
+
+
+def unidad(n: Unidad, ruta_nombres: str = "", personas: int | None = None, indicadores: int | None = None) -> dict:
+    d = {"id": n.id, "nombre": n.nombre, "nivel": n.nivel, "padre_id": n.padre_id, "profundidad": n.ruta.count("/") - 2,
+         "ruta": ruta_nombres or n.nombre}
+    if personas is not None:
+        d.update(personas=personas, indicadores=indicadores or 0)
+    return d
 
 
 def catalogo(c: Catalogo) -> dict:
     return {"id": c.id, "tipo": c.tipo, "valor": c.valor, "detalle": c.detalle or ""}
 
 
-def indicador(i: Indicador) -> dict:
-    return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "area_id": i.area_id,
-            "encargado_id": i.encargado_id, "area": i.area.nombre, "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
-            "formula": i.formula, "variables": i.variables, "constantes": i.constantes or [], "decimales": i.precision,
-            "fuente": i.fuente or "", "notas": i.notas or "", "nivel_optimo": i.nivel_optimo, "limite": i.limite,
-            "nivel_optimo_tope": i.nivel_optimo_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",
-            "ref_nombre": i.ref_nombre or "", "ref_detalle": i.ref_detalle or "", "sigla": i.sigla or "",
-            "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
-            "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
+def indicador(i: Indicador, u: Usuario | None = None) -> dict:
+    """Con `u`, agrega la relación de esa persona con el indicador (la interfaz muestra así solo los botones que aplican)."""
+    d = {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "nodo_id": i.nodo_id, "area": i.nodo.nombre,
+         "nivel": i.nodo.nivel, "responsable_id": i.responsable_id, "responsable": i.responsable.nombre if i.responsable else None,
+         "cargadores": [x.id for x in i.cargadores], "cargadores_info": [{"id": x.id, "nombre": x.nombre} for x in i.cargadores],
+         "unidad": i.unidad, "frecuencia": i.frecuencia, "sentido": i.sentido,
+         "formula": i.formula, "variables": i.variables, "constantes": i.constantes or [], "decimales": i.precision,
+         "fuente": i.fuente or "", "notas": i.notas or "", "nivel_optimo": i.nivel_optimo, "limite": i.limite,
+         "nivel_optimo_tope": i.nivel_optimo_tope, "limite_tope": i.limite_tope, "seguimiento": i.seguimiento or "proceso",
+         "ref_nombre": i.ref_nombre or "", "ref_detalle": i.ref_detalle or "", "sigla": i.sigla or "",
+         "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
+         "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
+    if u is not None:
+        total = acceso.alcance_total(u)
+        d.update(soy_responsable=total or acceso.es_responsable(u, i), soy_cargador=acceso.puede_cargar(u, i),
+                 en_ambito=acceso.en_ambito(u, i))
+    return d
 
 
-def indicador_con_pendientes(i: Indicador, cargas: int, pendientes: list[str], otros: dict[int, int]) -> dict:
-    return {**indicador(i), "n_mediciones": cargas,
+def indicador_con_pendientes(i: Indicador, cargas: int, pendientes: list[str], otros: dict[int, int], u: Usuario | None = None) -> dict:
+    return {**indicador(i, u), "n_mediciones": cargas,
             "pendientes": [{"periodo": p, "etiqueta": calendario.etiqueta(i.frecuencia, p)} for p in pendientes],
             "pendientes_otros": [{"ejercicio": a, "etiqueta": calendario.etiqueta_ejercicio(a), "n": n} for a, n in sorted(otros.items())]}
 
 
 def medicion(m: Medicion) -> dict:
     i = m.indicador
-    return {"id": m.id, "indicador_id": i.id, "codigo": i.codigo, "indicador": i.nombre, "area": i.area.nombre,
-            "area_id": i.area_id, "unidad": i.unidad, "frecuencia": i.frecuencia, "variables": i.variables,
+    return {"id": m.id, "indicador_id": i.id, "codigo": i.codigo, "indicador": i.nombre, "area": i.nodo.nombre,
+            "nodo_id": i.nodo_id, "unidad": i.unidad, "frecuencia": i.frecuencia, "variables": i.variables,
             "periodo": m.periodo, "periodo_etiqueta": calendario.etiqueta(i.frecuencia, m.periodo),
             "ejercicio": (anio := m.ejercicio or calendario.ejercicio_de(i.frecuencia, m.periodo)),
             "ejercicio_etiqueta": calendario.etiqueta_ejercicio(anio),
@@ -64,7 +89,7 @@ def medicion(m: Medicion) -> dict:
 
 def bitacora(b: Bitacora, codigo: str | None = None) -> dict:
     return {"id": b.id, "fecha": iso(b.fecha), "usuario": b.usuario_nombre, "rol": b.rol, "accion": b.accion,
-            "entidad": b.entidad, "entidad_id": b.entidad_id, "indicador_id": b.indicador_id, "area_id": b.area_id,
+            "entidad": b.entidad, "entidad_id": b.entidad_id, "indicador_id": b.indicador_id, "nodo_id": b.nodo_id,
             "detalle": b.detalle, "hash": b.hash, "codigo": codigo}
 
 
@@ -108,5 +133,5 @@ def ficha_periodos(periodos: list[dict]) -> list[dict]:
             for p in periodos]
 
 
-def indicador_en_ficha(i: Indicador) -> dict:
-    return {**indicador(i), "nivel_optimo_texto": nivel_optimo_texto(i)}
+def indicador_en_ficha(i: Indicador, u: Usuario | None = None) -> dict:
+    return {**indicador(i, u), "nivel_optimo_texto": nivel_optimo_texto(i)}

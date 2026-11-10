@@ -1,5 +1,5 @@
 
-from conftest import crear_area, crear_indicador, crear_usuario, entrar
+from conftest import crear_area, crear_indicador, crear_usuario, cuenta, entrar
 
 from app.dominio import calendario
 
@@ -33,9 +33,11 @@ def test_cierre_bloquea_cargas_y_la_reapertura_las_permite(client):
 def test_permisos_sobre_ejercicios(client):
     entrar(client, crear_usuario(client, "gerente"))
     assert client.get("/api/ejercicios?detalle=1").status_code == 200
-    assert client.post("/api/ejercicios/2020/cerrar", json={}).status_code == 403
-    entrar(client, crear_usuario(client, "jefe", crear_area(client)))
-    assert client.get("/api/ejercicios?detalle=1").status_code == 403
+    assert client.post("/api/ejercicios/2020/cerrar", json={}).status_code == 403       # sin ejercicios.cerrar
+    assert client.post("/api/ejercicios", json={"anio": 2020}).status_code == 403       # sin ejercicios.crear
+    sin_rol = cuenta(client)
+    entrar(client, sin_rol)
+    assert client.get("/api/ejercicios").status_code == 403                             # cuenta pendiente: nada
 
 
 def test_dashboard_por_ejercicio(client, escenario):

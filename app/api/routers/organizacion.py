@@ -1,4 +1,4 @@
-"""Organización: áreas, usuarios, listas de apoyo, parámetros del sistema y logo."""
+"""Configuración: listas de apoyo, parámetros del sistema, logo, respaldo y reinicio de fábrica."""
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
@@ -7,131 +7,58 @@ from sqlalchemy.orm import Session
 from ... import schemas
 from ...errores import Invalido, NoEncontrado
 from ...models import Usuario
-from ...servicios import auditoria, marca, organizacion, parametros, reinicio, respaldo
+from ...servicios import acceso, auditoria, marca, organizacion, parametros, reinicio, respaldo
 from .. import serializadores as ser
-from ..deps import Desde, IdRuta, Limite, con_total, escritura, get_db, requiere, usuario_actual
+from ..deps import IdRuta, escritura, get_db, requiere_permiso
 
-router = APIRouter(prefix="/api", tags=["organización"])
-solo_admin = requiere("admin")
-
-
-# ---------------------------------------------------------------- áreas
-@router.get("/areas")
-def listar_areas(db: Session = Depends(get_db), _=Depends(usuario_actual)):
-    return [ser.area(a) for a in organizacion.listar_areas(db)]
-
-
-@router.post("/areas", status_code=201)
-def crear_area(datos: schemas.AreaIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    return ser.area(organizacion.crear_area(db, u, datos.nombre))
-
-
-@router.put("/areas/{area_id}")
-def editar_area(area_id: IdRuta, datos: schemas.AreaIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
-                _=Depends(escritura)):
-    return ser.area(organizacion.editar_area(db, u, area_id, datos.nombre))
-
-
-@router.delete("/areas/{area_id}")
-def eliminar_area(area_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    organizacion.eliminar_area(db, u, area_id)
-    return {"ok": True}
-
-
-# ---------------------------------------------------------------- usuarios
-@router.get("/usuarios")
-def listar_usuarios(q: str | None = None, desde: Desde = 0, limite: Limite | None = None, response: Response = None,
-                    db: Session = Depends(get_db), _=Depends(solo_admin)):
-    """Usuarios (paginados con `limite`; el total va en `X-Total-Count`)."""
-    if limite is not None:
-        con_total(response, organizacion.contar_usuarios(db, q))
-    pagina = organizacion.listar_usuarios(db, buscar=q, desde=desde, limite=limite)
-    ids = [x.id for x in pagina]
-    con_historial, ingresos = organizacion.ids_con_historial(db, ids), organizacion.ultimos_ingresos(db, ids)
-    return [{**ser.usuario(x), "puede_eliminarse": x.id not in con_historial, "ultimo_ingreso": ser.iso(ingresos.get(x.id))}
-            for x in pagina]
-
-
-@router.get("/usuarios/opciones")
-def opciones_usuarios(db: Session = Depends(get_db), _=Depends(requiere("gerente", "admin"))):
-    """Lista mínima de usuarios activos (id, nombre, rol, área) para elegir encargados al gestionar indicadores."""
-    return [{"id": x.id, "nombre": x.nombre, "rol": x.rol, "area_id": x.area_id, "activo": x.activo}
-            for x in organizacion.listar_usuarios(db) if x.activo]
-
-
-@router.post("/usuarios", status_code=201)
-def crear_usuario(datos: schemas.UsuarioIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    return ser.usuario(organizacion.crear_usuario(db, u, datos))
-
-
-@router.put("/usuarios/{usuario_id}")
-def editar_usuario(usuario_id: IdRuta, datos: schemas.UsuarioEdit, db: Session = Depends(get_db),
-                   u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    return ser.usuario(organizacion.editar_usuario(db, u, usuario_id, datos))
-
-
-@router.post("/usuarios/{usuario_id}/cerrar-sesiones")
-def cerrar_sesiones(usuario_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    """Soporte: cierra las sesiones abiertas del usuario en todos sus dispositivos."""
-    organizacion.cerrar_sesiones(db, u, usuario_id)
-    return {"ok": True}
-
-
-@router.post("/sistema/desbloquear-accesos")
-def desbloquear_accesos(db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    """Soporte: levanta el bloqueo por intentos fallidos de ingreso."""
-    organizacion.desbloquear_accesos(db, u)
-    return {"ok": True}
-
-
-@router.delete("/usuarios/{usuario_id}")
-def eliminar_usuario(usuario_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    """Elimina a un usuario sin actividad; si ya tiene historial hay que inhabilitarlo (PUT con activo = false)."""
-    organizacion.eliminar_usuario(db, u, usuario_id)
-    return {"ok": True}
+router = APIRouter(prefix="/api", tags=["configuración"])
+listas = requiere_permiso("catalogos.gestionar")
+params = requiere_permiso("parametros.gestionar")
 
 
 # ---------------------------------------------------------------- listas de apoyo
 @router.get("/catalogos")
-def listar_catalogos(db: Session = Depends(get_db), _=Depends(usuario_actual)):
+def listar_catalogos(db: Session = Depends(get_db),
+                     _=Depends(requiere_permiso("catalogos.gestionar", "indicadores.crear", "indicadores.editar"))):
+    """Las listas se ofrecen a quien las mantiene y a quien llena fichas (procesos, objetivos, cargos…)."""
     return [ser.catalogo(c) for c in organizacion.listar_catalogos(db)]
 
 
 @router.post("/catalogos", status_code=201)
-def crear_catalogo(datos: schemas.CatalogoIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+def crear_catalogo(datos: schemas.CatalogoIn, db: Session = Depends(get_db), u: Usuario = Depends(listas),
                    _=Depends(escritura)):
     return ser.catalogo(organizacion.crear_catalogo(db, u, datos))
 
 
 @router.put("/catalogos/{elemento_id}")
 def editar_catalogo(elemento_id: IdRuta, datos: schemas.CatalogoIn, db: Session = Depends(get_db),
-                    u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+                    u: Usuario = Depends(listas), _=Depends(escritura)):
     return ser.catalogo(organizacion.editar_catalogo(db, u, elemento_id, datos))
 
 
 @router.delete("/catalogos/{elemento_id}")
-def eliminar_catalogo(elemento_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def eliminar_catalogo(elemento_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(listas), _=Depends(escritura)):
     organizacion.eliminar_catalogo(db, u, elemento_id)
     return {"ok": True}
 
 
 # ---------------------------------------------------------------- parámetros del sistema
 @router.get("/parametros")
-def ver_parametros(db: Session = Depends(get_db), _=Depends(usuario_actual)):
+def ver_parametros(db: Session = Depends(get_db), _=Depends(params)):
     return parametros.resumen(db)
 
 
 @router.put("/parametros")
-def editar_parametros(datos: schemas.ParametrosIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+def editar_parametros(datos: schemas.ParametrosIn, db: Session = Depends(get_db), u: Usuario = Depends(params),
                       _=Depends(escritura)):
     return parametros.actualizar(db, u, datos)
 
 
 # ---------------------------------------------------------------- reinicio de fábrica
 @router.post("/sistema/reiniciar")
-def reiniciar_sistema(datos: schemas.ReinicioIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin),
+def reiniciar_sistema(datos: schemas.ReinicioIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("sistema.reiniciar")),
                       _=Depends(escritura)):
-    """Borra TODOS los datos (incluida la bitácora) y deja solo la cuenta del administrador que lo ejecuta."""
+    """Borra TODOS los datos (incluida la bitácora) y deja solo la cuenta del Desarrollador que lo ejecuta."""
     return reinicio.borrar_todo(db, u, datos.confirmacion, datos.password)
 
 
@@ -147,18 +74,18 @@ def ver_logo(v: str | None = None, db: Session = Depends(get_db)):
 
 
 @router.put("/logo")
-def guardar_logo(datos: schemas.LogoIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def guardar_logo(datos: schemas.LogoIn, db: Session = Depends(get_db), u: Usuario = Depends(params), _=Depends(escritura)):
     return {"logo_url": marca.guardar(db, u, datos.imagen)}
 
 
 @router.delete("/logo")
-def quitar_logo(db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def quitar_logo(db: Session = Depends(get_db), u: Usuario = Depends(params), _=Depends(escritura)):
     marca.quitar(db, u)
     return {"logo_url": None}
 
 
 @router.post("/respaldo")
-def descargar_respaldo(datos: schemas.RespaldoIn, db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
+def descargar_respaldo(datos: schemas.RespaldoIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("respaldo.exportar")), _=Depends(escritura)):
     """Respaldo cifrado de toda la base (se descarga como archivo). La frase de paso no se guarda en ningún lado."""
     archivo, resumen = respaldo.crear(db, datos.frase)
     auditoria.registrar(db, u, "RESPALDO_CREADO", "sistema", None, {"bytes": resumen["bytes"], "sha256": resumen["sha256_archivo"]})
@@ -175,8 +102,8 @@ TOPE_RESPALDO = 60 * 1024 * 1024   # un respaldo mayor no es plausible y agotar�
 @router.post("/respaldo/restaurar")
 async def restaurar_respaldo(archivo: UploadFile = File(...), frase: str = Form(..., min_length=12, max_length=200),
                              password: str = Form(..., max_length=128), confirmacion: str = Form(..., max_length=40),
-                             db: Session = Depends(get_db), u: Usuario = Depends(solo_admin), _=Depends(escritura)):
-    """Reemplaza TODOS los datos por los del respaldo. Pide la frase del respaldo, la contraseña del administrador y escribir
+                             db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("respaldo.restaurar")), _=Depends(escritura)):
+    """Reemplaza TODOS los datos por los del respaldo. Pide la frase del respaldo, la contraseña de quien lo ejecuta y escribir
     RESTAURAR. Todo o nada. Al terminar, las sesiones abiertas dejan de valer: hay que volver a ingresar."""
     if confirmacion.strip() != "RESTAURAR":
         raise Invalido("Escriba exactamente «RESTAURAR» para confirmar.")
@@ -186,8 +113,9 @@ async def restaurar_respaldo(archivo: UploadFile = File(...), frase: str = Form(
         raise Invalido("El archivo es demasiado grande para ser un respaldo de este sistema.")
     r = respaldo.restaurar(db, contenido, frase, reemplazar=True)
     db.expire_all()                      # lo cargado antes ya no corresponde a lo restaurado
-    restaurado = db.get(Usuario, u.id)   # si el administrador existe en el respaldo, deja constancia en la cadena restaurada
+    restaurado = db.get(Usuario, u.id)   # si quien restaura existe en el respaldo, deja constancia en la cadena restaurada
     if restaurado:
+        acceso.preparar(db, restaurado)
         auditoria.registrar(db, restaurado, "RESPALDO_RESTAURADO", "sistema", None, {"respaldo_del": r["creado"]})
         db.commit()
     parametros.refrescar(forzar=True)

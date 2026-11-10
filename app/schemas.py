@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, StringConstraints, field_validator
 from .dominio import formulas
 from .dominio.calendario import FRECUENCIAS
 
-Rol = Literal["jefe", "gerente", "admin"]
 Frecuencia = Literal[tuple(FRECUENCIAS)]
 CLAVE_RX = r"^[a-z][a-z0-9_]{0,39}$"
 Numero = Annotated[float, Field(allow_inf_nan=False)]   # rechaza NaN e Infinity (no son datos válidos)
@@ -30,31 +29,70 @@ class TourIn(BaseModel):
     visto: bool = True
 
 
-# ---------------------------------------------------------------- organización
-class AreaIn(BaseModel):
-    nombre: str = Field(min_length=2, max_length=80)
+# ---------------------------------------------------------------- estructura, roles y personas
+Id = Annotated[int, Field(ge=1, le=ID_MAX)]
+Nombre = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+
+
+class UnidadIn(BaseModel):
+    nombre: Nombre
+    nivel: Literal["gerencia", "departamento", "jefatura"]
+    padre_id: Id | None = None
+
+
+class UnidadEdit(BaseModel):
+    nombre: Nombre
+
+
+class MoverIn(BaseModel):
+    padre_id: Id
+
+
+class RolIn(BaseModel):
+    nombre: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=60)]
+    descripcion: str = Field(default="", max_length=500)
+    permisos: dict[Annotated[str, Field(max_length=40)], Literal["ver", "modificar"]] = Field(default_factory=dict, max_length=100)
+
+
+class DuplicarRolIn(BaseModel):
+    nombre: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=60)]
 
 
 Correo = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=120,
                                           pattern=r"^$|^[^@\s,;<>\"]+@[^@\s,;<>\"]+\.[^@\s,;<>\"]{2,}$")] | None
 
 
-class UsuarioIn(BaseModel):
+class CuentaIn(BaseModel):
+    """Cuenta nueva (la crea el Desarrollador). No lleva rol: queda pendiente de asignación."""
     username: str = Field(pattern=r"^[a-z0-9._-]{3,40}$")
     nombre: str = Field(min_length=3, max_length=120)
-    rol: Rol
-    area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
     email: Correo = None
     password: str = Field(min_length=10, max_length=128)
 
 
-class UsuarioEdit(BaseModel):
+class CuentaEdit(BaseModel):
     nombre: str = Field(min_length=3, max_length=120)
-    rol: Rol
-    area_id: int | None = Field(default=None, ge=1, le=ID_MAX)
     email: Correo = None
     activo: bool = True
     password: str | None = Field(default=None, min_length=10, max_length=128)
+
+
+class AsignacionIn(BaseModel):
+    """Rol y posición de una persona (la asigna el Coordinador SGC). `rol_id` nulo = dejarla pendiente."""
+    rol_id: Id | None = None
+    raiz: bool = False                                               # su ámbito es toda la empresa
+    ambito: list[Id] = Field(default_factory=list, max_length=50)    # nodos que ve completos
+    miembro: list[Id] = Field(default_factory=list, max_length=50)   # nodos donde solo trabaja
+
+
+class IndicadoresDePersonaIn(BaseModel):
+    responsable: list[Id] = Field(default_factory=list, max_length=2000)
+    cargador: list[Id] = Field(default_factory=list, max_length=2000)
+
+
+class DesarrolladorIn(BaseModel):
+    activar: bool
+    password: str = Field(max_length=128)
 
 
 class CatalogoIn(BaseModel):
@@ -100,10 +138,11 @@ class ConstanteIn(BaseModel):
 
 class IndicadorIn(BaseModel):
     codigo: str = Field(default="", max_length=20)   # vacío = lo genera el sistema; al editar no se puede cambiar
-    encargado_id: int | None = Field(default=None, ge=1, le=ID_MAX)   # único encargado de proceso que lo ve y carga
+    nodo_id: int = Field(ge=1, le=ID_MAX)                              # gerencia, departamento o jefatura dueña
+    responsable_id: int | None = Field(default=None, ge=1, le=ID_MAX)  # sin indicar: quien lo crea
+    cargadores: list[Annotated[int, Field(ge=1, le=ID_MAX)]] | None = Field(default=None, max_length=30)   # sin indicar: el responsable
     nombre: str = Field(min_length=3, max_length=150)
     objetivo: str = Field(default="", max_length=1000)
-    area_id: int = Field(ge=1, le=ID_MAX)
     unidad: str = Field(min_length=1, max_length=12)
     frecuencia: Frecuencia
     sentido: Literal["mayor", "menor"]
@@ -126,7 +165,6 @@ class IndicadorIn(BaseModel):
     limite: Numero
     nivel_optimo_tope: Numero | None = None
     limite_tope: Numero | None = None
-    activo: bool = True
 
     @field_validator("codigo")
     @classmethod
@@ -137,6 +175,12 @@ class IndicadorIn(BaseModel):
     @classmethod
     def _unidad_sin_espacios(cls, v):
         return v.strip()
+
+
+class AsignacionIndicadorIn(BaseModel):
+    nodo_id: int = Field(ge=1, le=ID_MAX)
+    responsable_id: int = Field(ge=1, le=ID_MAX)
+    cargadores: list[Annotated[int, Field(ge=1, le=ID_MAX)]] = Field(min_length=1, max_length=30)
 
 
 class FormulaIn(BaseModel):
@@ -215,7 +259,7 @@ class ImpMedicion(BaseModel):
 
 
 class ImpIndicador(IndicadorIn):
-    area_id: int = Field(default=0, ge=0, le=ID_MAX)   # se asigna al resolver el área por nombre
+    nodo_id: int = Field(default=0, ge=0, le=ID_MAX)   # se asigna al resolver el área (nodo) por nombre
     area: str = Field(min_length=2, max_length=80)
     hoja: str = ""
     mediciones: list[ImpMedicion] = Field(default_factory=list, max_length=400)

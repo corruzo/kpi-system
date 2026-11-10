@@ -158,7 +158,7 @@ def fichas_xlsx(fichas, params: dict, generado_por: str) -> Workbook:
         # --- responsabilidades
         _banda(ws, d + 8, "RESPONSABILIDADES")
         _par(ws, d + 9, 1, "Gerencia", 2, 4, ind.gerencia, 22)
-        _par(ws, d + 9, 5, "Departamento", 6, 8, ind.area.nombre)
+        _par(ws, d + 9, 5, "Departamento", 6, 8, ind.nodo.nombre)
         _par(ws, d + 9, 9, "Líder de proceso", 10, 13, ind.lider)
         _par(ws, d + 10, 1, "Responsable de medición", 2, 4, ind.resp_medicion, 22)
         _par(ws, d + 10, 5, "Responsable de registro", 6, 8, ind.resp_registro)

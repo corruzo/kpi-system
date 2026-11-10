@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
-from ..models import Area, Catalogo, Indicador, Medicion, Usuario, ahora
-from . import auditoria, ejercicios, indicadores, lector_excel, mediciones, organizacion
+from ..models import Catalogo, Indicador, Medicion, Unidad, Usuario, ahora
+from . import auditoria, ejercicios, estructura, indicadores, lector_excel, mediciones
 
 
 # ---------------------------------------------------------------- vista previa
@@ -22,12 +22,12 @@ def _proponer_codigo(sigla: str, area: str, ocupados: set[str], orden: int) -> s
 
 
 def previsualizar(db: Session, contenido: bytes, nombre_archivo: str) -> dict:
-    """Lee el libro y propone códigos únicos; indica qué áreas ya existen y el inicio de ejercicio actual."""
+    """Lee el libro y propone códigos únicos; indica qué áreas (nodos de la estructura) ya existen y el inicio de ejercicio actual."""
     try:
         r = lector_excel.leer_libro(contenido, nombre_archivo)
     except ValueError as e:
         raise Invalido(str(e)) from None
-    areas = {a.nombre.lower() for a in db.scalars(select(Area))}
+    areas = {a.nombre.lower() for a in db.scalars(select(Unidad))}
     ocupados = set(db.scalars(select(Indicador.codigo)))
     for orden, ind in enumerate(r["indicadores"], 1):
         ind["codigo"] = _proponer_codigo(ind["sigla"], ind["area"], ocupados, orden)
@@ -46,16 +46,37 @@ def _exigir_mismo_ejercicio(datos) -> None:
                         "Organización → Parámetros y reintente.")
 
 
-def _resolver_area(db: Session, admin: Usuario, nombre: str, areas: dict, nuevas: set, resumen: dict) -> Area:
-    area = areas.get(nombre.strip().lower())
-    if area:
-        return area
-    if nombre.strip().lower() not in nuevas:
-        raise Invalido(f"El área «{nombre}» no existe. Márquela para crearla o elija otra.")
-    area = organizacion.crear_area(db, admin, nombre, origen="importación", confirmar=False)
-    areas[area.nombre.lower()] = area
+def _nodos_por_nombre(db: Session) -> dict[str, Unidad]:
+    """{nombre en minúsculas: nodo}. Si un nombre se repite en el árbol gana el de nivel más alto (el primero en orden de árbol)."""
+    por_nombre: dict[str, Unidad] = {}
+    for n in estructura.todas(db):
+        por_nombre.setdefault(n.nombre.lower(), n)
+    return por_nombre
+
+
+def _resolver_nodo(db: Session, u: Usuario, nombre: str, gerencia: str, nodos: dict, nuevas: set, resumen: dict) -> Unidad:
+    """El nodo del indicador: el que ya existe con ese nombre o, si se marcó para crearlo, un departamento nuevo bajo la
+    gerencia de la planilla (que también se crea si falta). Sin gerencia en la planilla, se crea como gerencia."""
+    nombre, gerencia = " ".join(nombre.split()), " ".join((gerencia or "").split())
+    nodo = nodos.get(nombre.lower())
+    if nodo:
+        return nodo
+    if nombre.lower() not in nuevas:
+        raise Invalido(f"El área «{nombre}» no existe en la estructura. Márquela para crearla o elija otra.")
+    padre = None
+    if gerencia and gerencia.lower() != nombre.lower():
+        padre = nodos.get(gerencia.lower())
+        if padre is None:
+            padre = estructura.crear(db, u, gerencia, "gerencia", None, origen="importación", confirmar=False)
+            nodos[gerencia.lower()] = padre
+            resumen["areas"] += 1
+    if padre is not None and padre.nivel == "jefatura":
+        raise Invalido(f"«{gerencia}» es una jefatura: no puede tener a «{nombre}» debajo.")
+    nivel = "gerencia" if padre is None else ("departamento" if padre.nivel == "gerencia" else "jefatura")
+    nodo = estructura.crear(db, u, nombre, nivel, padre.id if padre else None, origen="importación", confirmar=False)
+    nodos[nombre.lower()] = nodo
     resumen["areas"] += 1
-    return area
+    return nodo
 
 
 def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind, archivo: str) -> list[str]:
@@ -100,7 +121,7 @@ def _importar_catalogos(db: Session, admin: Usuario, datos) -> int:
 def confirmar(db: Session, admin: Usuario, datos) -> dict:
     """Crea indicadores, mediciones históricas (aprobadas), áreas y listas de apoyo en una sola transacción."""
     _exigir_mismo_ejercicio(datos)
-    areas = {a.nombre.lower(): a for a in db.scalars(select(Area))}
+    areas = _nodos_por_nombre(db)
     nuevas = {n.strip().lower() for n in datos.areas_nuevas}
     resumen = {"indicadores": 0, "mediciones": 0, "areas": 0, "catalogos": 0}
     codigos = set()
@@ -108,12 +129,13 @@ def confirmar(db: Session, admin: Usuario, datos) -> dict:
         if item.codigo in codigos:
             raise Invalido(f"El código {item.codigo} está repetido en la importación.")
         codigos.add(item.codigo)
-        item.area_id = _resolver_area(db, admin, item.area, areas, nuevas, resumen).id
+        item.nodo_id = _resolver_nodo(db, admin, item.area, item.gerencia, areas, nuevas, resumen).id
         try:
             indicadores.validar_ficha(db, item)
         except Invalido as e:
             raise Invalido(f"{item.codigo}: {e.detalle}") from None
-        ind = Indicador(**indicadores.campos_de_ficha(item))
+        # llegan SIN responsable ni cargadores: el Coordinador SGC los asigna después en «Personas» o en la ficha
+        ind = Indicador(**{**indicadores.campos_de_ficha(item), "responsable_id": None, "activo": True})
         db.add(ind)
         db.flush()
         periodos = _importar_mediciones(db, admin, ind, item, datos.archivo)
@@ -123,8 +145,7 @@ def confirmar(db: Session, admin: Usuario, datos) -> dict:
                             {"codigo": ind.codigo, "archivo": datos.archivo, "hoja": item.hoja, "periodos": periodos}, ind)
     for nombre in sorted(nuevas - set(areas)):   # departamentos marcados que no tienen indicadores en este archivo
         original = next(n.strip() for n in datos.areas_nuevas if n.strip().lower() == nombre)
-        organizacion.crear_area(db, admin, original, origen="importación", confirmar=False)
-        resumen["areas"] += 1
+        _resolver_nodo(db, admin, original, "", areas, nuevas, resumen)
     resumen["catalogos"] = _importar_catalogos(db, admin, datos)
     db.commit()
     return resumen

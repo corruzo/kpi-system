@@ -12,7 +12,7 @@ def _atencion(filas: list[dict], estado_ejercicio: str) -> list[dict]:
     items = []
     for f in filas:
         ind, ultimo = f["indicador"], f["ultimo"]
-        base = {"id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.area.nombre,
+        base = {"id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.nodo.nombre,
                 "unidad": ind.unidad, "decimales": ind.precision}
         etiqueta = calendario.etiqueta(ind.frecuencia, ultimo.periodo) if ultimo else ""
         if ultimo and ultimo.semaforo == "rojo":
@@ -34,11 +34,12 @@ def _avance_del_tiempo(inicio: date, fin: date, hoy: date) -> float:
     return round(max(0.0, min(1.0, ((min(hoy, fin) - inicio).days + 1) / dias)), 4)
 
 
-def construir(db: Session, anio: int, area_id: int | None = None, hoy: date | None = None) -> dict:
+def construir(db: Session, u, anio: int, nodo_id: int | None = None, hoy: date | None = None) -> dict:
+    """Solo con los indicadores que la persona `u` puede ver (su ámbito y sus asignados)."""
     hoy = hoy or calendario.hoy()
     desc = ejercicios.descripcion(db, anio, hoy)
-    actual = ejercicios.foto(db, anio, area_id, hoy)
-    anterior = ejercicios.foto(db, anio - 1, area_id, hoy)
+    actual = ejercicios.foto(db, anio, nodo_id, hoy, u)
+    anterior = ejercicios.foto(db, anio - 1, nodo_id, hoy, u)
     cumplimiento_previo = {a["area"]: a["cumplimiento"] for a in anterior["por_area"]}
     for a in actual["por_area"]:
         a["cumplimiento_anterior"] = cumplimiento_previo.get(a["area"])

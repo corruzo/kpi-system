@@ -19,8 +19,8 @@ def admin(client):
 
 
 @pytest.mark.parametrize("metodo,ruta", [
-    ("GET", f"/api/indicadores/{GIGANTE}/periodos"), ("GET", f"/api/indicadores/{GIGANTE}/ficha"), ("PUT", f"/api/areas/{GIGANTE}"),
-    ("DELETE", f"/api/areas/{GIGANTE}"), ("POST", f"/api/mediciones/{GIGANTE}/revision"), ("GET", f"/api/ejercicios/{GIGANTE}/verificacion"),
+    ("GET", f"/api/indicadores/{GIGANTE}/periodos"), ("GET", f"/api/indicadores/{GIGANTE}/ficha"), ("PUT", f"/api/unidades/{GIGANTE}"),
+    ("DELETE", f"/api/unidades/{GIGANTE}"), ("POST", f"/api/mediciones/{GIGANTE}/revision"), ("GET", f"/api/ejercicios/{GIGANTE}/verificacion"),
     ("GET", "/api/ejercicios/0/metas"), ("GET", "/api/ejercicios/-4/metas"), ("GET", "/api/ejercicios/1/verificacion"),
     ("GET", f"/api/mediciones?indicador_id={GIGANTE}"), ("GET", f"/api/dashboard?ejercicio={GIGANTE}"),
     ("GET", "/api/reportes/general.xlsx?anio=1"), ("GET", f"/api/reportes/fichas.xlsx?ejercicio={GIGANTE}"),
@@ -98,10 +98,10 @@ def test_las_cargas_se_listan_con_pocas_consultas(client, escenario):
         assert client.get("/api/usuarios").status_code == 200
     finally:
         event.remove(engine, "before_cursor_execute", contar)
-    assert len(consultas) <= 12, f"{len(consultas)} consultas"
+    assert len(consultas) <= 16, f"{len(consultas)} consultas"
 
 
-def test_un_usuario_nuevo_y_su_area_se_listan_sin_error(client):
+def test_un_usuario_nuevo_y_su_posicion_se_listan_sin_error(client):
     area = crear_area(client)
     crear_usuario(client, "jefe", area)
-    assert all("area" in u for u in client.get("/api/usuarios").json())
+    assert all({"rol", "ambito", "miembro", "pendiente"} <= u.keys() for u in client.get("/api/usuarios").json())

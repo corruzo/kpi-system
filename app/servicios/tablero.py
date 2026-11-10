@@ -18,11 +18,12 @@ from ..dominio import calendario
 from ..dominio.meta import comparar
 from ..errores import Invalido
 from ..models import Indicador, Medicion
+from . import acceso
 
 AGRUPACIONES = {"mes": "mensual", "bimestre": "bimestral", "trimestre": "trimestral", "cuatrimestre": "cuatrimestral",
                 "semestre": "semestral", "anio": "anual"}
 DIMENSIONES = {
-    "area": lambda i: i.area.nombre,
+    "area": lambda i: i.nodo.nombre,
     "gerencia": lambda i: i.gerencia or "Sin gerencia",
     "seguimiento": lambda i: {"proceso": "Desempeño de proceso", "objetivo": "Objetivo organizacional",
                               "proveedor": "Proveedor externo"}.get(i.seguimiento or "proceso", "Desempeño de proceso"),
@@ -74,7 +75,7 @@ def _prom(valores: list[float]) -> float | None:
 
 
 # ---------------------------------------------------------------- cálculo
-def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area_id: int | None = None,
+def construir(db: Session, quien, *, desde: str, hasta: str, agrupar: str = "mes", nodo_id: int | None = None,
               frecuencia: str | None = None, seguimiento: str | None = None, indicador_id: int | None = None,
               solo_aprobadas: bool = False, dimension: str = "area", hoy: date | None = None, _anterior: bool = False) -> dict:
     hoy = hoy or calendario.hoy()
@@ -90,8 +91,10 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
         raise Invalido(f"El rango no puede superar {MAX_MESES} meses.")
 
     # --- indicadores en alcance
-    q = select(Indicador).order_by(Indicador.codigo)
-    for columna, valor in ((Indicador.area_id, area_id), (Indicador.frecuencia, frecuencia),
+    q = acceso.indicadores_visibles(select(Indicador).order_by(Indicador.codigo), quien, archivados=True)   # solo lo que la persona ve
+    if nodo_id:
+        q = q.where(acceso.en_nodo(nodo_id))
+    for columna, valor in ((Indicador.frecuencia, frecuencia),
                            (Indicador.seguimiento, seguimiento), (Indicador.id, indicador_id)):
         if valor:
             q = q.where(columna == valor)
@@ -134,7 +137,7 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
         if m.estado == "observado":
             d["devueltas"] += 1
         if not (m.nota_revision or "").startswith(PREFIJO_IMPORTADA):
-            resp = responsables.setdefault(m.cargado_por_id, {"nombre": m.cargado_por.nombre.split(" (")[0], "area": ind.area.nombre,
+            resp = responsables.setdefault(m.cargado_por_id, {"nombre": m.cargado_por.nombre.split(" (")[0], "area": ind.nodo.nombre,
                                                                "cargas": 0, "a_tiempo": 0, "dias_retraso": 0, "devueltas": 0})
             resp["cargas"] += 1
             retraso = max(0, (m.cargado_en.date() - p_fin).days)
@@ -192,7 +195,7 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
             tendencia = {"delta": delta, "mejora": ((delta > 0) if ind.sentido == "mayor" else (delta < 0)) if delta else None}
         total = d["verde"] + d["amarillo"] + d["rojo"]
         lista.append({
-            "id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.area.nombre, "unidad": ind.unidad,
+            "id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.nodo.nombre, "unidad": ind.unidad,
             "decimales": ind.precision, "frecuencia": ind.frecuencia, "sentido": ind.sentido, "gerencia": ind.gerencia or "",
             "n": total, "verde": d["verde"], "amarillo": d["amarillo"], "rojo": d["rojo"], "pct_verde": _pct(d["verde"], total),
             "con_meta": d["con_meta"], "cumplen_meta": d["cumplen"], "pct_meta": _pct(d["cumplen"], d["con_meta"]),
@@ -272,8 +275,8 @@ def construir(db: Session, *, desde: str, hasta: str, agrupar: str = "mes", area
         try:
             a_hasta = calendario.suma_meses(ini, -1)
             a_desde = calendario.suma_meses(ini, -n)
-            anterior = construir(db, desde=f"{a_desde.year}-{a_desde.month:02d}", hasta=f"{a_hasta.year}-{a_hasta.month:02d}", agrupar=agrupar,
-                                 area_id=area_id, frecuencia=frecuencia, seguimiento=seguimiento, indicador_id=indicador_id,
+            anterior = construir(db, quien, desde=f"{a_desde.year}-{a_desde.month:02d}", hasta=f"{a_hasta.year}-{a_hasta.month:02d}", agrupar=agrupar,
+                                 nodo_id=nodo_id, frecuencia=frecuencia, seguimiento=seguimiento, indicador_id=indicador_id,
                                  solo_aprobadas=solo_aprobadas, dimension=dimension, hoy=hoy, _anterior=True)["kpis"]
         except Invalido:
             anterior = None

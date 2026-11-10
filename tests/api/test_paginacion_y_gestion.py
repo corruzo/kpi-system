@@ -29,16 +29,16 @@ def test_el_gerente_crea_edita_archiva_y_elimina_indicadores(client, escenario):
     r = client.post("/api/indicadores", json=ficha_base(area, nombre="Creado por gerencia"))
     assert r.status_code == 201, r.text
     ind = r.json()
-    assert client.get(f"/api/indicadores/codigo-sugerido?area_id={area}").status_code == 200
+    assert client.get(f"/api/indicadores/codigo-sugerido?nodo_id={area}").status_code == 200
     assert client.post("/api/formula/validar", json={"formula": "dias / tickets", "claves": ["dias", "tickets"],
                                                       "variables": ["dias", "tickets"]}).status_code == 200
-    editado = client.put(f"/api/indicadores/{ind['id']}", json={**ficha_base(area, nombre="Renombrado"), "codigo": ind["codigo"]})
+    editado = client.put(f"/api/indicadores/{ind['id']}", json={**ficha_base(area, nombre="Renombrado"), "codigo": ind["codigo"]})   # es suyo: lo creó él
     assert editado.status_code == 200 and editado.json()["nombre"] == "Renombrado"
-    assert client.delete(f"/api/indicadores/{ind['id']}").json() == {"ok": True, "archivado": False}   # sin cargas: se elimina
+    assert client.delete(f"/api/indicadores/{ind['id']}").json() == {"ok": True}   # sin cargas: se elimina
     # y la gerencia ve los archivados en la lista de gestión
     archivado = crear_indicador(client, area, meta=False)
     entrar(client, "admin", CLAVE_ADMIN)
-    client.put(f"/api/indicadores/{archivado['id']}", json={**ficha_base(area), "codigo": archivado["codigo"], "activo": False})
+    assert client.post(f"/api/indicadores/{archivado['id']}/archivar").status_code == 200
     entrar(client, escenario["gerente"])
     assert archivado["id"] not in {i["id"] for i in client.get("/api/indicadores").json()}
     assert archivado["id"] in {i["id"] for i in client.get("/api/indicadores?gestion=true").json()}
@@ -55,8 +55,8 @@ def test_el_encargado_no_gestiona_indicadores(client, escenario):
 def test_opciones_de_usuarios_para_gerente_y_admin_pero_no_para_el_encargado(client, escenario):
     entrar(client, escenario["gerente"])
     r = client.get("/api/usuarios/opciones")
-    assert r.status_code == 200 and all(set(u) == {"id", "nombre", "rol", "area_id", "activo"} for u in r.json())
-    assert client.get("/api/usuarios").status_code == 403   # la lista completa sigue siendo del administrador
+    assert r.status_code == 200 and all(set(u) == {"id", "nombre", "rol", "puede_cargar", "yo"} for u in r.json())
+    assert client.get("/api/usuarios").status_code == 403   # la lista de personas requiere usuarios.ver
     entrar(client, escenario["jefe"])
     assert client.get("/api/usuarios/opciones").status_code == 403
 
@@ -71,7 +71,7 @@ def test_bitacora_paginada_con_total(client):
     p1, p2 = client.get("/api/bitacora?limite=2&desde=0"), client.get("/api/bitacora?limite=2&desde=2")
     assert int(p1.headers["X-Total-Count"]) == total and len(p1.json()) == 2
     assert {b["id"] for b in p1.json()}.isdisjoint({b["id"] for b in p2.json()})
-    filtrada = client.get("/api/bitacora?accion=AREA_CREADA&limite=1")
+    filtrada = client.get("/api/bitacora?accion=UNIDAD_CREADA&limite=1")
     assert int(filtrada.headers["X-Total-Count"]) >= 2 and len(filtrada.json()) == 1
 
 
@@ -93,11 +93,11 @@ def test_indicadores_y_usuarios_paginados_con_filtros_en_el_servidor(client):
     for n in nombres:
         crear_indicador(client, area, meta=False, nombre=n)
     entrar(client, "admin", CLAVE_ADMIN)
-    r = client.get(f"/api/indicadores?gestion=true&area_id={area}&limite=2&desde=0")
+    r = client.get(f"/api/indicadores?gestion=true&nodo_id={area}&limite=2&desde=0")
     assert int(r.headers["X-Total-Count"]) == 3 and len(r.json()) == 2
-    assert len(client.get(f"/api/indicadores?gestion=true&area_id={area}&limite=2&desde=2").json()) == 1
+    assert len(client.get(f"/api/indicadores?gestion=true&nodo_id={area}&limite=2&desde=2").json()) == 1
     assert int(client.get("/api/indicadores?gestion=true&q=PAGINADO 1&limite=5").headers["X-Total-Count"]) >= 1
-    assert int(client.get("/api/indicadores?gestion=true&frecuencia=anual&area_id=" + str(area) + "&limite=5").headers["X-Total-Count"]) == 0
+    assert int(client.get("/api/indicadores?gestion=true&frecuencia=anual&nodo_id=" + str(area) + "&limite=5").headers["X-Total-Count"]) == 0
     crear_usuario(client, "gerente")
     entrar(client, "admin", CLAVE_ADMIN)
     u = client.get("/api/usuarios?limite=1")
@@ -109,6 +109,6 @@ def test_recordatorios_paginados(client, escenario):
     entrar(client, escenario["gerente"])
     todo = client.get("/api/recordatorios").json()
     pag = client.get("/api/recordatorios?limite=1&desde=0").json()
-    assert pag["total"] == todo["total"] == len(todo["encargados"]) and len(pag["encargados"]) <= 1
+    assert pag["total"] == todo["total"] == len(todo["personas"]) and len(pag["personas"]) <= 1
     con = client.get("/api/recordatorios?solo_pendientes=true").json()
-    assert all(e["total"] > 0 for e in con["encargados"]) and con["deben"] == todo["deben"]
+    assert all(e["total"] > 0 for e in con["personas"]) and con["deben"] == todo["deben"]

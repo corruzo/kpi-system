@@ -73,7 +73,7 @@ def _hoja_resumen(ws, empresa, filas, indicadores, subtitulo, por_aprobar, n_car
     con_real = [f for f in filas if f["cmp"]]
     cumplen = sum(f["cmp"]["cumple"] for f in con_real)
     totales = [("Indicadores incluidos", len(indicadores)),
-               ("Períodos con_meta", sum(f["meta"] is not None for f in filas)),
+               ("Períodos con meta", sum(f["meta"] is not None for f in filas)),
                ("Períodos con dato real y meta", len(con_real)),
                ("Períodos que cumplen la meta", cumplen),
                ("Períodos que no alcanzan la meta", len(con_real) - cumplen),
@@ -95,9 +95,9 @@ def _hoja_resumen(ws, empresa, filas, indicadores, subtitulo, por_aprobar, n_car
                      [44, 16, 18, 14, 14, 18])
     areas: dict[str, dict] = {}
     for i in indicadores:
-        areas.setdefault(i.area.nombre, {"ind": 0, "real": 0, "cumplen": 0})["ind"] += 1
+        areas.setdefault(i.nodo.nombre, {"ind": 0, "real": 0, "cumplen": 0})["ind"] += 1
     for f in con_real:
-        a = areas[f["ind"].area.nombre]
+        a = areas[f["ind"].nodo.nombre]
         a["real"] += 1
         a["cumplen"] += f["cmp"]["cumple"]
     for nombre, a in sorted(areas.items()):
@@ -108,7 +108,7 @@ def _hoja_resumen(ws, empresa, filas, indicadores, subtitulo, por_aprobar, n_car
     fila += 2
     ws.cell(fila, 1, "CUMPLIMIENTO DE LA META POR INDICADOR").font = fuente(True, 11)
     fila += 1
-    encabezado_tabla(ws, fila, ["Indicador", "Área", "Períodos con_meta", "Con real", "Cumplen", "No alcanzan", "% cumplimiento"])
+    encabezado_tabla(ws, fila, ["Indicador", "Área", "Períodos con meta", "Con real", "Cumplen", "No alcanzan", "% cumplimiento"])
     ws.column_dimensions["B"].width = 26
     por_ind: dict[int, dict] = {}
     for f in filas:
@@ -120,7 +120,7 @@ def _hoja_resumen(ws, empresa, filas, indicadores, subtitulo, por_aprobar, n_car
     for i in indicadores:
         d = por_ind.get(i.id, {"meta": 0, "real": 0, "cumplen": 0})
         fila += 1
-        vals = [f"{i.codigo} · {i.nombre}", i.area.nombre, d["meta"], d["real"], d["cumplen"], f"=D{fila}-E{fila}",
+        vals = [f"{i.codigo} · {i.nombre}", i.nodo.nombre, d["meta"], d["real"], d["cumplen"], f"=D{fila}-E{fila}",
                 f'=IF(D{fila}=0,"",E{fila}/D{fila})']
         for j, v in enumerate(vals, 1):
             celda(ws, fila, j, v, PCT if j == 7 else ("#,##0" if j > 2 else None), j == 1, "left" if j <= 2 else "center", ajustar_texto=j <= 2)
@@ -137,7 +137,7 @@ def _hoja_detalle(ws, empresa, filas, subtitulo):
         ind, m = f["ind"], f["m"]
         fmt = formato_numero(ind.unidad, ind.precision)
         dif, pct, cumple = _formulas_comparacion(k, "H", "I", ind.sentido == "mayor")
-        valores = [calendario.etiqueta_ejercicio(f["ejercicio"]), ind.codigo, ind.nombre, ind.area.nombre, ind.unidad,
+        valores = [calendario.etiqueta_ejercicio(f["ejercicio"]), ind.codigo, ind.nombre, ind.nodo.nombre, ind.unidad,
                    SENTIDO[ind.sentido], calendario.etiqueta(ind.frecuencia, f["periodo"]), f["meta"], f["real"], dif, pct,
                    cumple, SEMAFORO.get(m.semaforo, "") if m and f["real"] is not None else "", f["estado"]]
         for j, v in enumerate(valores, 1):
@@ -220,7 +220,7 @@ def _hoja_indicadores(ws, empresa, indicadores, subtitulo):
     encabezado_tabla(ws, fila0, cols, [11, 40, 24, 10, 14, 17, 50, 14, 14, 9])
     for k, i in enumerate(indicadores, fila0 + 1):
         fmt = formato_numero(i.unidad, i.precision)
-        valores = [i.codigo, i.nombre, i.area.nombre, i.unidad, i.frecuencia.capitalize(), SENTIDO[i.sentido],
+        valores = [i.codigo, i.nombre, i.nodo.nombre, i.unidad, i.frecuencia.capitalize(), SENTIDO[i.sentido],
                    formula_en_palabras(i.formula, i.variables, i.constantes or []), i.nivel_optimo, i.limite, "Sí" if i.activo else "No"]
         for j, v in enumerate(valores, 1):
             celda(ws, k, j, v, fmt if j in (8, 9) else None, alinear="left" if j in (2, 3, 6, 7) else "center",

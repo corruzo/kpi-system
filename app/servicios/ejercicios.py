@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
 from ..models import Ejercicio, Indicador, Medicion, Usuario, ahora
-from . import auditoria
+from . import acceso, auditoria
 
 
 # ---------------------------------------------------------------- reglas básicas
@@ -21,7 +21,7 @@ def exigir_abierto(db: Session, anio: int | None) -> None:
     fila = db.get(Ejercicio, anio) if anio is not None else None
     if fila and fila.estado == "cerrado":
         raise Conflicto(f"El ejercicio fiscal {calendario.etiqueta_ejercicio(anio)} está cerrado: no admite cambios. "
-                        "El administrador puede reabrirlo desde Ejercicios fiscales.")
+                        "Quien tenga permiso puede reabrirlo desde «Cierre de años».")
 
 
 def creado(db: Session, anio: int | None) -> bool:
@@ -32,7 +32,7 @@ def creado(db: Session, anio: int | None) -> bool:
 def exigir_creado(db: Session, anio: int) -> None:
     if not creado(db, anio):
         raise Conflicto(f"El período fiscal {calendario.etiqueta_ejercicio(anio)} todavía no ha sido creado. "
-                        "El administrador debe crearlo en «Período y metas» antes de fijar metas o cargar datos.")
+                        "Debe crearse en «Período y metas» antes de fijar metas o cargar datos.")
 
 
 def crear(db: Session, usuario: Usuario, anio: int, nota: str = "") -> Ejercicio:
@@ -83,17 +83,11 @@ def anios_conocidos(db: Session, hoy: date, filas: dict[int, Ejercicio] | None =
     return sorted(anios, reverse=True)
 
 
-def recalcular(db: Session, solo_nulos: bool = True) -> int:
-    """Asigna a cada medición el ejercicio de su período (tras migrar datos o cambiar el mes de inicio)."""
-    q = select(Medicion)
-    if solo_nulos:
-        q = q.where(Medicion.ejercicio.is_(None))
+def recalcular(db: Session) -> int:
+    """Reasigna a cada medición el ejercicio de su período (tras cambiar el mes de inicio del ejercicio fiscal)."""
     cambios = 0
-    for m in db.scalars(q):
-        try:
-            anio = calendario.ejercicio_de(m.indicador.frecuencia, m.periodo)
-        except Exception:
-            continue
+    for m in db.scalars(select(Medicion)):
+        anio = calendario.ejercicio_de(m.indicador.frecuencia, m.periodo)
         if m.ejercicio != anio:
             m.ejercicio, cambios = anio, cambios + 1
     db.commit()
@@ -139,23 +133,30 @@ def _fila_indicador(ind: Indicador, mediciones: list[Medicion], anio: int, hoy: 
             "por_aprobar": sum(m.estado == "enviado" for m in ms), "devueltas": sum(m.estado == "observado" for m in ms)}
 
 
-def foto(db: Session, anio: int, area_id: int | None = None, hoy: date | None = None) -> dict:
-    """Estado de todos los indicadores en el ejercicio: {resumen, por_area, filas}."""
+def foto(db: Session, anio: int, nodo_id: int | None = None, hoy: date | None = None, u: Usuario | None = None) -> dict:
+    """Estado de los indicadores en el ejercicio: {resumen, por_area, filas}. Con `u`, solo los que esa persona puede ver
+    (su ámbito y sus asignados); sin `u`, todos (foto del cierre). `nodo_id` abarca el subárbol del nodo."""
     hoy = hoy or calendario.hoy()
     q = select(Indicador).order_by(Indicador.codigo)
-    if area_id:
-        q = q.where(Indicador.area_id == area_id)
+    if u is not None:
+        q = acceso.indicadores_visibles(q, u, archivados=True)
+    if nodo_id:
+        q = q.where(acceso.en_nodo(nodo_id))
+    inds = list(db.scalars(q))
     por_indicador = defaultdict(list)
-    for m in db.scalars(select(Medicion).where(Medicion.ejercicio == anio)):
+    q_med = select(Medicion).where(Medicion.ejercicio == anio)
+    if u is not None and not acceso.es_global(u) or nodo_id:
+        q_med = q_med.where(Medicion.indicador_id.in_([i.id for i in inds]))
+    for m in db.scalars(q_med):
         por_indicador[m.indicador_id].append(m)
     resumen, por_area, filas = _resumen_vacio(), {}, []
-    for ind in db.scalars(q):
+    for ind in inds:
         ms = por_indicador.get(ind.id, [])
         if not ind.activo and not ms:
             continue   # un indicador archivado solo cuenta si tiene datos en el ejercicio
         fila = _fila_indicador(ind, ms, anio, hoy)
         color = fila["ultimo"].semaforo if fila["ultimo"] else "sin_datos"
-        area = por_area.setdefault(ind.area.nombre, {"area": ind.area.nombre, **dict.fromkeys(("total", "verde", "amarillo", "rojo", "sin_datos", "esperados", "faltantes"), 0)})
+        area = por_area.setdefault(ind.nodo.nombre, {"area": ind.nodo.nombre, **dict.fromkeys(("total", "verde", "amarillo", "rojo", "sin_datos", "esperados", "faltantes"), 0)})
         for acumulado in (area, resumen):
             acumulado["total"] += 1
             acumulado[color] += 1
@@ -184,10 +185,12 @@ def descripcion(db: Session, anio: int, hoy: date, filas: dict[int, Ejercicio] |
             "cerrado_por": fila.cerrado_por.nombre if cerrado and fila.cerrado_por else None}
 
 
-def resultados(db: Session, anio: int, hoy: date) -> dict:
-    """{resumen, por_area} del ejercicio: la foto guardada si está cerrado; si no, se calcula en el momento."""
+def resultados(db: Session, anio: int, hoy: date, u: Usuario) -> dict:
+    """{resumen, por_area} del ejercicio, de lo que la persona puede ver. Quien ve toda la empresa recibe la foto
+    guardada al cerrar; los demás, siempre el cálculo de su propio alcance."""
     fila = db.get(Ejercicio, anio)
-    f = fila.resumen if fila and fila.estado == "cerrado" and fila.resumen else foto(db, anio, None, hoy)
+    guardada = fila.resumen if fila and fila.estado == "cerrado" and fila.resumen and acceso.es_global(u) else None
+    f = guardada or foto(db, anio, None, hoy, u)
     return {"resumen": f["resumen"], "por_area": f["por_area"]}
 
 
@@ -196,12 +199,12 @@ def verificar(db: Session, anio: int, hoy: date | None = None) -> dict:
     hoy = hoy or calendario.hoy()
     desc = descripcion(db, anio, hoy)
     f = foto(db, anio, None, hoy)
-    pendientes = [{"codigo": m.indicador.codigo, "indicador": m.indicador.nombre, "area": m.indicador.area.nombre,
+    pendientes = [{"codigo": m.indicador.codigo, "indicador": m.indicador.nombre, "area": m.indicador.nodo.nombre,
                    "periodo": calendario.etiqueta(m.indicador.frecuencia, m.periodo), "estado": m.estado}
                   for m in db.scalars(select(Medicion).where(Medicion.ejercicio == anio,
                                                               Medicion.estado.in_(("enviado", "observado"))))]
     faltantes = [{"codigo": x["indicador"].codigo, "indicador": x["indicador"].nombre,
-                  "area": x["indicador"].area.nombre,
+                  "area": x["indicador"].nodo.nombre,
                   "periodos": [calendario.etiqueta(x["indicador"].frecuencia, p) for p in x["faltantes"]]}
                  for x in f["filas"] if x["faltantes"]]
     terminado = desc["hasta"] < hoy
@@ -225,7 +228,7 @@ def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, aceptar_faltante
     f = v["foto"]
     instantanea = {"resumen": f["resumen"], "por_area": f["por_area"], "faltantes": v["total_faltantes"],
                    "indicadores": [{"codigo": x["indicador"].codigo, "nombre": x["indicador"].nombre,
-                                    "area": x["indicador"].area.nombre,
+                                    "area": x["indicador"].nodo.nombre,
                                     "ultimo": ({"etiqueta": calendario.etiqueta(x["indicador"].frecuencia, x["ultimo"].periodo),
                                                 "resultado": x["ultimo"].resultado, "semaforo": x["ultimo"].semaforo}
                                                if x["ultimo"] else None)} for x in f["filas"]]}
