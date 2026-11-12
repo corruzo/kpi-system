@@ -3,7 +3,7 @@
     <form class="sheet max-h-[92vh] w-full max-w-lg" @submit.prevent="guardarUsuario()" @keydown.escape.window="modalUsuario=false">
       <div class="card-h"><h2 class="text-lg font-bold" x-text="usuario.id ? 'Editar cuenta' : 'Nueva cuenta'"></h2><button type="button" class="btn btn-s btn-sm" @click="modalUsuario=false" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-4 overflow-y-auto">
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Usuario</label><input class="inp" x-model="usuario.username" :disabled="!!usuario.id" pattern="[a-z0-9._-]{3,40}" autocapitalize="none" required><p class="mt-1 text-xs text-slate-500">Minúsculas, números, punto, guion.</p></div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><label class="lbl">Usuario</label><input class="inp" x-model="usuario.username" :disabled="!!usuario.id" pattern="[a-z0-9._\-]{3,40}" autocapitalize="none" required><p class="mt-1 text-xs text-slate-500">Minúsculas, números, punto, guion.</p></div>
           <div><label class="lbl">Nombre completo</label><input class="inp" x-model="usuario.nombre" required minlength="3"></div></div>
         <div><label class="lbl" for="usuario-email">Correo electrónico (opcional)</label><input id="usuario-email" type="email" class="inp" x-model="usuario.email" maxlength="120" autocomplete="off" placeholder="nombre@tripoliven.com"><p class="mt-1 text-xs text-slate-500">Para enviarle recordatorios de carga desde Outlook.</p></div>
         <p class="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600" x-show="!usuario.id">La cuenta nace <b>sin rol ni acceso</b>: el Coordinador SGC le asignará su rol, su posición en la estructura y sus indicadores.</p>

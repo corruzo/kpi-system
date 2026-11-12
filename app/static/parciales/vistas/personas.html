@@ -14,7 +14,7 @@
             <span class="flex w-full flex-wrap gap-1.5 sm:w-auto sm:shrink-0 sm:justify-end">
               <button class="btn btn-p btn-sm" x-show="puede('usuarios.asignar') && x.id !== user.id && x.rol_clave!=='desarrollador'" @click="abrirAsignacion(x)">Rol y posición</button>
               <button class="btn btn-s btn-sm" x-show="puede('usuarios.asignar') && x.id !== user.id && x.rol_clave!=='desarrollador' && !x.pendiente" @click="abrirIndicadores(x)">Indicadores</button>
-              <button class="btn btn-s btn-sm" @click="api('/api/usuarios/'+x.id+'/alcance').then(r => previa = r)">¿Qué ve?</button>
+              <button class="btn btn-s btn-sm" @click="abrirAccesos(x)" title="Qué puede hacer esta persona y qué indicadores ve, con el motivo de cada uno">Ver accesos</button>
               <button class="btn btn-s btn-sm" x-show="puede('usuarios.cuentas')" @click="editarUsuario(x)">Editar cuenta</button>
               <button class="btn btn-s btn-sm" x-show="puedeAlguno(['usuarios.cuentas','soporte.sesiones']) && x.id !== user.id" @click="abrirSoporte(x)" :aria-expanded="soporte===x.id">Soporte</button>
             </span>

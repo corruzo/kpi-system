@@ -2,6 +2,25 @@
    (lo aplica el servidor); aquí solo se elige el NIVEL: Ninguno · Ver · Ver y modificar (o Ninguno · Sí). Nunca muestra permisos técnicos. */
 SIGT.modulos.roles = () => ({
     roles: [], catalogoP: { grupos: [], permisos: [] }, rolForm: null, rolQ: '', rolCopia: { id: null, nombre: '' },
+    // Roles de partida: un clic crea los cuatro típicos (después se ajustan en la matriz). El servidor agrega lo que cada permiso necesita.
+    PLANTILLAS_ROLES: [
+      ['Analista', 'Quien carga datos.', { 'cargas.cargar': 'modificar', 'reportes.fichas': 'ver' }],
+      ['Jefe', 'Aprueba, fija metas y gestiona sus indicadores.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'recordatorios.enviar': 'modificar' }],
+      ['Gerente', 'Como el jefe, a nivel de gerencia, y ve estructura y personas.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.eliminar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'reportes.verificar': 'ver', 'recordatorios.enviar': 'modificar', 'estructura.ver': 'ver', 'usuarios.ver': 'ver' }],
+      ['Gerente general', 'Solo consulta todo (con ámbito en la raíz); modifica lo suyo.', { 'indicadores.ver': 'ver', 'cargas.ver': 'ver', 'metas.ver': 'ver', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'ejercicios.ver': 'ver', 'estructura.ver': 'ver', 'usuarios.ver': 'ver', 'cargas.cargar': 'modificar', 'indicadores.editar': 'modificar' }],
+    ],
+    get sinRolesPropios() { return this.roles.length > 0 && !this.roles.some(r => !r.de_sistema); },
+    async crearSugeridos() {
+      this.busy = true;
+      try {
+        for (const [nombre, descripcion, permisos] of this.PLANTILLAS_ROLES) {
+          const concedibles = Object.fromEntries(Object.entries(permisos).filter(([c]) => this.catalogoP.permisos.find(p => p.codigo === c)?.tope));   // solo lo que quien crea puede conceder
+          await this.api('/api/roles', { method: 'POST', body: { nombre, descripcion, permisos: concedibles } }, true);
+        }
+        this.avisar('Roles creados. Ajústelos en la matriz y asígnelos en «Personas».'); await this.cargarRoles();
+      } catch (e) { this.avisar(e.message, true); }
+      this.busy = false;
+    },
     vistaRoles: 'matriz', mat: {}, matCerrados: {},   // matriz estilo SAP: mat[rol.id] = copia editable de sus permisos
 
     ganchos: {

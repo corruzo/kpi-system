@@ -35,7 +35,7 @@ Un respaldo que nunca se verificó no es un respaldo. Haga una restauración de 
 |---|---|
 | Usuario bloqueado por intentos | Personas → *Desbloquear accesos* (Desarrollador) |
 | Persona sospecha que otra usa su cuenta | Personas → Soporte → *Cerrar sus sesiones* + generar clave temporal (Desarrollador) |
-| Alguien no ve un indicador | Es lo esperado si el nodo del indicador no está en su ámbito y no es su responsable ni su cargador: Personas → *¿Qué ve?* para comprobarlo; Indicadores → Editar → *Asignación* para corregirlo |
+| Alguien no ve un indicador | Es lo esperado si el nodo del indicador no está en su ámbito y no es su responsable ni su cargador: Personas → *Ver accesos* para comprobarlo; Indicadores → Editar → *Asignación* para corregirlo |
 | No se puede inhabilitar/eliminar a una persona | Es responsable de indicadores o su única cargadora: reasígnelos primero (Personas → *Indicadores*) |
 | Cuenta nueva «pendiente de asignación» | El Coordinador SGC debe darle rol, ámbito e indicadores (Personas → *Rol y posición*) |
 | Hay que cambiar lo que un rol puede hacer | Coordinador SGC → Roles y permisos; rige desde la siguiente petición de cada persona |

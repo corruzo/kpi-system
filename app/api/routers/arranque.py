@@ -67,7 +67,7 @@ def arranque(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: U
         datos["resumen"] = ejercicios.foto(db, sel, None, hoy, u)["resumen"]   # lo que muestra la pantalla de inicio
     if puede("catalogos.gestionar") or puede("indicadores.crear") or puede("indicadores.editar"):
         datos["catalogos"] = [ser.catalogo(c) for c in organizacion.listar_catalogos(db)]
-    if puede("sistema.puesta_en_marcha"):
+    if puede("sistema.puesta_en_marcha") or puede("usuarios.asignar"):   # la guía de arranque la usan quienes configuran
         datos["marcha"] = metas.avance_de_puesta_en_marcha(db, u, hoy)
     return datos
 

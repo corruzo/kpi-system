@@ -37,7 +37,7 @@ ve lo que carga. Ver baja por el árbol; modificar es solo lo asignado personalm
 3. Despliegue: `docker build -t spe-tpv . && docker run -p 8000:8000 --env-file .env spe-tpv` (o Vercel: `vercel.json` + `api/index.py`, rama `master`; las migraciones corren al arrancar). Healthcheck: `GET /healthz`. Siempre tras HTTPS.
 4. **Migraciones (Alembic):** el esquema solo cambia con migraciones versionadas (`migrations/versions/`): `v2_0001` (esquema base) y `v2_0002` (endurecimiento PostgreSQL: bitácora inmutable por trigger, RLS en todas las tablas, sin permisos para `anon`/`authenticated`). `alembic upgrade head` antes de arrancar; `alembic check` verifica que no haya diferencias con los modelos.
 5. **Pasar de la versión 1 a la 2 destruye los datos** (eran de prueba): siga el procedimiento de [`docs/OPERACION.md`](docs/OPERACION.md) («Reinicio a la versión 2»), con `scripts/reset_produccion_v2.sql`.
-6. Ingrese como Desarrollador y siga **Puesta en marcha**: cuentas → estructura → roles y personas → indicadores → período fiscal → metas → carga.
+6. Ingrese como Desarrollador y siga **Puesta en marcha**: estructura → roles → personas → indicadores → período fiscal → metas → carga.
 
 Alternativa sin variable de entorno: `python -m app.crear_admin` (crea un Desarrollador).
 

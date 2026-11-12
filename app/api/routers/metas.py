@@ -40,6 +40,6 @@ def copiar(anio: AnioRuta, datos: schemas.CopiaMetaIn, db: Session = Depends(get
 
 
 @router.get("/puesta-en-marcha")
-def puesta_en_marcha(db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("sistema.puesta_en_marcha"))):
-    """Estado de los pasos para arrancar el sistema (cuentas → estructura → personas → indicadores → período → metas → carga)."""
+def puesta_en_marcha(db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("sistema.puesta_en_marcha", "usuarios.asignar"))):
+    """Estado de los pasos para arrancar el sistema (Desarrollador y Coordinador SGC) (estructura → roles → personas → indicadores → período → metas → carga)."""
     return metas.avance_de_puesta_en_marcha(db, u, calendario.hoy())

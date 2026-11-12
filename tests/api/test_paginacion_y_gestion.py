@@ -55,7 +55,7 @@ def test_el_analista_no_gestiona_indicadores(client, escenario):
 def test_opciones_de_usuarios_para_quien_asigna_pero_no_para_el_analista(client, escenario):
     entrar(client, escenario["gerente"])
     r = client.get("/api/usuarios/opciones")
-    assert r.status_code == 200 and all(set(u) == {"id", "nombre", "rol", "puede_cargar", "yo"} for u in r.json())
+    assert r.status_code == 200 and all(set(u) == {"id", "nombre", "rol", "puede_cargar", "yo", "ambito", "miembro"} for u in r.json())
     assert client.get("/api/usuarios").status_code == 403   # la lista de personas requiere usuarios.ver
     entrar(client, escenario["jefe"])
     assert client.get("/api/usuarios/opciones").status_code == 403

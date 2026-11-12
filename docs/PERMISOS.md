@@ -94,7 +94,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
 | `usuarios.ver` | **Ver personas**: Ver las personas, su rol, su ámbito y lo que alcanzan a ver. | Ninguno / Ver | Todas las personas, salvo los Desarrolladores. | `GET /api/usuarios`<br>`GET /api/usuarios/{usuario_id}/alcance`<br>`GET /api/usuarios/{usuario_id}/indicadores` |
-| `usuarios.asignar` | **Asignar rol, ámbito e indicadores**: Dar a cada persona su rol, su posición en la estructura y sus indicadores. | Ninguno / Sí | Todas las personas, salvo los Desarrolladores y uno mismo. | `GET /api/roles`<br>`GET /api/usuarios/opciones`<br>`POST /api/usuarios/{usuario_id}/alcance`<br>`PUT /api/usuarios/{usuario_id}/asignacion`<br>`PUT /api/usuarios/{usuario_id}/indicadores` |
+| `usuarios.asignar` | **Asignar rol, ámbito e indicadores**: Dar a cada persona su rol, su posición en la estructura y sus indicadores. | Ninguno / Sí | Todas las personas, salvo los Desarrolladores y uno mismo. | `GET /api/puesta-en-marcha`<br>`GET /api/roles`<br>`GET /api/usuarios/opciones`<br>`POST /api/usuarios/{usuario_id}/alcance`<br>`PUT /api/usuarios/{usuario_id}/asignacion`<br>`PUT /api/usuarios/{usuario_id}/indicadores` |
 | `roles.gestionar` | **Roles y permisos**: Crear, renombrar, duplicar y borrar roles, y elegir sus permisos. | Ninguno / Sí | Todos los roles, salvo el propio y el de Desarrollador. | `DELETE /api/roles/{rol_id}`<br>`GET /api/permisos`<br>`GET /api/roles`<br>`POST /api/roles`<br>`POST /api/roles/{rol_id}/duplicar`<br>`PUT /api/roles/{rol_id}` |
 
 ## Técnico (solo Desarrollador)

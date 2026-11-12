@@ -1,11 +1,20 @@
 /* Período y metas: crear el período fiscal (paso 1) y fijar la meta de cada indicador (paso 3). */
 SIGT.modulos.meta = () => ({
     pres: null, presAnio: null, presArea: '', presAbierto: null, ed: {}, rapido: {}, presFiltro: 'todos',
-    nuevoAnio: null, nuevoNota: '',
+    nuevoAnio: null, nuevoNota: '', metaDestacada: null,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      entrar: { meta() { this.presAnio = this.ejTodos.some(e => e.anio === this.ejSel && e.creado) ? this.ejSel : this.ejVigente; return this.cargarMetas(); } },
+      entrar: { async meta() {
+        this.presAnio = this.ejTodos.some(e => e.anio === this.ejSel && e.creado) ? this.ejSel : this.ejVigente;
+        await this.cargarMetas();
+        // En cascada: si el período vigente aún no existe y quien está aquí puede abrirlo, se abre solo (sin un paso más)
+        if (!this.presDesc.creado && this.presAnio === this.ejVigente && this.puede('ejercicios.crear')) await this.crearPeriodo(this.presAnio);
+        if (this.metaDestacada && this.pres) {
+          this.presAbierto = this.metaDestacada; const nueva = this.pres.indicadores.find(f => f.indicador_id === this.metaDestacada); this.metaDestacada = null;
+          if (nueva && nueva.con_valor === 0) this.aplicarRapido(nueva);   // propone la meta = nivel óptimo en todos los períodos: solo queda «Guardar meta»
+          this.$nextTick(() => document.querySelector('[data-vista="meta"] [data-fila-abierta]')?.scrollIntoView({ block: 'center' })); }
+      } },
       salida() { this.pres = null; this.ed = {}; this.rapido = {}; },
     },
 
@@ -26,7 +35,7 @@ SIGT.modulos.meta = () => ({
       this.pres = await this.api(`/api/ejercicios/${this.presAnio}/metas` + q);
       this.ed = {}; this.rapido = {};
       for (const f of this.pres.indicadores) {
-        this.rapido[f.indicador_id] = { anual: '', reparto: f.sentido === 'menor' || f.unidad === '%' ? 'repetir' : 'igual' };
+        this.rapido[f.indicador_id] = { anual: f.nivel_optimo === null || f.nivel_optimo === undefined ? '' : String(f.nivel_optimo), reparto: f.sentido === 'menor' || f.unidad === '%' ? 'repetir' : 'igual' };
         for (const p of f.periodos) this.ed[this.k(f, p)] = p.valor === null ? '' : String(p.valor);
       }
     },

@@ -1,0 +1,7 @@
+    <!-- Guía en cascada: en las pantallas de configuración siempre se ve en qué paso va y cuál sigue -->
+    <div class="card mb-5 border-brand/30 bg-brand-light" x-show="enConfiguracion && siguientePaso" x-transition data-tour="barra-pasos">
+      <div class="flex flex-wrap items-center gap-3 px-4 py-3 text-sm text-cobalt">
+        <span class="flex shrink-0 gap-1" aria-hidden="true"><template x-for="p in pasosMarcha" :key="p.id"><span class="h-2.5 w-6 rounded-full" :class="p.estado==='hecho' ? 'bg-green-500' : p.estado==='ahora' ? 'bg-brand' : 'bg-slate-300'"></span></template></span>
+        <span class="min-w-0 flex-1"><b x-text="'Paso ' + (siguientePaso ? siguientePaso.n : '') + ' de ' + pasosMarcha.length + ': '"></b><span x-text="siguientePaso && siguientePaso.t"></span></span>
+        <button class="btn btn-p btn-sm" @click="siguientePaso.ir()" x-text="siguientePaso && siguientePaso.b + ' →'"></button>
+      </div></div>

@@ -42,7 +42,22 @@ SIGT.modulos.indicadores = () => ({
     get puedeEditarFicha() { return !this.ficha.id || (this.ficha.soy_responsable && this.puede('indicadores.editar')); },
     get puedeAsignarFicha() { return !this.ficha.id || (this.puede('indicadores.asignar') && (this.ficha.en_ambito || this.ficha.soy_responsable)); },
     get asignacionCambio() { return !!this.ficha.id && JSON.stringify([this.ficha.nodo_id, this.ficha.responsable_id, [...this.ficha.cargadores].sort()]) !== this.ficha._asig; },
-    cambioDeNodo() { this.pedirCodigo(); },
+    cambioDeNodo() { this.pedirCodigo(); this.proponerAsignacion(); },
+    // En cascada: al elegir el nodo se propone solo quién lo lleva. Responsable = quien tiene ese nodo (o el más cercano hacia arriba)
+    // en su ámbito; cargadores = quienes trabajan en el nodo y pueden cargar, o el propio responsable si puede. Siempre se puede cambiar.
+    proponerAsignacion() {
+      if (this.ficha.id) return;
+      const yo = this.user.id, porId = Object.fromEntries(this.areas.map(a => [a.id, a])), cadena = [];
+      for (let n = porId[this.ficha.nodo_id]; n; n = porId[n.padre_id]) cadena.push(n.id);   // el nodo y sus superiores
+      const opc = this.opcionesUsuarios;
+      let resp = null;
+      for (const id of cadena) { resp = opc.find(u => u.ambito.includes(id) && !u.yo) || null; if (resp) break; }
+      const cargan = opc.filter(u => u.puede_cargar && u.miembro.some(m => cadena.includes(m)));
+      this.ficha.responsable_id = resp ? resp.id : yo;
+      const quienes = cargan.length ? cargan : (resp ? (resp.puede_cargar ? [resp] : []) : opc.filter(u => u.yo && u.puede_cargar));
+      this.ficha.cargadores = quienes.map(u => u.id);
+      if (!this.ficha.cargadores.length && opc.some(u => u.id === this.ficha.responsable_id && u.puede_cargar)) this.ficha.cargadores = [this.ficha.responsable_id];
+    },
     puedeEditarI(i) { return this.puede('indicadores.editar') && i.soy_responsable; },
     puedeAsignarI(i) { return this.puede('indicadores.asignar') && (i.en_ambito || i.soy_responsable); },
     async pedirCodigo() {
@@ -50,9 +65,9 @@ SIGT.modulos.indicadores = () => ({
       try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?nodo_id=${this.ficha.nodo_id}`)).codigo; } catch { this.codigoSugerido = ''; }
     },
     nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: this.areas[0]?.id, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
+      this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: (this.areas.find(a => a.nivel === 'jefatura') || this.areas[0])?.id, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» como ayuda.');
-      this.pedirCodigo();
+      this.pedirCodigo(); this.proponerAsignacion();
     },
     editarFicha(i) {
       this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.constantes ||= [];
@@ -113,12 +128,16 @@ SIGT.modulos.indicadores = () => ({
       this.busy = true;
       try {
         const f = this.ficha, id = f.id;
-        if (!id) await this.api('/api/indicadores', { method: 'POST', body: this.cuerpoFicha(f) });
+        let nuevo = null;
+        if (!id) nuevo = await this.api('/api/indicadores', { method: 'POST', body: this.cuerpoFicha(f) });
         else {
           if (this.puedeEditarFicha) await this.api(`/api/indicadores/${id}`, { method: 'PUT', body: this.cuerpoFicha(f) });
           if (this.puedeAsignarFicha && this.asignacionCambio) await this.api(`/api/indicadores/${id}/asignacion`, { method: 'PUT', body: { nodo_id: f.nodo_id, responsable_id: f.responsable_id, cargadores: f.cargadores } });
         }
-        this.modal = false; this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.'); await this.refrescarIndicadores();
+        this.modal = false; await this.refrescarIndicadores();
+        // En cascada: un indicador nuevo necesita su meta; si quien lo crea puede fijarla, se abre directamente en «Período y metas»
+        if (nuevo && this.puede('metas.cargar')) { this.avisar('Indicador creado. Ahora fije su meta.'); this.metaDestacada = nuevo.id; return this.go('meta'); }
+        this.avisar(id ? 'Ficha actualizada.' : 'Indicador creado.');
       } catch { }
       this.busy = false;
     },

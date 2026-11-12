@@ -2,9 +2,9 @@
     <section data-vista="estructura" x-show="view==='estructura'" class="space-y-4">
       <div><p class="eyebrow">Quién ve qué</p><h1 class="page-title">Estructura de la empresa</h1><p class="text-sm text-slate-600">Gerencias, departamentos y jefaturas. Cada persona ve su nodo y todo lo que cuelga de él; los indicadores se asignan a un nodo. La visibilidad solo baja por el árbol.</p></div>
       <div class="card" x-show="puedeGestionarEstructura">
-        <div class="card-h"><h2 class="font-semibold" x-text="tituloNodoForm"></h2><button type="button" class="btn btn-s btn-sm" x-show="nodoForm.id || nodoForm.padre_id" @click="nuevaGerencia()">Nueva gerencia</button></div>
+        <div class="card-h"><h2 class="font-semibold" x-text="tituloNodoForm"></h2><span class="flex flex-wrap gap-2"><button type="button" class="btn btn-s btn-sm" x-show="ultimoNodo && !nodoForm.id" @click="otroDelMismoNivel()" x-text="'+ ' + (ultimoNodo?.nivel === 'departamento' ? 'Otro ' : 'Otra ') + etiquetaNivel(ultimoNodo?.nivel || '').toLowerCase() + ' del mismo nivel'"></button><button type="button" class="btn btn-s btn-sm" x-show="nodoForm.id || nodoForm.padre_id" @click="nuevaGerencia()">Nueva gerencia</button></span></div>
         <form class="card-b flex flex-wrap gap-2" @submit.prevent="guardarNodo()">
-          <input id="nodo-nombre" class="inp min-w-[14rem] flex-1" x-model="nodoForm.nombre" required minlength="2" maxlength="80" :placeholder="'Nombre de ' + (nodoForm.id ? 'la unidad' : 'la ' + etiquetaNivel(nodoForm.nivel).toLowerCase())" aria-label="Nombre">
+          <input id="nodo-nombre" class="inp min-w-[14rem] flex-1" x-model="nodoForm.nombre" required minlength="2" maxlength="80" :placeholder="'Nombre ' + (nodoForm.id ? 'de la unidad' : nodoForm.nivel === 'departamento' ? 'del departamento' : 'de la ' + etiquetaNivel(nodoForm.nivel).toLowerCase())" aria-label="Nombre">
           <button class="btn btn-p" :disabled="busy" x-text="nodoForm.id ? 'Guardar nombre' : 'Agregar'"></button>
         </form>
       </div>

@@ -3,6 +3,9 @@
       <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Qué puede hacer cada quien</p><h1 class="page-title">Roles y permisos</h1><p class="text-sm text-slate-600">Un rol es un conjunto de permisos. Usted elige el <b>nivel</b> de cada uno; el <b>alcance</b> (sobre qué datos actúa) es fijo y lo aplica siempre el sistema. Una persona tiene un solo rol.</p></div>
         <button class="btn btn-p w-full sm:w-auto" @click="nuevoRol()">+ Nuevo rol</button></div>
 
+      <div class="card border-brand/30 bg-brand-light" x-show="sinRolesPropios" x-transition><div class="card-b flex flex-wrap items-center justify-between gap-3 text-sm text-cobalt">
+        <span class="min-w-[16rem] flex-1"><b>Empiece rápido:</b> cree con un clic los roles típicos (<b>Analista, Jefe, Gerente y Gerente general</b>). Después los ajusta en la matriz.</span>
+        <button class="btn btn-p" :disabled="busy" @click="crearSugeridos()">Crear roles sugeridos</button></div></div>
       <div class="pill-nav !flex-wrap sm:!w-auto" role="tablist">
         <button class="pill" :class="vistaRoles==='matriz' && 'pill-on'" role="tab" @click="vistaRoles='matriz'">Matriz de roles</button>
         <button class="pill" :class="vistaRoles==='tarjetas' && 'pill-on'" role="tab" @click="vistaRoles='tarjetas'">Tarjetas</button>

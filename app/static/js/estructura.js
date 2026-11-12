@@ -1,6 +1,6 @@
 /* Estructura de la empresa: árbol de gerencias → departamentos → jefaturas (de él depende quién ve qué). */
 SIGT.modulos.estructura = () => ({
-    arbol: [], nodoForm: { id: null, nombre: '', nivel: 'gerencia', padre_id: null }, moverForm: { id: null, padre_id: '' }, estructuraCargada: false,
+    arbol: [], ultimoNodo: null, nodoForm: { id: null, nombre: '', nivel: 'gerencia', padre_id: null }, moverForm: { id: null, padre_id: '' }, estructuraCargada: false,
 
     ganchos: {
       entrar: { estructura() { return this.cargarEstructura(); } },
@@ -19,19 +19,29 @@ SIGT.modulos.estructura = () => ({
     get puedeGestionarEstructura() { return this.puede('estructura.gestionar'); },
     nivelSiguiente: n => ({ gerencia: 'departamento', departamento: 'jefatura' }[n] || null),
     etiquetaNivel: n => NIVEL_ETIQUETA[n] || n,
+    // «Nueva gerencia», «Nuevo departamento», «Nueva jefatura»
+    nuevo: n => (n === 'departamento' ? 'Nuevo ' : 'Nueva ') + (NIVEL_ETIQUETA[n] || n).toLowerCase(),
     nuevoHijo(n) { this.nodoForm = { id: null, nombre: '', nivel: this.nivelSiguiente(n.nivel), padre_id: n.id }; this.$nextTick(() => document.getElementById('nodo-nombre')?.focus()); },
+    otroDelMismoNivel() { const u = this.ultimoNodo; if (u) this.nodoForm = { id: null, nombre: '', nivel: u.nivel, padre_id: u.padre_id }; this.$nextTick(() => document.getElementById('nodo-nombre')?.focus()); },
     nuevaGerencia() { this.nodoForm = { id: null, nombre: '', nivel: 'gerencia', padre_id: null }; },
     renombrar(n) { this.nodoForm = { id: n.id, nombre: n.nombre, nivel: n.nivel, padre_id: n.padre_id }; this.$nextTick(() => document.getElementById('nodo-nombre')?.focus()); },
     get tituloNodoForm() {
       const f = this.nodoForm, padre = this.arbol.find(a => a.id === f.padre_id);
-      return f.id ? `Renombrar ${this.etiquetaNivel(f.nivel).toLowerCase()}` : f.padre_id ? `Nuevo ${this.etiquetaNivel(f.nivel).toLowerCase()} en «${padre?.nombre || ''}»` : 'Nueva gerencia';
+      return f.id ? `Renombrar ${this.etiquetaNivel(f.nivel).toLowerCase()}` : f.padre_id ? `${this.nuevo(f.nivel)} en «${padre?.nombre || ''}»` : 'Nueva gerencia';
     },
     async guardarNodo() {
       const f = this.nodoForm; this.busy = true;
       try {
+        let creado = null;
         if (f.id) await this.api(`/api/unidades/${f.id}`, { method: 'PUT', body: { nombre: f.nombre } });
-        else await this.api('/api/unidades', { method: 'POST', body: { nombre: f.nombre, nivel: f.nivel, padre_id: f.padre_id } });
-        this.avisar('Estructura actualizada.'); await this.cargarEstructura();
+        else creado = await this.api('/api/unidades', { method: 'POST', body: { nombre: f.nombre, nivel: f.nivel, padre_id: f.padre_id } });
+        await this.cargarEstructura();
+        // En cascada: tras crear, el formulario queda listo para el nivel de abajo («Nuevo departamento en «Gerencia X»»)
+        if (creado) {
+          this.ultimoNodo = creado;
+          if (this.nivelSiguiente(creado.nivel)) this.nuevoHijo(creado);
+          this.avisar(`«${creado.nombre}» creado. ${this.nivelSiguiente(creado.nivel) ? 'Siga con lo que cuelga de él' : 'Puede agregar otro del mismo nivel'}.`);
+        } else this.avisar('Estructura actualizada.');
       } catch { }
       this.busy = false;
     },

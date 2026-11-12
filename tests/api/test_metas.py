@@ -126,7 +126,7 @@ def test_copiar_el_meta_de_otro_ejercicio(client):
 def test_puesta_en_marcha_informa_cada_paso(client):
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.get("/api/puesta-en-marcha").json()
-    assert [p["id"] for p in r["pasos"]] == ["cuentas", "estructura", "personas", "fichas", "periodo", "meta", "carga"]
+    assert [p["id"] for p in r["pasos"]] == ["estructura", "roles", "personas", "fichas", "periodo", "meta", "carga"]
     entrar(client, crear_usuario(client, "gerente"))
     assert client.get("/api/puesta-en-marcha").status_code == 403
 

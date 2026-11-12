@@ -152,44 +152,45 @@ reinicio a la versión 2). En resumen:
 5. PUESTA EN MARCHA PASO A PASO
 ====================================================================================================
 
-La pantalla «Puesta en marcha» (Inicio del Desarrollador) muestra los pasos y su estado:
+El sistema funciona EN CASCADA: cada paso termina llevándole al siguiente con los datos ya propuestos, y no hace
+falta saber nada de antemano. La barra superior («Paso N de 7») muestra el avance y el botón «Siguiente»; la
+pantalla «Puesta en marcha» (Inicio) lista los pasos y su estado. El orden lógico es:
+estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
 
- Paso 1. CUENTAS Y COORDINADOR SGC  (Desarrollador · menú Configurar > Personas)
-    «+ Nueva cuenta»: usuario (minúsculas, números, punto, guion), nombre, correo (opcional, para los
-    recordatorios), clave temporal (botón «Generar»: cópiela y entréguela; pida que la cambien al ingresar).
-    Cree al Coordinador SGC y asígnele ese rol: Personas > Soporte técnico no, sino «Rol y posición»
-    (el Desarrollador puede dar el rol Coordinador SGC; el Coordinador no).
+ Paso 1. ESTRUCTURA DE LA EMPRESA  (Desarrollador o Coordinador SGC · Configurar > Estructura de la empresa)
+    Cree la primera gerencia: al guardar, el formulario ofrece solo el nivel inferior («Nuevo departamento en
+    X», luego «Nueva jefatura en Y»). Renombrar, Mover y Eliminar (si está vacío) están en cada nodo.
 
- Paso 2. ESTRUCTURA DE LA EMPRESA  (Coordinador SGC · Configurar > Estructura de la empresa)
-    Cree las gerencias; en cada una «+ Departamento»; en cada departamento «+ Jefatura». Renombrar, Mover
-    (a otro padre del nivel que corresponde) y Eliminar (si está vacío). Se ve cuántas personas e
-    indicadores tiene cada nodo.
+ Paso 2. ROLES  (Configurar > Roles y permisos)
+    Si aún no hay roles propios aparece «Crear roles sugeridos» (Jefe, Analista, etc.): un clic y quedan listos.
+    La matriz es como la de SAP: filas = permisos agrupados por módulo, columnas = roles; cada celda se
+    cicla con un clic y se guarda por columna. Al marcar un permiso se agregan los que necesita para servir.
 
- Paso 3. ROLES Y PERSONAS  (Coordinador SGC · Configurar > Roles y permisos y Personas)
-    Roles: «+ Nuevo rol» (o «Duplicar»). La matriz de permisos está agrupada por módulo, con buscador y la
-    descripción y el alcance fijo de cada permiso. Al elegir un permiso se agregan los que necesita para
-    servir. Abajo se resume en lenguaje natural lo que el rol podrá hacer.
-    Personas: botón «Rol y posición» (rol; «Toda la empresa» para el ámbito en la raíz; por cada nodo
-    «Ve» o «Trabaja en») con «¿Qué verá con esto?» para verificar ANTES de guardar; y «Indicadores»
-    (responsable y cargador). Cada cambio queda en la bitácora y rige desde la siguiente petición.
+ Paso 3. PERSONAS  (Configurar > Personas)
+    «+ Nueva cuenta»: usuario, nombre, correo (opcional) y clave temporal («Generar»; cópiela y entréguela).
+    Al crearla se abre sola «Rol y posición» (rol y dónde trabaja). Allí un recuadro «Resultado» dice, en vivo
+    y en palabras, qué podrá hacer la persona y en qué partes de la empresa. Más tarde, el botón «Ver accesos»
+    muestra lo mismo para cualquier cuenta (equivale a los «permisos efectivos» de SAP o Azure DevOps).
+    Solo el Desarrollador puede dar los roles Desarrollador y Coordinador SGC.
 
- Paso 4. INDICADORES  (quien tenga «Crear indicadores» · Configurar > Indicadores)
-    «+ Nuevo indicador»: Asignación (nodo, responsable, cargadores: solo a usted o a personas debajo),
-    identificación, proceso y responsables de la ficha, medición (unidad, frecuencia, sentido, decimales),
-    semáforo (Nivel óptimo y Límite crítico, y topes opcionales), variables, constantes, fórmula con
-    validador y probador, y documentación. El código lo da el sistema.
+ Paso 4. INDICADORES  (Configurar > Indicadores)
+    «+ Nuevo indicador»: el nodo, el responsable y los cargadores vienen propuestos según la estructura y las
+    personas; solo revise. Complete identificación, medición (unidad, frecuencia, sentido), semáforo (Nivel
+    óptimo y Límite crítico), variables, fórmula (con validador y probador). El código lo da el sistema.
+    Al guardar, el sistema lo lleva a Período y metas.
 
- Paso 5. PERÍODO FISCAL  (quien tenga «Crear ejercicios» · Configurar > Período y metas)
-    Cree el ejercicio (p. ej. 2026-2027: octubre 2026 a septiembre 2027).
+ Paso 5. PERÍODO FISCAL  (Configurar > Período y metas)
+    Si falta, el sistema crea solo el ejercicio vigente (p. ej. 2026-2027: octubre 2026 a septiembre 2027).
 
- Paso 6. META  (quien tenga «Cargar metas» · Período y metas)
-    Para cada indicador, escriba la meta de cada período, o un valor anual con «Mismo valor» (porcentajes,
-    promedios, tiempos) o «Partes iguales» (totales: toneladas, dólares), y pulse «Aplicar» y «Guardar meta».
-    Solo se fijan las de indicadores propios y las de quienes están debajo (el Coordinador, todas).
-    «Copiar del año anterior» trae las metas a los que aún no las tienen. Un período con dato real ya no
+ Paso 6. META  (Período y metas)
+    El indicador nuevo llega resaltado y con la meta ya propuesta (el Nivel óptimo en los 12 períodos):
+    revise y pulse «Guardar meta». Para otro valor use «Mismo valor» o «Partes iguales» y «Aplicar».
+    «Copiar del año anterior» trae las metas de quienes aún no las tienen. Un período con dato real ya no
     admite cambiar su meta.
 
  Paso 7. CARGA MENSUAL  (cargadores · Operar > Cargar datos)
+    Quien carga entra directo a «Cargar datos» con su indicador elegido: escribe los datos base, ve el
+    resultado y el semáforo al instante, y envía. El superior lo aprueba en la Bandeja de aprobación.
 
  Antes de entregar el sistema: Configuración > Empresa y logo (nombre, código del formato, inicio del
  ejercicio fiscal, contraseña de los reportes) y Listas de apoyo (procesos, objetivos, gerencias, cargos).
@@ -261,7 +262,7 @@ La pantalla «Puesta en marcha» (Inicio del Desarrollador) muestra los pasos y 
 
   Cambiar...                                   Quién y dónde
   -------------------------------------------  ----------------------------------------------------
-  Qué ve una persona (ámbito) o su rol         Coordinador SGC · Personas > Rol y posición
+  Qué ve una persona (ámbito) o su rol         Coordinador SGC · Personas > Rol y posición (ver «Resultado»)
   Qué puede hacer un rol                       Coordinador SGC · Roles y permisos (rige de inmediato)
   Un indicador asignado a otra persona/nodo    Quien lo ve y tiene «Asignar»: Indicadores > Asignar
   La responsabilidad de un indicador           Se traspasa asignándola a otra persona (no se «quita»)
@@ -352,7 +353,7 @@ La pantalla «Puesta en marcha» (Inicio del Desarrollador) muestra los pasos y 
   ---------------------------------------------------  ----------------------------------------------------
   «Su cuenta está pendiente de asignación»             El Coordinador SGC debe asignarle rol, ámbito e indicadores
   No veo un indicador                                  Es lo esperado si su nodo no está en su ámbito y no es suyo;
-                                                       Personas > «¿Qué ve?» lo comprueba; corrija en Rol y posición
+                                                       Personas > «Ver accesos» lo comprueba; corrija en Rol y posición
   «No tiene permisos para esta acción» (403)           Lo ve pero no le corresponde (no es responsable/cargador, o su
                                                        rol no tiene el permiso): pídalo al Coordinador SGC
   No puedo cargar un período                           Falta el período fiscal o la meta del período, el ejercicio está

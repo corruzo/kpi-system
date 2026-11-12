@@ -47,7 +47,7 @@
 
         <div class="space-y-3">
           <template x-for="f in presLista" :key="f.indicador_id">
-            <div class="card overflow-hidden" :class="presAbierto===f.indicador_id && 'ring-4 ring-brand/10 border-brand/40'">
+            <div class="card overflow-hidden" :data-fila-abierta="presAbierto===f.indicador_id ? '' : null" :class="presAbierto===f.indicador_id && 'ring-4 ring-brand/10 border-brand/40'">
               <button class="flex w-full items-center gap-3 p-4 text-left sm:p-5" @click="abrirPres(f)" :aria-expanded="presAbierto===f.indicador_id">
                 <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold" :class="f.completo ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'" x-text="f.completo ? '✓' : f.con_valor + '/' + f.periodos.length"></span>
                 <span class="min-w-0 flex-1"><span class="block truncate font-bold" x-text="f.codigo + ' · ' + f.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="f.area + ' · ' + cap(f.frecuencia) + ' · ' + f.unidad + ' · ' + (f.sentido==='mayor' ? 'mayor es mejor' : 'menor es mejor')"></span></span>

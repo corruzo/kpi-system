@@ -15,7 +15,7 @@ SIGT.modulos.guia = () => ({
       const info = { sel: '.info', t: 'Botones «i»', d: 'Cada vez que vea un botón con una «i», tóquelo: explica el campo o el concepto en lenguaje sencillo.' };
       const fin = { t: '¡Listo!', d: 'Ya conoce lo esencial. Si tiene dudas, use los botones «i» o repita esta guía desde su perfil.' };
       const pasos = [ini];
-      if (P('sistema.puesta_en_marcha')) pasos.push({ sel: '[data-tour="marcha"]', t: 'Los pasos para arrancar', d: 'Cuentas, estructura, roles y personas, indicadores, período fiscal, meta y carga mensual. Cada paso muestra si ya está listo y el botón para hacerlo. Siga el orden.' });
+      if (this.veMarcha) pasos.push({ sel: '[data-tour="marcha"]', t: 'Los pasos para arrancar', d: 'Cuentas, estructura, roles y personas, indicadores, período fiscal, meta y carga mensual. Cada paso muestra si ya está listo y el botón para hacerlo. Siga el orden.' });
       if (P('cargas.cargar')) pasos.push(
         { sel: '[data-tour="carga-selectores"]', t: 'Elija indicador y período', d: 'Seleccione el indicador que usted carga y el período a reportar. Los pendientes aparecen resaltados arriba.' },
         { sel: '[data-tour="carga-resultado"]', t: 'Resultado y semáforo automáticos', d: 'Digite solo los datos base: el sistema calcula el resultado y el semáforo. Si queda en alerta o crítico, deberá escribir el análisis y el plan de mejora.' });
@@ -38,7 +38,7 @@ SIGT.modulos.guia = () => ({
     async iniciarTour() {
       if (this.tour.on) return;
       this.menu = false; this.mas = false;
-      const inicial = this.puede('sistema.puesta_en_marcha') ? 'inicio' : this.puede('cargas.cargar') ? 'carga' : this.puede('panel.ver') ? 'panel' : 'inicio';   // vista donde están los elementos explicados
+      const inicial = this.veMarcha ? 'inicio' : this.puede('cargas.cargar') ? 'carga' : this.puede('panel.ver') ? 'panel' : 'inicio';   // vista donde están los elementos explicados
       if (this.view !== inicial) await this.go(inicial);
       this.tour = { on: true, i: -1, pasos: this.pasosBase(), hole: null, pop: { top: 0, left: 0, w: 340 } };
       await this.pasoTour(1);

@@ -5,10 +5,10 @@
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <p class="eyebrow !text-white/70" x-text="(params.empresa || 'Tripoliven, C.A.') + ' · Ejercicio ' + ejActual.etiqueta"></p>
-            <h1 class="mt-2" x-text="puede('sistema.puesta_en_marcha') ? 'Puesta en marcha' : saludo()"></h1>
-            <p class="mt-2 max-w-xl text-sm sm:text-base" x-text="puede('sistema.puesta_en_marcha') ? saludo() + '. Siga los pasos en orden: cada uno se habilita cuando termina el anterior.' : puede('cargas.cargar') ? 'Cargue los datos de sus indicadores y vea cómo van contra la meta.' : puede('cargas.aprobar') ? 'Revise lo que le toca aprobar y analice el desempeño de su ámbito.' : 'Consulte el desempeño de lo que usted puede ver.'"></p>
+            <h1 class="mt-2" x-text="veMarcha ? 'Puesta en marcha' : saludo()"></h1>
+            <p class="mt-2 max-w-xl text-sm sm:text-base" x-text="veMarcha ? saludo() + '. Siga los pasos en orden: cada uno se habilita cuando termina el anterior.' : puede('cargas.cargar') ? 'Cargue los datos de sus indicadores y vea cómo van contra la meta.' : puede('cargas.aprobar') ? 'Revise lo que le toca aprobar y analice el desempeño de su ámbito.' : 'Consulte el desempeño de lo que usted puede ver.'"></p>
           </div>
-          <span class="hero-ico hidden sm:flex"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(puede('sistema.puesta_en_marcha') ? 'meta' : 'panel')"/></svg></span>
+          <span class="hero-ico hidden sm:flex"><svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(veMarcha ? 'meta' : 'panel')"/></svg></span>
         </div>
         <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" x-show="resumenInicio && resumenInicio.total">
           <template x-if="resumenInicio"><div class="hero-stat"><div class="text-xs font-semibold text-white/70">Cumplimiento</div><div class="text-3xl font-extrabold" x-text="resumenInicio.cumplimiento + '%'"></div></div></template>
@@ -19,7 +19,7 @@
       </div>
 
       <!-- ADMINISTRADOR: los cinco pasos -->
-      <div class="space-y-3" x-show="puede('sistema.puesta_en_marcha') && marcha" data-tour="marcha">
+      <div class="space-y-3" x-show="veMarcha && marcha" data-tour="marcha">
         <div class="flex items-center justify-between px-1"><h2 class="text-lg font-extrabold">Los pasos para arrancar</h2><span class="chip border-slate-200 bg-white text-slate-600" x-text="marcha ? marcha.pasos.filter(p => p.hecho).length + ' de ' + marcha.pasos.length + ' listos' : ''"></span></div>
         <template x-for="p in pasosMarcha" :key="p.id">
           <div class="paso" :class="{ 'paso-hecho': p.estado==='hecho', 'paso-ahora': p.estado==='ahora', 'paso-espera': p.estado==='espera' }">
@@ -36,7 +36,7 @@
       </div>
 
       <!-- Tareas pendientes -->
-      <div class="space-y-3" data-tour="inicio-tareas" x-show="tareas().length || !puede('sistema.puesta_en_marcha')">
+      <div class="space-y-3" data-tour="inicio-tareas" x-show="tareas().length || !veMarcha">
         <h2 class="px-1 text-lg font-extrabold">Qué hacer ahora</h2>
         <template x-for="t in tareas()" :key="t.id">
           <button class="tile !flex-row !items-center" @click="irATarea(t)">

@@ -12,9 +12,9 @@ SIGT.modulos.inicio = () => ({
     get pasosMarcha() {
       if (!this.marcha) return [];
       const txt = {
-        cuentas: { t: 'Cuentas y Coordinador SGC', d: 'Cree las cuentas de las personas (quedan «pendientes de asignación») y designe al Coordinador SGC, que definirá la estructura, los roles y a quién ve y carga cada quien.', b: 'Crear cuentas', ir: () => this.go('personas') },
-        estructura: { t: 'Estructura de la empresa', d: 'Arme el árbol: gerencias, departamentos y jefaturas. De él depende quién ve qué.', b: 'Armar la estructura', ir: () => this.go('estructura') },
-        personas: { t: 'Roles y personas', d: 'Defina los roles (conjuntos de permisos) y asigne a cada persona su rol, su posición en la estructura y sus indicadores.', b: 'Asignar personas', ir: () => this.go(this.puede('roles.gestionar') ? 'roles' : 'personas') },
+        estructura: { t: 'Estructura de la empresa', d: 'Arme el árbol: gerencias, departamentos y jefaturas. De él depende quién ve qué. Al crear una, el formulario queda listo para lo que cuelga de ella.', b: 'Armar la estructura', ir: () => this.go('estructura') },
+        roles: { t: 'Roles y permisos', d: 'Cree los roles (qué puede hacer cada cargo). Con un clic puede crear los típicos: Analista, Jefe, Gerente y Gerente general, y ajustarlos en la matriz.', b: 'Crear roles', ir: () => this.go('roles') },
+        personas: { t: 'Personas', d: 'Cree la cuenta de cada persona; al guardarla se abre su rol y su posición en la estructura. Una cuenta sin rol no accede a nada.', b: 'Crear y asignar personas', ir: () => this.go('personas') },
         fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia, su semáforo, su responsable y quiénes lo cargan.', b: 'Crear indicadores', ir: () => this.go('fichas') },
         periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se pueden fijar metas ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
         meta: { t: 'Meta del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar metas', ir: () => this.go('meta') },
@@ -28,16 +28,20 @@ SIGT.modulos.inicio = () => ({
       });
     },
     get marchaCompleta() { return this.marcha && this.marcha.pasos.every(p => p.hecho); },
+    get veMarcha() { return this.puedeAlguno(['sistema.puesta_en_marcha', 'usuarios.asignar']); },
+    // «Siguiente paso»: el primero que falta; la barra de pasos (en las pantallas de configuración) lo ofrece con un botón
+    get siguientePaso() { return this.pasosMarcha.find(p => p.estado !== 'hecho') || null; },
+    get enConfiguracion() { return this.veMarcha && this.marcha && !this.marchaCompleta && ['estructura', 'roles', 'personas', 'fichas', 'meta'].includes(this.view); },
     get esRevisor() { return this.puede('cargas.aprobar'); },
     get veResumen() { return this.puede('panel.ver'); },
     saludo() { const h = new Date().getHours(); return (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + this.user.nombre.split(' (')[0].split(' ')[0]; },
     // Resumen del ejercicio (solo quien tiene el permiso del panel)
     async cargarInicio() {
-      if (!this.veResumen && !this.puede('sistema.puesta_en_marcha')) return;
+      if (!this.veResumen && !this.veMarcha) return;
       if (this._inicioListo) { this._inicioListo = false; return; }   // primera entrada: los datos llegaron con el arranque
       const q = this.ejSel ? '?ejercicio=' + this.ejSel : '';
       await Promise.all([   // en paralelo: antes una petición esperaba a la otra
-        this.puede('sistema.puesta_en_marcha') ? this.api('/api/puesta-en-marcha', {}, true).then(m => { this.marcha = m; }, () => { this.marcha = null; }) : null,
+        this.veMarcha ? this.api('/api/puesta-en-marcha', {}, true).then(m => { this.marcha = m; }, () => { this.marcha = null; }) : null,
         this.veResumen ? this.api('/api/dashboard' + q, {}, true).then(r => { this.resumenInicio = r.resumen; }, () => { this.resumenInicio = null; }) : null]);
     },
     // Tareas pendientes del usuario, de la más urgente a la menos urgente

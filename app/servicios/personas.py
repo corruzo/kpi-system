@@ -91,7 +91,14 @@ def opciones(db: Session, u: Usuario) -> list[dict]:
     personas = list(db.scalars(q))
     cargan = {r.id for r in db.scalars(select(Rol)) if r.clave or "cargas.cargar" in roles.permisos_de(r)}
     roles_ = dict(db.execute(select(Rol.id, Rol.nombre)).all())
-    return [{"id": p.id, "nombre": p.nombre, "rol": roles_.get(p.rol_id), "puede_cargar": p.rol_id in cargan, "yo": p.id == u.id}
+    posicion: dict[int, dict[str, list[int]]] = {}
+    ids = [p.id for p in personas]
+    for uid, nodo, tipo in (db.execute(select(UsuarioUnidad.usuario_id, UsuarioUnidad.unidad_id, UsuarioUnidad.tipo)
+                                       .where(UsuarioUnidad.usuario_id.in_(ids))) if ids else []):
+        posicion.setdefault(uid, {"ambito": [], "miembro": []})[tipo].append(nodo)
+    # `ambito` / `miembro` permiten proponer solos al responsable y a quienes cargan según el nodo elegido (ver interfaz)
+    return [{"id": p.id, "nombre": p.nombre, "rol": roles_.get(p.rol_id), "puede_cargar": p.rol_id in cargan, "yo": p.id == u.id,
+             "ambito": posicion.get(p.id, {}).get("ambito", []), "miembro": posicion.get(p.id, {}).get("miembro", [])}
             for p in personas]
 
 

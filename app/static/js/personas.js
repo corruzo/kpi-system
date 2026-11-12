@@ -2,7 +2,7 @@
    y, para el Desarrollador, cuentas (crear, inhabilitar, eliminar, clave temporal) y soporte técnico. */
 SIGT.modulos.personas = () => ({
     usuarios: [], usrQ: '', soporte: null, claveTemporal: '', usuario: {}, modalUsuario: false,
-    asig: null, previa: null, rolesLista: [], indPersona: null, indOpciones: [], indQ: '', desig: { abierto: false, x: null, password: '' },
+    asig: null, previa: null, vivo: null, _tv: null, rolesLista: [], indPersona: null, indOpciones: [], indQ: '', desig: { abierto: false, x: null, password: '' },
 
     ganchos: {
       entrar: { async personas() {
@@ -32,21 +32,28 @@ SIGT.modulos.personas = () => ({
 
     // ------------------------------------------------------------ rol y posición
     abrirAsignacion(x) {
-      this.asig = { id: x.id, nombre: x.nombre, rol_id: x.rol_id || '', raiz: !!x.ambito_raiz, ambito: [...x.ambito], miembro: [...x.miembro] }; this.previa = null;
+      this.asig = { id: x.id, nombre: x.nombre, rol_id: x.rol_id || '', raiz: !!x.ambito_raiz, ambito: [...x.ambito], miembro: [...x.miembro] }; this.previa = null; this.vivo = null;
+      this.actualizarVivo();
     },
+    // Resultado EN VIVO de lo que se está eligiendo (sin botón): «con esto verá N indicadores…». Se recalcula al cambiar rol o posición.
+    actualizarVivo() {
+      clearTimeout(this._tv);
+      this._tv = setTimeout(async () => {
+        if (!this.asig) return;
+        try { this.vivo = await this.api(`/api/usuarios/${this.asig.id}/alcance`, { method: 'POST', body: this.cuerpoAsignacion() }, true); } catch { this.vivo = null; }
+      }, 250);
+    },
+    // Ficha «Accesos de la persona» (permisos efectivos: qué puede hacer y de dónde sale cada indicador que ve)
+    async abrirAccesos(x) { this.previa = await this.api(`/api/usuarios/${x.id}/alcance`); },
+    motivoTxt: m => ({ responsable: 'Es su responsable', cargador: 'Lo carga', 'ámbito': 'Está dentro de su ámbito', 'alcance global': 'Ve toda la empresa' }[m] || m),
     get rolesAsignables() { return this.rolesLista.filter(r => r.clave !== 'desarrollador'); },
     modoNodo(id) { return this.asig.ambito.includes(id) ? 'ambito' : this.asig.miembro.includes(id) ? 'miembro' : ''; },
     setModoNodo(id, modo) {
       this.asig.ambito = this.asig.ambito.filter(i => i !== id); this.asig.miembro = this.asig.miembro.filter(i => i !== id);
       if (modo === 'ambito') this.asig.ambito.push(id); else if (modo === 'miembro') this.asig.miembro.push(id);
-      this.previa = null;
+      this.previa = null; this.actualizarVivo();
     },
     cuerpoAsignacion() { const a = this.asig; return { rol_id: a.rol_id ? Number(a.rol_id) : null, raiz: !!a.raiz, ambito: a.ambito, miembro: a.miembro }; },
-    async verAlcance() {
-      this.busy = true;
-      try { this.previa = await this.api(`/api/usuarios/${this.asig.id}/alcance`, { method: 'POST', body: this.cuerpoAsignacion() }); } catch { }
-      this.busy = false;
-    },
     async guardarAsignacion() {
       this.busy = true;
       try { await this.api(`/api/usuarios/${this.asig.id}/asignacion`, { method: 'PUT', body: this.cuerpoAsignacion() }); this.asig = null; this.avisar('Asignación guardada.'); await this.cargarUsuarios(this.pg('usuarios').pagina); } catch { }
@@ -85,8 +92,11 @@ SIGT.modulos.personas = () => ({
         const u = this.usuario, id = u.id;
         const body = { nombre: u.nombre, email: (u.email || '').trim() };
         if (id) { body.activo = u.activo; if (u.password) body.password = u.password; } else { body.username = u.username; body.password = u.password; }
-        await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body });
-        this.modalUsuario = false; await this.cargarUsuarios(this.pg('usuarios').pagina); this.avisar(id ? 'Cuenta guardada.' : 'Cuenta creada: queda pendiente de asignación.');
+        const r = await this.api(id ? `/api/usuarios/${id}` : '/api/usuarios', { method: id ? 'PUT' : 'POST', body });
+        this.modalUsuario = false; await this.cargarUsuarios(this.pg('usuarios').pagina);
+        // En cascada: una cuenta nueva no sirve sin rol; si quien la crea puede asignar, se abre directamente «Rol y posición»
+        if (!id && this.puede('usuarios.asignar')) { this.avisar('Cuenta creada. Ahora asígnele su rol y su posición.'); this.abrirAsignacion(r); }
+        else this.avisar(id ? 'Cuenta guardada.' : 'Cuenta creada: queda pendiente de asignación.');
       } catch { }
       this.busy = false;
     },

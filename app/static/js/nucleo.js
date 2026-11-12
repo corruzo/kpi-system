@@ -61,8 +61,14 @@ SIGT.modulos.nucleo = () => ({
       }
       try {
         const datos = await r.json();
+        if (o.method && o.method !== 'GET' && this.marcha && !this.marchaCompleta) this.refrescarMarcha();   // la guía de «siguiente paso» se actualiza sola
         return conTotal ? { items: datos, total: Number(r.headers.get('X-Total-Count')) || datos.length } : datos;
       } catch { throw falla('La respuesta del servidor no es válida. Recargue la página.', r.status); }
+    },
+    // Guía de arranque: se vuelve a leer (con un pequeño retraso, una sola vez por ráfaga de cambios) tras guardar algo
+    refrescarMarcha() {
+      clearTimeout(this._tm);
+      this._tm = setTimeout(() => this.api('/api/puesta-en-marcha', {}, true).then(m => { this.marcha = m; }, () => { }), 400);
     },
     // ------------------------------------------------------------ paginación (en el servidor)
     // Cada lista larga pide solo su página (`limite`/`desde`) y recibe el total en `X-Total-Count`: nunca se descarga todo.
@@ -127,7 +133,7 @@ SIGT.modulos.nucleo = () => ({
       if (!this.user || this.user.pendiente) return [];
       return SECCIONES.filter(([, permisos]) => !permisos || this.puedeAlguno(permisos)).map(([id, , label, corto, grupo]) => {
         const badge = id === 'carga' ? this.pendientesTotal() : id === 'bandeja' ? this.bandejaN : 0;
-        return { id, label: id === 'inicio' && this.puede('sistema.puesta_en_marcha') ? 'Puesta en marcha' : label, corto, grupo, ...(badge ? { badge } : {}) };
+        return { id, label: id === 'inicio' && this.veMarcha ? 'Puesta en marcha' : label, corto, grupo, ...(badge ? { badge } : {}) };
       });
     },
     puedeIr(vista) { return vista === 'inicio' || vista === 'ficha' || vista === 'pendiente' || this.nav().some(n => n.id === vista); },

@@ -70,7 +70,7 @@ def matriz(db: Session, u: Usuario, anio: int, nodo_id: int | None = None) -> di
         completos += con_valor == len(items)
         filas.append({"indicador_id": ind.id, "codigo": ind.codigo, "nombre": ind.nombre, "area": ind.nodo.nombre,
                       "nodo_id": ind.nodo_id, "unidad": ind.unidad, "frecuencia": ind.frecuencia, "sentido": ind.sentido,
-                      "decimales": ind.precision, "periodos": items, "completo": con_valor == len(items), "con_valor": con_valor,
+                      "decimales": ind.precision, "nivel_optimo": ind.nivel_optimo, "periodos": items, "completo": con_valor == len(items), "con_valor": con_valor,
                       "editable": puede and acceso.puede_fijar_meta(db, u, ind, debajo)})
     return {"ejercicio": anio, "etiqueta": calendario.etiqueta_ejercicio(anio), "indicadores": filas,
             "resumen": {"total": total, "completos": completos, "pendientes": total - completos}}
@@ -171,9 +171,9 @@ def avance_de_puesta_en_marcha(db: Session, u: Usuario, hoy: date) -> dict:
     """Estado de cada paso para arrancar el sistema, en el orden en que deben hacerse (conteos, sin traer filas)."""
     def contar(tabla, *cond):
         return db.scalar(select(func.count()).select_from(tabla).where(*cond)) or 0
-    coordinadores = contar(Usuario, Usuario.activo.is_(True), Usuario.rol_id.in_(select(Rol.id).where(Rol.clave == acceso.COORDINADOR)))
     n_nodos, n_roles = contar(Unidad), contar(Rol, Rol.de_sistema.is_(False))
-    asignadas = contar(Usuario, Usuario.activo.is_(True), Usuario.rol_id.in_(select(Rol.id).where(Rol.clave.is_(None))))
+    asignadas = contar(Usuario, Usuario.activo.is_(True), Usuario.rol_id.is_not(None),
+                       Usuario.rol_id.not_in(select(Rol.id).where(Rol.clave == acceso.DESARROLLADOR)))
     pendientes = contar(Usuario, Usuario.activo.is_(True), Usuario.rol_id.is_(None))
     n_ind = contar(Indicador, Indicador.activo.is_(True))
     anio = calendario.ejercicio_de_fecha(hoy)
@@ -181,9 +181,9 @@ def avance_de_puesta_en_marcha(db: Session, u: Usuario, hoy: date) -> dict:
     pres = resumen(db, u, anio) if periodo_creado else {"total": 0, "completos": 0, "pendientes": 0}
     cargas = contar(Medicion, Medicion.ejercicio == anio)
     return {"ejercicio": anio, "etiqueta": calendario.etiqueta_ejercicio(anio), "pasos": [
-        {"id": "cuentas", "hecho": coordinadores > 0, "detalle": f"{coordinadores} Coordinador(es) SGC · {pendientes} cuenta(s) pendiente(s) de asignación"},
         {"id": "estructura", "hecho": n_nodos > 0, "detalle": f"{n_nodos} nodo(s) en la estructura"},
-        {"id": "personas", "hecho": n_roles > 0 and asignadas > 0, "detalle": f"{n_roles} rol(es) definido(s) · {asignadas} persona(s) asignada(s)"},
+        {"id": "roles", "hecho": n_roles > 0, "detalle": f"{n_roles} rol(es) definido(s)"},
+        {"id": "personas", "hecho": asignadas > 0, "detalle": f"{asignadas} persona(s) con rol asignado · {pendientes} pendiente(s) de asignación"},
         {"id": "fichas", "hecho": n_ind > 0, "detalle": f"{n_ind} indicador(es)"},
         {"id": "periodo", "hecho": periodo_creado, "detalle": calendario.etiqueta_ejercicio(anio) + (" creado" if periodo_creado else " sin crear")},
         {"id": "meta", "hecho": periodo_creado and pres["total"] > 0 and pres["pendientes"] == 0,
