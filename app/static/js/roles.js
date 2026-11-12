@@ -9,6 +9,7 @@ SIGT.modulos.roles = () => ({
       ['Gerente', 'Como el jefe, a nivel de gerencia, y ve estructura y personas.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.eliminar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'reportes.verificar': 'ver', 'recordatorios.enviar': 'modificar', 'estructura.ver': 'ver', 'usuarios.ver': 'ver' }],
       ['Gerente general', 'Solo consulta todo (con ámbito en la raíz); modifica lo suyo.', { 'indicadores.ver': 'ver', 'cargas.ver': 'ver', 'metas.ver': 'ver', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'ejercicios.ver': 'ver', 'estructura.ver': 'ver', 'usuarios.ver': 'ver', 'cargas.cargar': 'modificar', 'indicadores.editar': 'modificar' }],
     ],
+    get rolesMatriz() { return this.roles.filter(r => r.clave !== 'desarrollador'); },   // el rol técnico no se muestra ni se edita aquí
     get sinRolesPropios() { return this.roles.length > 0 && !this.roles.some(r => !r.de_sistema); },
     async crearSugeridos() {
       this.busy = true;

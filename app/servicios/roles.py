@@ -80,10 +80,10 @@ def listar(db: Session, u: Usuario) -> list[dict]:
 
 
 def catalogo_para(u: Usuario) -> dict:
-    """El catálogo que se muestra en la matriz: sin permisos técnicos salvo para el Desarrollador (y aun para él son
-    informativos: no se conceden a otros roles). `tope` es el nivel máximo que esta persona puede conceder."""
+    """El catálogo que se muestra en la matriz: NUNCA incluye permisos técnicos, ni siquiera para el Desarrollador (son
+    suyos por definición y no se conceden a ningún rol). `tope` es el nivel máximo que esta persona puede conceder."""
     propios = acceso.contexto(u).permisos
-    lista = [p for p in cat.CATALOGO if not p.tecnico or acceso.es_desarrollador(u)]
+    lista = [p for p in cat.CATALOGO if not p.tecnico]
     return {"grupos": [g for g in cat.GRUPOS if any(p.grupo == g for p in lista)],
             "permisos": [{"codigo": p.codigo, "grupo": p.grupo, "etiqueta": p.etiqueta, "descripcion": p.descripcion,
                           "alcance": p.alcance, "niveles": list(p.niveles), "tecnico": p.tecnico, "implica": list(p.implica),

@@ -25,7 +25,7 @@ def _rol(client, nombre=None, permisos=None, como="admin"):
 
 
 # ---------------------------------------------------------------- catálogo y matriz
-def test_el_coordinador_nunca_ve_permisos_tecnicos_y_el_desarrollador_si(client):
+def test_la_matriz_nunca_muestra_permisos_tecnicos_a_nadie(client):
     coord = persona(client, "coordinador")
     entrar(client, coord)
     c = client.get("/api/permisos").json()
@@ -33,7 +33,8 @@ def test_el_coordinador_nunca_ve_permisos_tecnicos_y_el_desarrollador_si(client)
     assert codigos == {p.codigo for p in cat.FUNCIONALES}                       # TODAS las funcionales y solo ellas
     assert not any(p["tecnico"] for p in c["permisos"]) and "Técnico" not in c["grupos"]
     entrar(client, "admin", CLAVE_ADMIN)
-    assert {p["codigo"] for p in client.get("/api/permisos").json()["permisos"]} == {p.codigo for p in cat.CATALOGO}
+    d = client.get("/api/permisos").json()   # ni siquiera el Desarrollador: lo técnico es suyo por definición, no una casilla
+    assert {p["codigo"] for p in d["permisos"]} == {p.codigo for p in cat.FUNCIONALES} and "Técnico" not in d["grupos"]
 
 
 def test_el_alcance_no_es_editable_y_los_niveles_se_validan(client):
