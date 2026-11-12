@@ -18,6 +18,8 @@
         </div>
       </div>
 
+      <!--#incluir parciales/componentes/panel_salud.html-->
+
       <!-- ADMINISTRADOR: los cinco pasos -->
       <div class="space-y-3" x-show="veMarcha && marcha" data-tour="marcha">
         <div class="flex items-center justify-between px-1"><h2 class="text-lg font-extrabold">Los pasos para arrancar</h2><span class="chip border-slate-200 bg-white text-slate-600" x-text="marcha ? marcha.pasos.filter(p => p.hecho).length + ' de ' + marcha.pasos.length + ' listos' : ''"></span></div>

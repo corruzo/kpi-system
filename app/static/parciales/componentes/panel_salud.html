@@ -1,0 +1,70 @@
+      <!-- SALUD DEL SISTEMA (Desarrollador) -->
+      <div class="space-y-4" x-show="puede('sistema.salud')" data-tour="salud">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1"><h2 class="text-lg font-extrabold">Salud del sistema</h2>
+          <div class="flex items-center gap-2"><span class="chip" :class="estadoSalud()[1]" x-show="salud" x-text="estadoSalud()[0]"></span>
+            <button class="btn btn-s btn-sm" :disabled="saludCargando" @click="cargarSalud()" x-text="saludCargando ? 'Actualizando…' : 'Actualizar'"></button></div></div>
+        <p class="card px-5 py-6 text-center text-sm text-slate-500" x-show="!salud">Consultando el estado del sistema…</p>
+
+        <template x-if="salud">
+          <div class="space-y-4">
+            <!-- Alertas y recomendaciones -->
+            <div class="card"><div class="card-h"><div><h3 class="font-semibold">Alertas y recomendaciones</h3><p class="text-xs text-slate-500">Revisión automática de datos, fórmulas, seguridad y espacio. De lo más grave a lo menos grave.</p></div>
+              <span class="chip border-slate-200 bg-slate-100 text-slate-700" x-text="salud.conteo.critico + ' graves · ' + salud.conteo.aviso + ' avisos · ' + salud.conteo.info + ' notas'"></span></div>
+              <div class="card-b space-y-2">
+                <template x-for="(al, i) in salud.alertas" :key="i">
+                  <div class="flex flex-wrap items-start gap-3 rounded-2xl border p-3" :class="colorNivel(al.nivel)">
+                    <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" :class="puntoNivel(al.nivel)"></span>
+                    <div class="min-w-0 flex-1 text-sm"><div class="font-semibold"><span x-text="al.titulo"></span> <span class="ml-1 text-[11px] font-bold uppercase tracking-wide text-slate-400" x-text="al.area"></span></div>
+                      <div class="text-slate-600" x-text="al.detalle"></div><div class="mt-0.5 text-slate-800"><b>Recomendación:</b> <span x-text="al.recomendacion"></span></div></div>
+                    <button class="btn btn-s btn-sm" x-show="al.ir" @click="go(al.ir)">Ir</button>
+                  </div>
+                </template>
+                <p class="py-4 text-center text-sm font-semibold text-green-700" x-show="!salud.alertas.length">✔ Sin alertas: datos, fórmulas, seguridad y espacio en orden.</p>
+              </div></div>
+
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <!-- Base de datos -->
+              <div class="card"><div class="card-h"><div><h3 class="font-semibold">Base de datos</h3><p class="text-xs text-slate-500" x-text="salud.base_de_datos.motor + ' · ' + salud.base_de_datos.host"></p></div>
+                <span class="chip !border-transparent !text-white" :class="externo('supabase')[1]" x-text="'Supabase: ' + externo('supabase')[0]"></span></div>
+                <div class="card-b space-y-4 text-sm">
+                  <div><div class="mb-1 flex justify-between"><span class="font-semibold">Espacio ocupado</span><span x-text="salud.base_de_datos.usado_mb + ' de ' + salud.base_de_datos.limite_mb + ' MB (' + salud.base_de_datos.porcentaje + ' %)'"></span></div>
+                    <div class="h-3 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full" :class="colorBarra(salud.base_de_datos.porcentaje)" :style="'width:' + Math.max(1, Math.min(100, salud.base_de_datos.porcentaje)) + '%'"></div></div>
+                    <p class="mt-1 text-xs text-slate-500" x-show="salud.base_de_datos.dias_restantes && salud.base_de_datos.dias_restantes < 3650" x-text="'Al ritmo actual (' + salud.base_de_datos.crecimiento_mb_dia + ' MB/día) alcanzaría el límite en ~' + salud.base_de_datos.dias_restantes + ' días.'"></p></div>
+                  <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded-2xl bg-slate-50 p-2"><div class="text-lg font-extrabold" x-text="salud.base_de_datos.latencia_ms + ' ms'"></div><div class="text-[11px] text-slate-500">Respuesta</div></div>
+                    <div class="rounded-2xl bg-slate-50 p-2"><div class="text-lg font-extrabold" x-text="salud.base_de_datos.conexiones ?? '—'"></div><div class="text-[11px] text-slate-500">Conexiones</div></div>
+                    <div class="rounded-2xl p-2" :class="salud.base_de_datos.migracion.al_dia ? 'bg-green-50' : 'bg-red-50'"><div class="text-lg font-extrabold" x-text="salud.base_de_datos.migracion.al_dia ? 'Al día' : 'Atrasada'"></div><div class="text-[11px] text-slate-500" x-text="'Esquema ' + salud.base_de_datos.migracion.actual"></div></div></div>
+                  <div x-show="salud.base_de_datos.tablas.length"><div class="eyebrow mb-1">Tablas más pesadas</div>
+                    <template x-for="t in salud.base_de_datos.tablas" :key="t.nombre"><div class="flex items-center gap-2 py-0.5 text-xs"><span class="w-28 shrink-0 truncate font-mono" x-text="t.nombre"></span>
+                      <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-brand" :style="'width:' + Math.max(2, t.bytes / salud.base_de_datos.tablas[0].bytes * 100) + '%'"></div></div><span class="w-16 text-right" x-text="t.mb + ' MB'"></span></div></template></div>
+                </div></div>
+
+              <!-- Despliegue y código -->
+              <div class="card"><div class="card-h"><div><h3 class="font-semibold">Despliegue y código</h3><p class="text-xs text-slate-500" x-text="salud.despliegue.plataforma + ' · ' + salud.despliegue.entorno + (salud.despliegue.region ? ' · ' + salud.despliegue.region : '')"></p></div>
+                <span class="chip !border-transparent !text-white" :class="externo('vercel')[1]" x-text="'Vercel: ' + externo('vercel')[0]"></span></div>
+                <div class="card-b space-y-3 text-sm">
+                  <dl class="grid grid-cols-[7rem_1fr] gap-y-1.5">
+                    <dt class="text-slate-500">Versión</dt><dd class="font-mono" x-text="salud.despliegue.commit || 'desconocida'"></dd>
+                    <dt class="text-slate-500">Rama</dt><dd class="truncate font-mono" x-text="salud.despliegue.rama || '—'"></dd>
+                    <dt class="text-slate-500">Último cambio</dt><dd x-text="salud.despliegue.mensaje || '—'"></dd>
+                    <dt class="text-slate-500">Python</dt><dd x-text="salud.despliegue.python"></dd>
+                    <dt class="text-slate-500">Bitácora</dt><dd><span :class="salud.cadena.ok ? 'text-green-700' : 'font-bold text-red-700'" x-text="salud.cadena.ok ? '✔ Cadena íntegra (últimos ' + salud.cadena.revisados + ' registros)' : '✖ Alterada en el registro ' + salud.cadena.primer_error_id"></span></dd>
+                  </dl></div></div>
+
+              <!-- Accesos recientes -->
+              <div class="card"><div class="card-h"><div><h3 class="font-semibold">Últimos accesos</h3><p class="text-xs text-slate-500">Las 5 personas que ingresaron más recientemente.</p></div><button class="btn btn-s btn-sm" @click="go('personas')">Personas</button></div>
+                <ul class="divide-y divide-slate-100"><template x-for="x in salud.accesos" :key="x.id"><li class="flex items-center justify-between gap-2 px-5 py-2.5 text-sm">
+                  <span class="min-w-0"><span class="block truncate font-semibold" x-text="x.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="x.usuario + ' · ' + x.rol + (x.activo ? '' : ' · inhabilitada')"></span></span>
+                  <span class="shrink-0 text-xs font-semibold text-slate-600" x-text="hace(x.ultimo_ingreso)"></span></li></template>
+                  <li class="px-5 py-6 text-center text-sm text-slate-500" x-show="!salud.accesos.length">Aún no hay ingresos.</li></ul></div>
+
+              <!-- Bitácora reciente -->
+              <div class="card"><div class="card-h"><div><h3 class="font-semibold">Actividad reciente</h3><p class="text-xs text-slate-500">Últimos registros de la bitácora.</p></div><button class="btn btn-s btn-sm" x-show="puede('bitacora.ver')" @click="go('bitacora')">Ver todo</button></div>
+                <ul class="divide-y divide-slate-100"><template x-for="b in salud.bitacora" :key="b.id"><li class="flex items-center justify-between gap-2 px-5 py-2 text-sm">
+                  <span class="min-w-0"><span class="block truncate font-semibold capitalize" x-text="accionLegible(b.accion)"></span><span class="block truncate text-xs text-slate-500" x-text="b.usuario + ' · ' + b.entidad"></span></span>
+                  <span class="shrink-0 text-xs text-slate-500" x-text="hace(b.fecha)"></span></li></template></ul></div>
+            </div>
+          </div>
+        </template>
+      </div>
+

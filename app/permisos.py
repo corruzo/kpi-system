@@ -127,6 +127,7 @@ CATALOGO: tuple[Permiso, ...] = (
     _p("soporte.desbloquear", "Técnico", "Desbloquear accesos", "Levantar el bloqueo por intentos fallidos de ingreso.", A_GLOBAL, tecnico=True),
     _p("respaldo.exportar", "Técnico", "Exportar respaldo", "Descargar el respaldo cifrado de toda la base.", A_GLOBAL, tecnico=True),
     _p("respaldo.restaurar", "Técnico", "Restaurar respaldo", "Reemplazar todos los datos por los de un respaldo.", A_GLOBAL, tecnico=True),
+    _p("sistema.salud", "Técnico", "Salud del sistema", "Ver el estado de la base, el despliegue, el código, los accesos y las alertas del sistema.", A_GLOBAL, _V, tecnico=True),
     _p("sistema.reiniciar", "Técnico", "Reinicio de fábrica", "Borrar todos los datos del sistema.", A_GLOBAL, tecnico=True),
     _p("sistema.puesta_en_marcha", "Técnico", "Guía de puesta en marcha", "Ver el avance de los pasos para arrancar el sistema.", A_GLOBAL, _V,
        tecnico=True),

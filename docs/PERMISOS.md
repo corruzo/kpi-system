@@ -108,6 +108,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 | `soporte.desbloquear` | **Desbloquear accesos**: Levantar el bloqueo por intentos fallidos de ingreso. | Ninguno / Sí | Toda la empresa. | `POST /api/sistema/desbloquear-accesos` |
 | `respaldo.exportar` | **Exportar respaldo**: Descargar el respaldo cifrado de toda la base. | Ninguno / Sí | Toda la empresa. | `POST /api/respaldo` |
 | `respaldo.restaurar` | **Restaurar respaldo**: Reemplazar todos los datos por los de un respaldo. | Ninguno / Sí | Toda la empresa. | `POST /api/respaldo/restaurar` |
+| `sistema.salud` | **Salud del sistema**: Ver el estado de la base, el despliegue, el código, los accesos y las alertas del sistema. | Ninguno / Ver | Toda la empresa. | `GET /api/sistema/externos`<br>`GET /api/sistema/salud` |
 | `sistema.reiniciar` | **Reinicio de fábrica**: Borrar todos los datos del sistema. | Ninguno / Sí | Toda la empresa. | `POST /api/sistema/reiniciar` |
 | `sistema.puesta_en_marcha` | **Guía de puesta en marcha**: Ver el avance de los pasos para arrancar el sistema. | Ninguno / Ver | Toda la empresa. | `GET /api/puesta-en-marcha` |
 

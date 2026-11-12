@@ -27,6 +27,7 @@ const ORDEN_DE_MODULOS = [
   'personas',      // rol, ámbito e indicadores de cada persona; cuentas y soporte
   'importacion',   // fichas históricas
   'bitacora',      // trazabilidad
+  'salud',         // estado técnico del sistema (Desarrollador)
   'guia',          // recorrido de bienvenida
 ];
 

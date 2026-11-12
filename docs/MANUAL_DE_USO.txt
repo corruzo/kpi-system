@@ -198,6 +198,14 @@ estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
  ejercicio fiscal, contraseña de los reportes) y Listas de apoyo (procesos, objetivos, gerencias, cargos).
  El inicio del ejercicio no puede cambiarse cuando ya hay metas, cargas no mensuales o ejercicios cerrados.
 
+PANEL DE SALUD DEL DESARROLLADOR (Inicio)
+    Solo el Desarrollador lo ve (permiso técnico «Salud del sistema»). Reúne: alertas con su recomendación;
+    espacio ocupado en Supabase (con las tablas más pesadas y los días que faltan para el límite); estado
+    público de Supabase y Vercel; versión del código desplegado; integridad de la bitácora; últimos 5 accesos
+    y actividad reciente. Las alertas revisan semáforos incoherentes, fórmulas rotas o sin protección contra
+    división entre cero, datos atípicos, indicadores sin cargador, responsable o meta, cargas atascadas,
+    respaldos, intentos fallidos de ingreso y esquema de base de datos atrasado.
+
 ====================================================================================================
 6. OPERACIÓN MENSUAL
 ====================================================================================================
