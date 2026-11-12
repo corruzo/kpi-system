@@ -35,3 +35,25 @@ def test_el_diagnostico_detecta_umbrales_y_formulas_problematicas(client):
         db.flush()
         assert any(x["nivel"] == "critico" and "fórmula" in x["titulo"] for x in salud.diagnostico(db))
         db.rollback()
+
+
+def test_la_proyeccion_de_espacio_no_se_inventa_con_poco_historial(client, monkeypatch):
+    """Una base recién creada pesa ~10 MB por el motor mismo: eso no es «crecimiento» ni debe alarmar."""
+    from app.database import SessionLocal
+    MB = 1_048_576
+    monkeypatch.setattr(salud, "_tamano_bd", lambda db: {"bytes": 12 * MB, "datos": 1 * MB, "tablas": [], "conexiones": 3})
+    entrar(client, "admin", CLAVE_ADMIN)
+    with SessionLocal() as db:
+        bd = salud.base_de_datos(db)
+        assert bd["crecimiento_mb_dia"] is None and bd["dias_restantes"] is None            # pocos días: no se proyecta
+        assert not any("se llenaría" in x["titulo"] for x in salud.diagnostico(db, bd))
+        assert bd["datos_mb"] == 1.0
+    monkeypatch.setattr(salud, "DIAS_MINIMOS_PARA_ESTIMAR", 0)
+    monkeypatch.setattr(salud, "_tamano_bd", lambda db: {"bytes": 420 * MB, "datos": 400 * MB, "tablas": [], "conexiones": 3})
+    from datetime import timedelta
+    futuro = salud.ahora() + timedelta(days=40)                                              # 40 días de historial
+    monkeypatch.setattr(salud, "ahora", lambda: futuro)
+    with SessionLocal() as db:                                                               # y 400 MB de datos propios: sí avisa
+        bd = salud.base_de_datos(db)
+        assert bd["crecimiento_mb_dia"] == round(400 / bd["historial_dias"], 3) and bd["dias_restantes"] >= 1   # (la base de pruebas puede traer historial previo)
+        assert any("se llenaría" in x["titulo"] for x in salud.diagnostico(db, bd))

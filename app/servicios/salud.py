@@ -40,6 +40,7 @@ from . import auditoria, migraciones, personas
 LIMITE_BD_MB = float(os.getenv("SIGT_DB_LIMITE_MB", "500"))   # plan gratuito de Supabase
 LIMITE_CONEXIONES = int(os.getenv("SIGT_DB_CONEXIONES", "60"))
 DIAS_CARGA_ATASCADA = 10
+DIAS_MINIMOS_PARA_ESTIMAR = 14   # menos historial que esto no permite proyectar el crecimiento
 GRAVEDAD = {"critico": 0, "aviso": 1, "info": 2}
 
 
@@ -50,11 +51,14 @@ def _tamano_bd(db: Session) -> dict:
         filas = db.execute(text(
             "select relname, pg_total_relation_size(c.oid) from pg_class c join pg_namespace n on n.oid = c.relnamespace "
             "where n.nspname = 'public' and c.relkind = 'r' order by 2 desc limit 6")).all()
+        datos = db.scalar(text(
+            "select coalesce(sum(pg_total_relation_size(c.oid)), 0) from pg_class c join pg_namespace n on n.oid = c.relnamespace "
+            "where n.nspname = 'public' and c.relkind = 'r'")) or 0   # solo lo que genera la aplicación (sin el catálogo interno de PostgreSQL)
         conexiones = db.scalar(text("select count(*) from pg_stat_activity where datname = current_database()")) or 0
-        return {"bytes": int(total), "tablas": [{"nombre": n, "bytes": int(b)} for n, b in filas], "conexiones": int(conexiones)}
+        return {"bytes": int(total), "datos": int(datos), "tablas": [{"nombre": n, "bytes": int(b)} for n, b in filas], "conexiones": int(conexiones)}
     ruta = DATABASE_URL.replace("sqlite:///", "")
     total = os.path.getsize(ruta) if os.path.exists(ruta) else 0
-    return {"bytes": total, "tablas": [], "conexiones": None}
+    return {"bytes": total, "datos": total, "tablas": [], "conexiones": None}
 
 
 def base_de_datos(db: Session) -> dict:
@@ -65,9 +69,11 @@ def base_de_datos(db: Session) -> dict:
     usado = tam["bytes"] / 1_048_576
     host = urlparse(DATABASE_URL).hostname if not ES_SQLITE else "archivo local (SQLite)"
     primero = db.scalar(select(func.min(Bitacora.fecha)))
-    dias = max(1, (ahora() - primero).days) if primero else None
-    crecimiento = round(usado / dias, 3) if dias else None   # promedio histórico en MB por día
-    restante = round((LIMITE_BD_MB - usado) / crecimiento) if crecimiento and crecimiento > 0 else None
+    dias = (ahora() - primero).days if primero else 0
+    # Ritmo de crecimiento = datos PROPIOS (no el tamaño total, que incluye ~10 MB fijos del motor) entre los días de historial,
+    # y solo con historial suficiente: con pocos días cualquier cifra sería engañosa.
+    crecimiento = round(tam["datos"] / 1_048_576 / dias, 3) if dias >= DIAS_MINIMOS_PARA_ESTIMAR else None
+    restante = round((LIMITE_BD_MB - usado) / crecimiento) if crecimiento else None
     try:
         actual, cabeza = migraciones.revision_actual(), migraciones.revision_cabeza()
     except Exception:
@@ -76,7 +82,7 @@ def base_de_datos(db: Session) -> dict:
             "usado_mb": round(usado, 2), "limite_mb": LIMITE_BD_MB, "porcentaje": round(usado / LIMITE_BD_MB * 100, 1),
             "tablas": [{**t, "mb": round(t["bytes"] / 1_048_576, 2)} for t in tam["tablas"]],
             "conexiones": tam["conexiones"], "limite_conexiones": LIMITE_CONEXIONES,
-            "crecimiento_mb_dia": crecimiento, "dias_restantes": restante,
+            "crecimiento_mb_dia": crecimiento, "historial_dias": dias, "datos_mb": round(tam["datos"] / 1_048_576, 2), "dias_restantes": restante,
             "migracion": {"actual": actual, "esperada": cabeza, "al_dia": actual == cabeza}}
 
 
@@ -220,7 +226,7 @@ def diagnostico(db: Session, bd: dict | None = None, cadena: dict | None = None)
         a.append(_alerta("aviso", "Base de datos", f"Espacio en {bd['porcentaje']} %", f"Usa {bd['usado_mb']} de {bd['limite_mb']:.0f} MB.",
                          "Planifique el crecimiento: revise las tablas más grandes en este panel."))
     if bd["dias_restantes"] is not None and 0 < bd["dias_restantes"] < 120 and bd["porcentaje"] < 90:
-        a.append(_alerta("aviso", "Base de datos", f"A este ritmo se llenaría en ~{bd['dias_restantes']} días", f"Crece unos {bd['crecimiento_mb_dia']} MB por día en promedio.",
+        a.append(_alerta("aviso", "Base de datos", f"A este ritmo se llenaría en ~{bd['dias_restantes']} días", f"Los datos propios crecen unos {bd['crecimiento_mb_dia']} MB por día en promedio ({bd['historial_dias']} días de historial).",
                          "Verifique que no haya cargas masivas o importaciones repetidas."))
     if bd["conexiones"] is not None and bd["conexiones"] > bd["limite_conexiones"] * 0.7:
         a.append(_alerta("aviso", "Base de datos", f"Muchas conexiones abiertas ({bd['conexiones']})", f"El límite aproximado del plan es {bd['limite_conexiones']}.",
