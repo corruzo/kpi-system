@@ -1,5 +1,6 @@
     <!-- ============ HISTORIAL ============ -->
     <section data-vista="historial" x-show="view==='historial'" class="space-y-4">
+      <!--#incluir parciales/componentes/pestanas_seguimiento.html-->
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div><h1 class="text-2xl font-bold" x-text="'Cargas'"></h1><p class="text-sm text-slate-600">Historial con valores, análisis y revisiones del ejercicio <b x-text="histTodos ? 'de todos los años' : ejActual.etiqueta"></b>.</p></div>
         <button class="btn btn-s" x-show="puede('reportes.general')" :disabled="busy" @click="descargarReporte()">Descargar Excel</button>

@@ -17,7 +17,7 @@
       <div>
         <div class="nav-grupo !pt-2" x-show="g.grupo" x-text="g.grupo"></div>
         <div class="grid grid-cols-2 gap-2">
-          <template x-for="n in g.items" :key="n.id"><button class="tile !gap-2 !p-4" :class="view===n.id && '!border-brand !bg-brand-light'" @click="go(n.id)">
+          <template x-for="n in g.items" :key="n.id"><button class="tile !gap-2 !p-4" :class="activo(n) && '!border-brand !bg-brand-light'" @click="go(n.id)">
             <span class="tile-ico !h-10 !w-10"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(n.id)"/></svg></span>
             <span class="tile-t flex items-center gap-2"><span x-text="n.label"></span><span x-show="n.badge" class="rounded-full bg-amber-400 px-1.5 text-[11px] font-bold text-slate-900" x-text="n.badge"></span></span></button></template>
         </div>

@@ -131,12 +131,22 @@ SIGT.modulos.nucleo = () => ({
     // Menú por permisos: fuente única de las secciones, su orden y sus insignias.
     nav() {
       if (!this.user || this.user.pendiente) return [];
-      return SECCIONES.filter(([, permisos]) => !permisos || this.puedeAlguno(permisos)).map(([id, , label, corto, grupo]) => {
+      const items = SECCIONES.filter(([, permisos]) => !permisos || this.puedeAlguno(permisos)).map(([id, , label, corto, grupo]) => {
         const badge = id === 'carga' ? this.pendientesTotal() : id === 'bandeja' ? this.bandejaN : 0;
         return { id, label: id === 'inicio' && this.veMarcha ? 'Puesta en marcha' : label, corto, grupo, ...(badge ? { badge } : {}) };
       });
+      // Por aprobar, pendientes de cargar e historial son UNA sola sección («Seguimiento de cargas») con pestañas
+      const seg = items.filter(n => SEGUIMIENTO.includes(n.id));
+      if (seg.length < 2) return items;
+      const unica = { ...seg[0], label: 'Seguimiento de cargas', corto: 'Seguimiento', vistas: seg.map(n => n.id) };
+      return items.filter(n => !SEGUIMIENTO.includes(n.id) || n === seg[0]).map(n => n === seg[0] ? unica : n);
     },
-    puedeIr(vista) { return vista === 'inicio' || vista === 'ficha' || vista === 'pendiente' || this.nav().some(n => n.id === vista); },
+    activo(n) { return n.vistas ? n.vistas.includes(this.view) : this.view === n.id; },
+    pestanasSeguimiento() {
+      const t = [['bandeja', 'Por aprobar', this.bandejaN], ['recordatorios', 'Pendientes de cargar', 0], ['historial', 'Historial', 0]];
+      return t.filter(([id]) => this.nav().some(n => n.id === id || n.vistas?.includes(id)));
+    },
+    puedeIr(vista) { return vista === 'inicio' || vista === 'ficha' || vista === 'pendiente' || this.nav().some(n => n.id === vista || n.vistas?.includes(vista)); },
     // Menú agrupado (barra lateral): [{grupo, items}] respetando el orden del flujo
     navGrupos() {
       const g = [];
@@ -151,8 +161,8 @@ SIGT.modulos.nucleo = () => ({
       for (const n of this.navMas()) { let x = g.find(y => y.grupo === (n.grupo || '')); if (!x) g.push(x = { grupo: n.grupo || '', items: [] }); x.items.push(n); }
       return g;
     },
-    dockActivo(n) { return n.id === '_mas' ? (this.masActivo || this.mas) : (this.view === n.id && !this.mas); },
-    get masActivo() { return this.navMas().some(n => n.id === this.view); },
+    dockActivo(n) { return n.id === '_mas' ? (this.masActivo || this.mas) : (this.activo(n) && !this.mas); },
+    get masActivo() { return this.navMas().some(n => this.activo(n)); },
     async go(vista) {
       if (!this.puedeIr(vista)) vista = this.user?.pendiente ? 'pendiente' : VISTA_INICIAL;   // sin permiso, ni se abre
       this.view = vista; this.menu = false; this.mas = false;

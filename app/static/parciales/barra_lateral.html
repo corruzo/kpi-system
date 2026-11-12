@@ -10,7 +10,7 @@
         <div>
           <div class="nav-grupo" x-show="g.grupo" x-text="g.grupo"></div>
           <template x-for="n in g.items" :key="n.id">
-            <button class="nav-item group" :class="view===n.id && 'nav-on'" :data-tour="'nav-' + n.id" :aria-current="view===n.id ? 'page' : null" @click="go(n.id)">
+            <button class="nav-item group" :class="activo(n) && 'nav-on'" :data-tour="'nav-' + n.id" :aria-current="activo(n) ? 'page' : null" @click="go(n.id)">
               <svg class="h-5 w-5 shrink-0" :class="view!==n.id && 'text-slate-400 group-hover:text-brand'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="icono(n.id)"/></svg>
               <span class="min-w-0 flex-1 truncate" x-text="n.label"></span>
               <span x-show="n.badge" class="rounded-full bg-amber-400 px-1.5 text-[11px] font-bold text-slate-900" x-text="n.badge"></span>

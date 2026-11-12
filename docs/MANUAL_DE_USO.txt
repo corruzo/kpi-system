@@ -190,7 +190,9 @@ estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
 
  Paso 7. CARGA MENSUAL  (cargadores · Operar > Cargar datos)
     Quien carga entra directo a «Cargar datos» con su indicador elegido: escribe los datos base, ve el
-    resultado y el semáforo al instante, y envía. El superior lo aprueba en la Bandeja de aprobación.
+    resultado y el semáforo al instante, y envía. El superior lo aprueba en «Seguimiento de cargas», que reúne en una sola sección (con pestañas) lo
+    «Por aprobar», lo «Pendiente de cargar» (con los recordatorios por Outlook) y el «Historial».
+    El Panel de control lo ve cada persona solo con lo que su rol le permite ver: su nodo y lo que cuelga de él.
 
  Antes de entregar el sistema: Configuración > Empresa y logo (nombre, código del formato, inicio del
  ejercicio fiscal, contraseña de los reportes) y Listas de apoyo (procesos, objetivos, gerencias, cargos).

@@ -49,6 +49,7 @@ const SECCIONES = [
   ['config', ['parametros.gestionar', 'catalogos.gestionar', 'respaldo.exportar', 'respaldo.restaurar', 'sistema.reiniciar', 'soporte.desbloquear'], 'Configuración', 'Ajustes', 'Control'],
   ['bitacora', ['bitacora.ver'], 'Bitácora', 'Bitácora', 'Control'],
 ];
+const SEGUIMIENTO = ['bandeja', 'recordatorios', 'historial'];
 const NIVEL_ETIQUETA = { gerencia: 'Gerencia', departamento: 'Departamento', jefatura: 'Jefatura' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d) => Number(v).toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: d });
