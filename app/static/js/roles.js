@@ -1,5 +1,5 @@
-/* Roles y permisos: lista de roles y editor con la matriz de permisos agrupada por módulo. El alcance de cada permiso es fijo
-   (lo aplica el servidor); aquí solo se elige el NIVEL: Ninguno · Ver · Ver y modificar (o Ninguno · Sí). Nunca muestra permisos técnicos. */
+/* Roles y permisos: matriz estilo SAP (filas = permisos por módulo, columnas = roles) y un formulario corto para nombre y descripción.
+   El alcance de cada permiso es fijo (lo aplica el servidor); aquí solo se elige el NIVEL. Nunca muestra permisos técnicos. */
 SIGT.modulos.roles = () => ({
     roles: [], catalogoP: { grupos: [], permisos: [] }, rolForm: null, rolQ: '', rolCopia: { id: null, nombre: '' },
     // Roles de partida: un clic crea los cuatro típicos (después se ajustan en la matriz). El servidor agrega lo que cada permiso necesita.
@@ -21,7 +21,7 @@ SIGT.modulos.roles = () => ({
       } catch (e) { this.avisar(e.message, true); }
       this.busy = false;
     },
-    vistaRoles: 'matriz', mat: {}, matCerrados: {},   // matriz estilo SAP: mat[rol.id] = copia editable de sus permisos
+    mat: {}, matCerrados: {},   // matriz estilo SAP: mat[rol.id] = copia editable de sus permisos
 
     ganchos: {
       entrar: { roles() { return this.cargarRoles(); } },
@@ -67,17 +67,6 @@ SIGT.modulos.roles = () => ({
       const orden = { ver: 1, modificar: 2 }, tope = p.tope ? orden[p.tope] : 0;
       return todos.filter(([v]) => !v || orden[v] <= tope);
     },
-    nivelDe(p) { return this.rolForm?.permisos[p.codigo] || ''; },
-    setNivel(p, v) {
-      const m = this.rolForm.permisos;
-      if (!v) delete m[p.codigo]; else m[p.codigo] = v;
-      if (v) this.agregarImplicados(p);
-    },
-    // Lo que un permiso necesita para servir se concede junto con él (el servidor hace lo mismo al guardar)
-    agregarImplicados(p) {
-      for (const c of p.implica) { const q = this.catalogoP.permisos.find(x => x.codigo === c); if (q && !this.rolForm.permisos[c]) { this.rolForm.permisos[c] = q.niveles[0]; this.agregarImplicados(q); } }
-    },
-    esImplicado(p) { return Object.keys(this.rolForm?.permisos || {}).some(c => this.catalogoP.permisos.find(x => x.codigo === c)?.implica.includes(p.codigo)); },
     permisosDe(grupo) {
       const q = this.rolQ.trim().toLowerCase();
       return this.catalogoP.permisos.filter(p => p.grupo === grupo && (!q || (p.etiqueta + ' ' + p.descripcion + ' ' + p.codigo).toLowerCase().includes(q)));
