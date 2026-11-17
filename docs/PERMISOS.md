@@ -83,7 +83,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
-| `estructura.ver` | **Ver la estructura**: Ver el árbol de gerencias, departamentos y jefaturas. | Ninguno / Ver | Toda la empresa. | `GET /api/unidades` |
+| `estructura.ver` | **Ver la estructura**: Ver el árbol de gerencias, departamentos y jefaturas. | Ninguno / Ver | Su rama: su ámbito, lo que cuelga de él y el camino hasta la raíz (todo el árbol si su alcance es global). | `GET /api/unidades` |
 | `estructura.gestionar` | **Gestionar la estructura**: Crear, renombrar, mover y eliminar nodos del árbol. | Ninguno / Sí | Toda la empresa. | `DELETE /api/unidades/{unidad_id}`<br>`POST /api/unidades`<br>`POST /api/unidades/{unidad_id}/mover`<br>`PUT /api/unidades/{unidad_id}` |
 | `catalogos.gestionar` | **Listas de apoyo**: Mantener las listas de la ficha: procesos, objetivos, gerencias y cargos. | Ninguno / Sí | Toda la empresa. | `DELETE /api/catalogos/{elemento_id}`<br>`GET /api/catalogos`<br>`POST /api/catalogos`<br>`PUT /api/catalogos/{elemento_id}` |
 | `parametros.gestionar` | **Parámetros y logo**: Empresa, código del formato, inicio del ejercicio fiscal, protección de reportes y logo. | Ninguno / Sí | Toda la empresa. | `DELETE /api/logo`<br>`GET /api/parametros`<br>`PUT /api/logo`<br>`PUT /api/parametros` |
@@ -93,7 +93,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
-| `usuarios.ver` | **Ver personas**: Ver las personas, su rol, su ámbito y lo que alcanzan a ver. | Ninguno / Ver | Todas las personas, salvo los Desarrolladores. | `GET /api/usuarios`<br>`GET /api/usuarios/{usuario_id}/alcance`<br>`GET /api/usuarios/{usuario_id}/indicadores` |
+| `usuarios.ver` | **Ver personas**: Ver las personas, su rol, su ámbito y lo que alcanzan a ver. | Ninguno / Ver | Usted y quienes están debajo de usted en la estructura (todas, si su alcance es global); nunca los Desarrolladores. | `GET /api/usuarios`<br>`GET /api/usuarios/{usuario_id}/alcance`<br>`GET /api/usuarios/{usuario_id}/indicadores` |
 | `usuarios.asignar` | **Asignar rol, ámbito e indicadores**: Dar a cada persona su rol, su posición en la estructura y sus indicadores. | Ninguno / Sí | Todas las personas, salvo los Desarrolladores y uno mismo. | `GET /api/puesta-en-marcha`<br>`GET /api/roles`<br>`GET /api/usuarios/opciones`<br>`POST /api/usuarios/{usuario_id}/alcance`<br>`PUT /api/usuarios/{usuario_id}/asignacion`<br>`PUT /api/usuarios/{usuario_id}/indicadores` |
 | `roles.gestionar` | **Roles y permisos**: Crear, renombrar, duplicar y borrar roles, y elegir sus permisos. | Ninguno / Sí | Todos los roles, salvo el propio y el de Desarrollador. | `DELETE /api/roles/{rol_id}`<br>`GET /api/permisos`<br>`GET /api/roles`<br>`POST /api/roles`<br>`POST /api/roles/{rol_id}/duplicar`<br>`PUT /api/roles/{rol_id}` |
 

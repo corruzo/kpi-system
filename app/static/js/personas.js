@@ -46,7 +46,8 @@ SIGT.modulos.personas = () => ({
     // Ficha «Accesos de la persona» (permisos efectivos: qué puede hacer y de dónde sale cada indicador que ve)
     async abrirAccesos(x) { this.previa = await this.api(`/api/usuarios/${x.id}/alcance`); },
     motivoTxt: m => ({ responsable: 'Es su responsable', cargador: 'Lo carga', 'ámbito': 'Está dentro de su ámbito', 'alcance global': 'Ve toda la empresa' }[m] || m),
-    get rolesAsignables() { return this.rolesLista.filter(r => r.clave !== 'desarrollador'); },
+    // Solo un Desarrollador da el rol Coordinador SGC (el servidor lo exige): a los demás ni se les ofrece
+    get rolesAsignables() { return this.rolesLista.filter(r => r.clave !== 'desarrollador' && (r.clave !== 'coordinador' || this.user.rol_clave === 'desarrollador' || String(this.asig?.rol_id) === String(r.id))); },
     modoNodo(id) { return this.asig.ambito.includes(id) ? 'ambito' : this.asig.miembro.includes(id) ? 'miembro' : ''; },
     setModoNodo(id, modo) {
       this.asig.ambito = this.asig.ambito.filter(i => i !== id); this.asig.miembro = this.asig.miembro.filter(i => i !== id);

@@ -101,7 +101,8 @@ CATALOGO: tuple[Permiso, ...] = (
        "Ver quién tiene cargas pendientes y avisarle por correo (Outlook).", "Solo personas que cargan indicadores de su ámbito.",
        implica=("indicadores.ver",)),
     # ------------------------------------------------------------ Estructura
-    _p("estructura.ver", "Estructura", "Ver la estructura", "Ver el árbol de gerencias, departamentos y jefaturas.", A_GLOBAL, _V),
+    _p("estructura.ver", "Estructura", "Ver la estructura", "Ver el árbol de gerencias, departamentos y jefaturas.",
+       "Su rama: su ámbito, lo que cuelga de él y el camino hasta la raíz (todo el árbol si su alcance es global).", _V),
     _p("estructura.gestionar", "Estructura", "Gestionar la estructura", "Crear, renombrar, mover y eliminar nodos del árbol.", A_GLOBAL,
        implica=("estructura.ver",)),
     _p("catalogos.gestionar", "Estructura", "Listas de apoyo", "Mantener las listas de la ficha: procesos, objetivos, gerencias y cargos.",
@@ -112,7 +113,8 @@ CATALOGO: tuple[Permiso, ...] = (
        A_GLOBAL, implica=("indicadores.ver",)),
     # ------------------------------------------------------------ Personas
     _p("usuarios.ver", "Personas", "Ver personas", "Ver las personas, su rol, su ámbito y lo que alcanzan a ver.",
-       "Todas las personas, salvo los Desarrolladores.", _V, implica=("estructura.ver",)),
+       "Usted y quienes están debajo de usted en la estructura (todas, si su alcance es global); nunca los Desarrolladores.", _V,
+       implica=("estructura.ver",)),
     _p("usuarios.asignar", "Personas", "Asignar rol, ámbito e indicadores",
        "Dar a cada persona su rol, su posición en la estructura y sus indicadores.", "Todas las personas, salvo los Desarrolladores y uno mismo.",
        implica=("usuarios.ver",)),

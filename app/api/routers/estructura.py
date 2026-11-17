@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ... import schemas
 from ...models import Usuario
-from ...servicios import estructura
+from ...servicios import acceso, estructura
 from .. import serializadores as ser
 from ..deps import IdRuta, escritura, get_db, requiere_permiso
 
@@ -17,11 +17,12 @@ def _uno(db: Session, nodo) -> dict:
 
 
 @router.get("")
-def listar(db: Session = Depends(get_db), _=Depends(requiere_permiso("estructura.ver"))):
-    """El árbol completo en orden (cada padre antes que sus hijos), con cuántas personas e indicadores tiene cada nodo."""
-    nodos = estructura.todas(db)
-    rutas, (personas, indicadores) = estructura.nombres_de_ruta(nodos), estructura.conteos(db)
-    return [ser.unidad(n, rutas[n.id], personas.get(n.id, 0), indicadores.get(n.id, 0)) for n in nodos]
+def listar(db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("estructura.ver"))):
+    """El árbol en orden (cada padre antes que sus hijos), con cuántas personas e indicadores tiene cada nodo. Quien no
+    tiene alcance global ve solo su rama: su ámbito, lo que cuelga de él y el camino hasta la raíz."""
+    todos = estructura.todas(db)
+    rutas, (personas, indicadores) = estructura.nombres_de_ruta(todos), estructura.conteos(db)
+    return [ser.unidad(n, rutas[n.id], personas.get(n.id, 0), indicadores.get(n.id, 0)) for n in acceso.nodos_visibles(todos, u)]
 
 
 @router.post("", status_code=201)

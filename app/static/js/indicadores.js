@@ -30,13 +30,30 @@ SIGT.modulos.indicadores = () => ({
       if (this.fq.estado) q.set('activo', this.fq.estado === 'activo');
       this.fichas = await this.pedirPagina('fichas', '/api/indicadores?' + q, pagina);
     },
-    async cargarOpcionesUsuarios() { if (!this.opcionesUsuarios.length && this.puedeAlguno(['indicadores.crear', 'indicadores.asignar'])) this.opcionesUsuarios = await this.api('/api/usuarios/opciones'); },
+    // Personas a las que se puede asignar. Se piden de nuevo al abrir cada ficha: si alguien se creó o se reasignó en «Personas»,
+    // aparece de inmediato (antes quedaban en memoria toda la sesión y había que recargar la página).
+    async cargarOpcionesUsuarios(forzar = false) {
+      if ((forzar || !this.opcionesUsuarios.length) && this.puedeAlguno(['indicadores.crear', 'indicadores.asignar'])) this.opcionesUsuarios = await this.api('/api/usuarios/opciones', {}, true);
+    },
     // Tras crear, editar o eliminar: se refresca la página actual y la lista de carga
     async refrescarIndicadores() { await Promise.all([this.cargarFichas(this.pg('fichas').pagina), this.cargarIndicadores()]); },
     codigoSugerido: '',
     get etiquetaNC() { return (this.params.codigo_formato || 'NC-16').split('-').slice(0, 2).join('-'); },
     // Asignación: nodo de la estructura, responsable (el «dueño», único que modifica la ficha) y quienes cargan el dato.
-    get personasCarga() { return this.opcionesUsuarios.filter(u => u.puede_cargar); },
+    // Primero quienes están en la rama del nodo elegido (el nodo, sus superiores o lo que cuelga de él); el resto, al final y marcado
+    get ramaDelNodo() {
+      const porId = Object.fromEntries(this.areas.map(a => [a.id, a])), objetivo = this.ficha.nodo_id, rama = new Set();
+      for (let n = porId[objetivo]; n; n = porId[n.padre_id]) rama.add(n.id);
+      for (const a of this.areas) for (let n = a; n; n = porId[n.padre_id]) if (n.id === objetivo) { rama.add(a.id); break; }
+      return rama;
+    },
+    get opcionesOrdenadas() {
+      const rama = this.ramaDelNodo;
+      return this.opcionesUsuarios.map(u => ({ ...u, lejos: !u.yo && ![...u.ambito, ...u.miembro].some(n => rama.has(n)) }))
+        .sort((a, b) => a.lejos - b.lejos || a.nombre.localeCompare(b.nombre));
+    },
+    get personasCarga() { return this.opcionesOrdenadas.filter(u => u.puede_cargar); },
+    etiquetaPersona(u) { return u.nombre + (u.yo ? ' (usted)' : '') + (u.rol ? ' · ' + u.rol : '') + (u.lejos ? ' · otra área' : ''); },
     nodoEtiqueta(a) { return '\u2003'.repeat(a.profundidad || 0) + a.nombre + ' · ' + (NIVEL_ETIQUETA[a.nivel] || ''); },
     alternarCargador(id) { const c = this.ficha.cargadores || (this.ficha.cargadores = []), k = c.indexOf(id); if (k >= 0) c.splice(k, 1); else c.push(id); },
     get puedeEditarFicha() { return !this.ficha.id || (this.ficha.soy_responsable && this.puede('indicadores.editar')); },
@@ -67,19 +84,19 @@ SIGT.modulos.indicadores = () => ({
     nuevaFicha() {
       this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: (this.areas.find(a => a.nivel === 'jefatura') || this.areas[0])?.id, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» como ayuda.');
-      this.pedirCodigo(); this.proponerAsignacion();
+      this.pedirCodigo(); this.cargarOpcionesUsuarios(true).then(() => this.proponerAsignacion());
     },
     editarFicha(i) {
       this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.constantes ||= [];
       this.ficha._asig = JSON.stringify([i.nodo_id, i.responsable_id, [...i.cargadores].sort()]);
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
-      this.abrirFicha(''); this.validarFormula(); this.codigoSugerido = '';
+      this.abrirFicha(''); this.validarFormula(); this.codigoSugerido = ''; this.cargarOpcionesUsuarios(true);
     },
     duplicarFicha(i) {
       this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], soy_responsable: true, en_ambito: true };
       this.ficha.constantes ||= [];
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
-      this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo();
+      this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo(); this.cargarOpcionesUsuarios(true);
     },
     abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.ay = ''; this.modal = true; },
     get fichaBloqueada() { return (this.ficha.n_mediciones || 0) > 0; },

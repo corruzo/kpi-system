@@ -95,6 +95,15 @@ Todo cambio importante queda en una bitácora que nadie puede alterar.
      Desarrollador, darse permisos técnicos, dar un permiso que él mismo no tiene, ni cambiar su propio
      rol o permisos. Su rol nunca puede quedar sin los permisos mínimos para gestionar roles y personas.
 
+  Las CUENTAS (registrar a una persona nueva) son tarea técnica: las crea el Desarrollador; el Coordinador
+     les da después su rol y su posición con «Rol y posición».
+
+3.1.1 La regla de oro, en todo el sistema
+  Cada persona ve solo lo que está DEBAJO de ella en la estructura: sus indicadores, su gente (quienes
+  trabajan en su rama o la encabezan más abajo) y su rama del árbol (con el camino hasta la raíz para
+  ubicarse). No ve a sus pares, ni a sus superiores, ni las ramas vecinas. Quien tiene «Toda la empresa»
+  (gerente general) y los roles de sistema ven todo.
+
 3.2 Roles que define el Coordinador
   Nombre libre (Gerente general, Gerente, Jefe, Analista…). Cada rol es un conjunto de permisos del
   catálogo; el Coordinador elige solo el NIVEL de cada uno: Ninguno / Ver / Ver y modificar (o Ninguno / Sí

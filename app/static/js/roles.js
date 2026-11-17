@@ -5,7 +5,7 @@ SIGT.modulos.roles = () => ({
     // Roles de partida: un clic crea los cuatro típicos (después se ajustan en la matriz). El servidor agrega lo que cada permiso necesita.
     PLANTILLAS_ROLES: [
       ['Analista', 'Quien carga datos y ve el panel de lo suyo.', { 'cargas.cargar': 'modificar', 'panel.ver': 'ver', 'reportes.fichas': 'ver' }],
-      ['Jefe', 'Aprueba, fija metas y gestiona sus indicadores.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'recordatorios.enviar': 'modificar' }],
+      ['Jefe', 'Aprueba, fija metas, gestiona sus indicadores y ve a su equipo.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'recordatorios.enviar': 'modificar', 'usuarios.ver': 'ver' }],
       ['Gerente', 'Como el jefe, a nivel de gerencia, y ve estructura y personas.', { 'cargas.cargar': 'modificar', 'cargas.aprobar': 'modificar', 'cargas.reabrir': 'modificar', 'cargas.notas': 'modificar', 'indicadores.crear': 'modificar', 'indicadores.editar': 'modificar', 'indicadores.archivar': 'modificar', 'indicadores.eliminar': 'modificar', 'indicadores.asignar': 'modificar', 'formulas.probar': 'modificar', 'metas.cargar': 'modificar', 'metas.copiar': 'modificar', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'reportes.verificar': 'ver', 'recordatorios.enviar': 'modificar', 'estructura.ver': 'ver', 'usuarios.ver': 'ver' }],
       ['Gerente general', 'Solo consulta todo (con ámbito en la raíz); modifica lo suyo.', { 'indicadores.ver': 'ver', 'cargas.ver': 'ver', 'metas.ver': 'ver', 'panel.ver': 'ver', 'reportes.general': 'ver', 'reportes.fichas': 'ver', 'ejercicios.ver': 'ver', 'estructura.ver': 'ver', 'usuarios.ver': 'ver', 'cargas.cargar': 'modificar', 'indicadores.editar': 'modificar' }],
     ],
@@ -92,7 +92,7 @@ SIGT.modulos.roles = () => ({
       } catch { }
       this.busy = false;
     },
-    abrirDuplicar(r) { this.rolCopia = { id: r.id, nombre: r.nombre + ' (copia)' }; },
+    abrirDuplicar(r) { this.rolCopia = { id: r.id, nombre: r.nombre + ' (copia)' }; this.$nextTick(() => { const e = document.getElementById('rol-copia'); e?.scrollIntoView({ behavior: 'smooth', block: 'center' }); e?.select(); }); },
     async duplicarRol() {
       this.busy = true;
       try { await this.api(`/api/roles/${this.rolCopia.id}/duplicar`, { method: 'POST', body: { nombre: this.rolCopia.nombre } }); this.avisar('Rol duplicado.'); await this.cargarRoles(); } catch { }

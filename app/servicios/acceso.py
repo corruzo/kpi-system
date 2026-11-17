@@ -274,11 +274,34 @@ def puede_fijar_meta(db: Session, u: Usuario, ind: Indicador, debajo: set[int] |
 
 # ---------------------------------------------------------------- personas visibles
 def usuarios_visibles(q: Select, u: Usuario) -> Select:
-    """Quien no es Desarrollador no ve ni toca a los Desarrolladores (consulta que ya incluye `Usuario`)."""
+    """Personas que quien pregunta puede ver (consulta que ya incluye `Usuario`), con la MISMA regla que los indicadores:
+    - nadie salvo un Desarrollador ve a los Desarrolladores;
+    - quien no tiene alcance global ve solo a sí mismo y a quienes están DEBAJO de él en la estructura: los que trabajan
+      en un nodo de su ámbito y los que tienen como ámbito un nodo estrictamente inferior (sus pares y superiores, no)."""
     if es_desarrollador(u):
         return q
     desarrolladores = select(Rol.id).where(Rol.clave == DESARROLLADOR)
-    return q.where(or_(Usuario.rol_id.is_(None), Usuario.rol_id.not_in(desarrolladores)))
+    q = q.where(or_(Usuario.rol_id.is_(None), Usuario.rol_id.not_in(desarrolladores)))
+    c = contexto(u)
+    if c.global_:
+        return q
+    condiciones = []
+    for _, r in c.ambito:
+        condiciones.append(and_(UsuarioUnidad.tipo == "miembro", subarbol(r)))
+        condiciones.append(and_(UsuarioUnidad.tipo == "ambito", subarbol(r), Unidad.ruta != r))
+    debajo = (select(UsuarioUnidad.usuario_id).join(Unidad, Unidad.id == UsuarioUnidad.unidad_id).where(or_(*condiciones))
+              if condiciones else None)
+    return q.where(or_(Usuario.id == u.id, Usuario.id.in_(debajo))) if debajo is not None else q.where(Usuario.id == u.id)
+
+
+def nodos_visibles(nodos: list[Unidad], u: Usuario) -> list[Unidad]:
+    """Árbol que la persona puede ver: todo si su alcance es global; si no, los nodos de su ámbito con lo que cuelga de
+    ellos, más sus superiores (solo para ubicarlos: el camino desde la raíz), nunca las ramas vecinas."""
+    c = contexto(u)
+    if c.global_:
+        return nodos
+    mias = [r for _, r in c.ambito] + [r for _, r in c.miembro]
+    return [n for n in nodos if any(n.ruta.startswith(r) or r.startswith(n.ruta) for r in mias)]
 
 
 # ---------------------------------------------------------------- aprobación jerárquica

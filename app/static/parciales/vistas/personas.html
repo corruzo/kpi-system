@@ -2,6 +2,7 @@
     <section data-vista="personas" x-show="view==='personas'" class="space-y-4">
       <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow">Rol, posición e indicadores</p><h1 class="page-title">Personas</h1><p class="text-sm text-slate-600">Una cuenta nueva no tiene acceso a nada hasta que se le asigne un rol, su posición en la estructura y sus indicadores. Ver baja por el árbol; modificar es solo lo asignado personalmente.</p></div>
         <span class="flex flex-wrap gap-2"><button class="btn btn-s" x-show="puede('soporte.desbloquear')" :disabled="busy" @click="desbloquearAccesos()" title="Levanta el bloqueo por intentos fallidos de ingreso">Desbloquear accesos</button><button class="btn btn-p" x-show="puede('usuarios.cuentas')" @click="nuevoUsuario()">+ Nueva cuenta</button></span></div>
+      <p class="rounded-2xl bg-brand-light px-4 py-3 text-sm text-cobalt" x-show="puede('usuarios.asignar') && !puede('usuarios.cuentas')">Para registrar a una persona nueva, pídale al <b>Desarrollador</b> que cree su cuenta (es una tarea técnica). Después usted le da su rol y su posición con <b>«Rol y posición»</b>.</p>
       <div class="card">
         <div class="border-b border-slate-100 p-3"><input class="inp" type="search" x-model="usrQ" @input.debounce.400ms="cargarUsuarios(1)" placeholder="Buscar por nombre o usuario" aria-label="Buscar persona"></div>
         <ul class="divide-y divide-slate-100">
