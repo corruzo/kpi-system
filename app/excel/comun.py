@@ -155,15 +155,19 @@ def ajustar(ws, desde_fila: int = 1, columnas: bool = True) -> None:
     cubiertas = {(r, c) for rg in ws.merged_cells.ranges for r in range(rg.min_row, rg.max_row + 1)
                  for c in range(rg.min_col, rg.max_col + 1)} - set(combinadas)
 
+    # `ws.max_row` y `ws.max_column` recorren TODAS las celdas en cada consulta: se leen una sola vez (antes, dentro de los bucles, el
+    # reporte general de 60 indicadores tardaba 4 s por cálculo cuadrático)
+    n_filas, n_cols = ws.max_row, ws.max_column
     if columnas:
-        for col in range(1, ws.max_column + 1):
+        con_valor = {f: sum(1 for k in range(1, n_cols + 1) if ws.cell(f, k).value is not None) for f in range(desde_fila, n_filas + 1)}
+        for col in range(1, n_cols + 1):
             letra = get_column_letter(col)
             maximo = 0.0
-            for fila in range(desde_fila, ws.max_row + 1):
+            for fila in range(desde_fila, n_filas + 1):
                 c = ws.cell(fila, col)
                 if (fila, col) in cubiertas or (fila, col) in combinadas or c.value is None:
                     continue
-                if sum(1 for k in range(1, ws.max_column + 1) if ws.cell(fila, k).value is not None) == 1:
+                if con_valor[fila] == 1:
                     continue                      # título de sección: se extiende sobre las celdas vacías contiguas
                 if c.alignment and c.alignment.wrap_text:
                     palabra = max((len(p) for p in _texto(c).split()), default=0)     # al menos la palabra más larga
@@ -175,8 +179,8 @@ def ajustar(ws, desde_fila: int = 1, columnas: bool = True) -> None:
             ws.column_dimensions[letra].width = round(min(_ANCHO_MAX, max(actual, _ANCHO_MIN if maximo else 0, maximo)), 1) or None
 
     necesidad: dict[int, float] = {}
-    for fila in range(desde_fila, ws.max_row + 1):
-        for col in range(1, ws.max_column + 1):
+    for fila in range(desde_fila, n_filas + 1):
+        for col in range(1, n_cols + 1):
             c = ws.cell(fila, col)
             if (fila, col) in cubiertas or c.value is None or not (c.alignment and c.alignment.wrap_text):
                 continue

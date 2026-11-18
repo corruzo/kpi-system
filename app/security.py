@@ -11,7 +11,9 @@ from .database import DATA_DIR
 
 COOKIE = "sigt_sesion"
 DURACION = 60 * 60 * 10  # 10 horas
-ITERACIONES = 210_000
+ITERACIONES = 600_000          # PBKDF2-HMAC-SHA256: lo que recomienda OWASP (Password Storage Cheat Sheet)
+ITERACIONES_ANTIGUAS = 210_000  # hashes guardados sin prefijo (versión anterior): se siguen aceptando y se actualizan al ingresar
+PREFIJO = "pbkdf2_sha256"
 
 
 def _clave() -> bytes:
@@ -39,15 +41,30 @@ def secreto() -> bytes:
 
 
 def hash_password(password: str) -> str:
+    """`pbkdf2_sha256$<iteraciones>$<sal>$<hash>`: las iteraciones viajan en el hash, así se pueden subir sin invalidar las cuentas."""
     salt = secrets.token_hex(16)
     dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), ITERACIONES)
-    return f"{salt}${dk.hex()}"
+    return f"{PREFIJO}${ITERACIONES}${salt}${dk.hex()}"
+
+
+def _partes(almacenado: str) -> tuple[int, str, str]:
+    """(iteraciones, sal, hash) de un hash guardado, en el formato actual o en el anterior («sal$hash», 210 000 iteraciones)."""
+    if almacenado.startswith(PREFIJO + "$"):
+        _, it, salt, dk = almacenado.split("$")
+        return int(it), salt, dk
+    salt, _, dk = almacenado.partition("$")
+    return ITERACIONES_ANTIGUAS, salt, dk
 
 
 def verificar_password(password: str, almacenado: str) -> bool:
-    salt, _, dk = almacenado.partition("$")
-    calc = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), ITERACIONES).hex()
+    iteraciones, salt, dk = _partes(almacenado)
+    calc = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), iteraciones).hex()
     return hmac.compare_digest(calc, dk)
+
+
+def necesita_rehash(almacenado: str) -> bool:
+    """¿Se guardó con menos iteraciones (o en el formato anterior) que las actuales? Se actualiza al ingresar con la clave correcta."""
+    return _partes(almacenado)[0] < ITERACIONES
 
 
 def crear_token(usuario_id: int, version: int) -> str:

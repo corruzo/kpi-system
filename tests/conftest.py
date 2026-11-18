@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app import security  # noqa: E402
 from app.main import app  # noqa: E402
 
-security.ITERACIONES = 1_000   # solo en pruebas: con las 210 000 de producción crear cada persona tarda ~0,2 s y la suite se vuelve lenta
+security.ITERACIONES = 1_000   # solo en pruebas: con las 600 000 de producción crear cada persona tarda ~0,4 s y la suite se vuelve lenta
 
 CLAVE_ADMIN = "clave-admin-123"   # el Desarrollador `admin`
 CLAVE = "clave-segura-123"

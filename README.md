@@ -84,6 +84,7 @@ Los indicadores `eventual` no llevan meta.
 - Bitácora inmutable y encadenada con SHA-256 (trigger en PostgreSQL); cada cambio de rol, permiso, ámbito o asignación queda registrado.
 - Anti-escalada: nadie edita su propio rol, nadie concede un permiso que no tiene, el Coordinador no toca a un Desarrollador y los permisos técnicos no se conceden a ningún rol. El sistema nunca queda sin un Desarrollador activo.
 - RLS en todas las tablas de Supabase y sin permisos para `anon`/`authenticated` (los aplican las migraciones y también `scripts/supabase_instalacion_completa.sql`); escrituras serializadas con *advisory lock*.
+- Seguridad, privacidad y rendimiento (medidas, brechas conocidas y decisiones pendientes de la empresa): [`docs/SEGURIDAD_Y_PRIVACIDAD.md`](docs/SEGURIDAD_Y_PRIVACIDAD.md).
 - Respaldo cifrado (`python -m app.respaldar`), reportes Excel con fórmulas vivas, firmados y verificables.
 
 ## Operación

@@ -28,6 +28,8 @@ def autenticar(db: Session, username: str, password: str, origen: str) -> Usuari
         limite_intentos.fallo(pareja, por_origen, por_usuario)   # también cuentan los usuarios inexistentes
         raise NoAutenticado("Usuario o contraseña incorrectos.")
     limite_intentos.limpiar(pareja, por_usuario)   # el contador del origen NO se borra: un acceso válido no perdona el spraying
+    if security.necesita_rehash(u.password_hash):    # se guardó con menos iteraciones: ya tenemos la clave en claro, se actualiza
+        u.password_hash = security.hash_password(password)
     auditoria.registrar(db, u, "INICIO_SESION", "usuario", u.id)
     db.commit()
     return u
