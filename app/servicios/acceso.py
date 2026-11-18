@@ -4,13 +4,15 @@ Tres cosas se cruzan en cada decisión:
 
 1. **Rol** → qué funciones tiene (`puede`): permisos del catálogo (`app/permisos.py`) con su nivel. Sin rol no se puede nada.
 2. **Árbol** → qué alcanza a ver (`ambito`): cada nodo de ámbito y todo lo que cuelga de él. La visibilidad solo baja.
-3. **Asignación** → qué es suyo: los indicadores de los que es responsable (los modifica) o cargador (les carga datos).
+3. **Asignación** → qué es suyo: los indicadores de los que es responsable principal o suplente (les carga datos).
 
 Reglas fijas (no configurables):
-- Visible = está en su ámbito, o es su responsable, o es su cargador, o la persona tiene alcance global
+- Visible = está en su ámbito, o es su responsable o su suplente, o la persona tiene alcance global
   (Desarrollador, Coordinador SGC, o ámbito en la raíz de la empresa).
-- Modificar una ficha: solo su responsable. Cargar: solo sus cargadores. Los roles de sistema (Desarrollador y
-  Coordinador SGC) tienen **alcance total**: esas dos restricciones no les aplican.
+- Cargar datos: solo el responsable principal y el suplente. Modificar la ficha (crear, editar, archivar, asignar): quien tenga el
+  permiso en su rol, y solo sobre indicadores de su ámbito; responsable y suplente solo cargan. Los roles de sistema
+  (Desarrollador y Coordinador SGC) tienen **alcance total**: la restricción de ámbito no les aplica.
+- Aprobar una carga: quien tenga `cargas.aprobar` en su rol Y tenga el indicador en su ámbito (hacia abajo); nadie aprueba la propia.
 - Lo que no se ve responde 404 (como si no existiera); lo que se ve pero no se puede hacer, 403.
 
 Los permisos y el ámbito se leen UNA vez por petición (`preparar`) y quedan en `usuario.acceso`.
@@ -22,7 +24,7 @@ from sqlalchemy.orm import Session, object_session
 
 from .. import permisos as cat
 from ..errores import Invalido, NoEncontrado, Prohibido
-from ..models import Indicador, IndicadorCargador, Rol, RolPermiso, Unidad, Usuario, UsuarioUnidad
+from ..models import Indicador, Rol, RolPermiso, Unidad, Usuario, UsuarioUnidad
 
 DESARROLLADOR, COORDINADOR = "desarrollador", "coordinador"
 SIN_PERMISO = "No tiene permisos para esta acción."
@@ -135,8 +137,8 @@ def condicion_visible(u: Usuario, archivados: bool = False):
     nodos = _nodos_del_ambito(c)
     en_ambito = Indicador.nodo_id.in_(nodos) if nodos is not None else false()
     propio = Indicador.responsable_id == u.id
-    lo_carga = Indicador.id.in_(select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id == u.id))
-    activos = and_(Indicador.activo.is_(True), or_(en_ambito, propio, lo_carga))
+    lo_carga = or_(propio, Indicador.suplente_id == u.id)
+    activos = and_(Indicador.activo.is_(True), or_(en_ambito, lo_carga))
     if not archivados:
         return activos
     return or_(activos, and_(Indicador.activo.is_(False), or_(en_ambito, propio)))
@@ -161,8 +163,7 @@ def condicion_carga(u: Usuario):
     c = contexto(u)
     if c.total:
         return Indicador.activo.is_(True)
-    return and_(Indicador.activo.is_(True),
-                Indicador.id.in_(select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id == u.id)))
+    return and_(Indicador.activo.is_(True), or_(Indicador.responsable_id == u.id, Indicador.suplente_id == u.id))
 
 
 def en_nodo(nodo_id: int):
@@ -180,8 +181,13 @@ def es_responsable(u: Usuario, ind: Indicador) -> bool:
     return ind.responsable_id is not None and ind.responsable_id == u.id
 
 
+def es_suplente(u: Usuario, ind: Indicador) -> bool:
+    return ind.suplente_id is not None and ind.suplente_id == u.id
+
+
 def es_cargador(u: Usuario, ind: Indicador) -> bool:
-    return any(x.id == u.id for x in ind.cargadores)
+    """Carga los datos del indicador: su responsable principal o su suplente."""
+    return es_responsable(u, ind) or es_suplente(u, ind)
 
 
 def puede_ver(u: Usuario, ind: Indicador) -> bool:
@@ -201,11 +207,16 @@ def exigir_visible(u: Usuario, ind: Indicador | None) -> Indicador:
     return ind
 
 
-# ---------------------------------------------------------------- asignación → modificar
+# ---------------------------------------------------------------- ámbito → modificar; asignación → cargar
+def puede_modificar(u: Usuario, ind: Indicador) -> bool:
+    """Editar, archivar, eliminar o reasignar una ficha: lo decide el permiso del rol (la ruta lo exige) y, aquí, que el
+    indicador esté en el ámbito de la persona. El responsable y el suplente, por serlo, solo cargan datos."""
+    return alcance_total(u) or en_ambito(u, ind)
+
+
 def exigir_modificable(u: Usuario, ind: Indicador) -> None:
-    """Editar, archivar o eliminar una ficha: solo su responsable (o un rol de sistema)."""
-    if not (alcance_total(u) or es_responsable(u, ind)):
-        raise Prohibido("Solo el responsable del indicador puede modificarlo.")
+    if not puede_modificar(u, ind):
+        raise Prohibido("Solo puede modificar indicadores de su ámbito; el responsable y el suplente únicamente cargan datos.")
 
 
 def puede_cargar(u: Usuario, ind: Indicador) -> bool:
@@ -238,16 +249,22 @@ def personas_debajo(db: Session, u: Usuario) -> set[int] | None:
     return debajo
 
 
-def exigir_asignacion(db: Session, u: Usuario, nodo: Unidad, responsable: Usuario | None, cargadores: list[Usuario]) -> None:
-    """Regla de quien crea o asigna un indicador: en un nodo propio, y a sí mismo o a personas debajo de él.
-    Además (para todos): las personas deben estar activas y con rol, y quien carga debe tener permiso de cargar."""
-    for p in [x for x in [responsable, *cargadores] if x is not None]:
+def exigir_asignacion(db: Session, u: Usuario, nodo: Unidad, responsable: Usuario | None, suplente: Usuario | None) -> None:
+    """Regla de quien crea o asigna un indicador: en un nodo propio, y a personas que están debajo de él (o a sí mismo).
+    Además (para todos): las personas deben estar activas y con rol, deben ser dos personas distintas y ambas deben poder
+    cargar datos (permiso `cargas.cargar` en su rol)."""
+    quienes = [x for x in (responsable, suplente) if x is not None]
+    for p in quienes:
         if not p.activo or not p.rol_id:
             raise Invalido(f"«{p.nombre}» no está activo o aún no tiene un rol asignado.")
+    if suplente is not None and responsable is None:
+        raise Invalido("Un indicador no puede tener suplente sin responsable principal.")
+    if suplente is not None and suplente.id == responsable.id:
+        raise Invalido("El suplente debe ser una persona distinta del responsable principal.")
     con_permiso = set(db.scalars(select(Usuario.id).join(Rol, Rol.id == Usuario.rol_id).outerjoin(
         RolPermiso, and_(RolPermiso.rol_id == Rol.id, RolPermiso.permiso == "cargas.cargar"))
-        .where(Usuario.id.in_([x.id for x in cargadores]), or_(RolPermiso.permiso.is_not(None), Rol.clave.is_not(None))))) if cargadores else set()
-    for p in cargadores:
+        .where(Usuario.id.in_([x.id for x in quienes]), or_(RolPermiso.permiso.is_not(None), Rol.clave.is_not(None))))) if quienes else set()
+    for p in quienes:
         if p.id not in con_permiso:
             raise Invalido(f"El rol de «{p.nombre}» no tiene permiso para cargar datos.")
     c = contexto(u)
@@ -257,19 +274,20 @@ def exigir_asignacion(db: Session, u: Usuario, nodo: Unidad, responsable: Usuari
     if not (c.raiz or dentro(nodo.ruta, propios) or nodo.id in {i for i, _ in c.miembro}):
         raise Prohibido("Solo puede crear o asignar indicadores en su propio nodo o en los que cuelgan de él.")
     debajo = personas_debajo(db, u)
-    for p in [x for x in [responsable, *cargadores] if x is not None]:
+    for p in quienes:
         if p.id != u.id and p.id not in debajo:
             raise Prohibido(f"Solo puede asignar indicadores a sí mismo o a personas que están debajo de usted («{p.nombre}» no lo está).")
 
 
 def puede_fijar_meta(db: Session, u: Usuario, ind: Indicador, debajo: set[int] | None = None) -> bool:
-    """Metas: indicadores propios y de quienes están debajo (el Coordinador SGC, siempre)."""
-    if alcance_total(u) or es_responsable(u, ind):
+    """Metas: indicadores de su ámbito, propios o de quienes están debajo (el Coordinador SGC, siempre). Ser responsable o
+    suplente de un indicador que queda fuera de su ámbito no da derecho a fijar su meta."""
+    if alcance_total(u):
         return True
     if not en_ambito(u, ind):
         return False
     debajo = personas_debajo(db, u) if debajo is None else debajo
-    return ind.responsable_id is None or ind.responsable_id in debajo
+    return ind.responsable_id is None or ind.responsable_id == u.id or ind.responsable_id in debajo
 
 
 # ---------------------------------------------------------------- personas visibles
@@ -304,10 +322,10 @@ def nodos_visibles(nodos: list[Unidad], u: Usuario) -> list[Unidad]:
     return [n for n in nodos if any(n.ruta.startswith(r) or r.startswith(n.ruta) for r in mias)]
 
 
-# ---------------------------------------------------------------- aprobación jerárquica
+# ---------------------------------------------------------------- aprobación: permiso + ámbito
 @dataclass
 class Aprobadores:
-    """Quién tiene `cargas.aprobar`, por nodo de ámbito (leído una vez por petición)."""
+    """Quién tiene `cargas.aprobar` en su rol, por nodo de ámbito (leído una vez por petición)."""
     por_nodo: dict[int, set[int]] = field(default_factory=dict)
     raiz: set[int] = field(default_factory=set)
     siempre: set[int] = field(default_factory=set)        # Coordinador SGC (respaldo) y Desarrollador
@@ -334,14 +352,11 @@ def mapa_aprobadores(db: Session) -> Aprobadores:
 
 
 def aprobadores_de(ruta_del_nodo: str, autor_id: int, mapa: Aprobadores) -> set[int]:
-    """Quién puede aprobar una carga hecha por `autor_id` en un indicador del nodo dado: el nivel más cercano hacia arriba
-    (el propio nodo, su padre… la raíz) que tenga al menos un aprobador distinto del autor; si hay varios en ese nivel,
-    cualquiera. Siempre se suman los roles de sistema. Nadie aprueba una carga propia."""
-    elegibles: set[int] = set()
-    for nodo in reversed([int(x) for x in ruta_del_nodo.strip("/").split("/") if x]):
-        elegibles = mapa.por_nodo.get(nodo, set()) - {autor_id}
-        if elegibles:
-            break
-    else:
-        elegibles = mapa.raiz - {autor_id}
+    """Quién puede aprobar una carga hecha por `autor_id` en un indicador del nodo dado: toda persona con el permiso
+    `cargas.aprobar` en su rol cuyo ámbito incluye ese nodo (un nodo de su ámbito es el propio o uno de sus ancestros; con
+    ámbito en la raíz, todos), más los roles de sistema. Sin recorrido por «superior directo»: un aprobador no puede
+    aprobar lo que queda fuera de su línea de mando, y nadie aprueba una carga propia."""
+    elegibles = set(mapa.raiz)
+    for nodo in (int(x) for x in ruta_del_nodo.strip("/").split("/") if x):
+        elegibles |= mapa.por_nodo.get(nodo, set())
     return (elegibles | mapa.siempre) - {autor_id}

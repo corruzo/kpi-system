@@ -52,50 +52,47 @@ SIGT.modulos.indicadores = () => ({
       return this.opcionesUsuarios.map(u => ({ ...u, lejos: !u.yo && ![...u.ambito, ...u.miembro].some(n => rama.has(n)) }))
         .sort((a, b) => a.lejos - b.lejos || a.nombre.localeCompare(b.nombre));
     },
-    get personasCarga() { return this.opcionesOrdenadas.filter(u => u.puede_cargar); },
     nodoEtiqueta(a) { return '\u2003'.repeat(a.profundidad || 0) + a.nombre + ' · ' + (NIVEL_ETIQUETA[a.nivel] || ''); },
-    alternarCargador(id) { const c = this.ficha.cargadores || (this.ficha.cargadores = []), k = c.indexOf(id); if (k >= 0) c.splice(k, 1); else c.push(id); },
-    get puedeEditarFicha() { return !this.ficha.id || (this.ficha.soy_responsable && this.puede('indicadores.editar')); },
-    get puedeAsignarFicha() { return !this.ficha.id || (this.puede('indicadores.asignar') && (this.ficha.en_ambito || this.ficha.soy_responsable)); },
-    get asignacionCambio() { return !!this.ficha.id && JSON.stringify([this.ficha.nodo_id, this.ficha.responsable_id, [...this.ficha.cargadores].sort()]) !== this.ficha._asig; },
+    get puedeEditarFicha() { return !this.ficha.id || (this.ficha.puede_modificar && this.puede('indicadores.editar')); },
+    get puedeAsignarFicha() { return !this.ficha.id || (this.puede('indicadores.asignar') && this.ficha.puede_modificar); },
+    get asignacionCambio() { return !!this.ficha.id && JSON.stringify([this.ficha.nodo_id, this.ficha.responsable_id, this.ficha.suplente_id || null]) !== this.ficha._asig; },
     cambioDeNodo() { this.pedirCodigo(); this.proponerAsignacion(); },
-    // En cascada: al elegir el nodo se propone solo quién lo lleva. Responsable = quien tiene ese nodo (o el más cercano hacia arriba)
-    // en su ámbito; cargadores = quienes trabajan en el nodo y pueden cargar, o el propio responsable si puede. Siempre se puede cambiar.
+    // En cascada: al elegir el nodo se propone solo quién lo lleva. Responsable principal y suplente son dos personas que pueden cargar:
+    // primero quienes trabajan en el nodo (o más arriba en su rama), luego quienes lo tienen en su ámbito; si no hay nadie, quien crea.
     proponerAsignacion() {
       if (this.ficha.id) return;
-      const yo = this.user.id, porId = Object.fromEntries(this.areas.map(a => [a.id, a])), cadena = [];
+      const porId = Object.fromEntries(this.areas.map(a => [a.id, a])), cadena = [];
       for (let n = porId[this.ficha.nodo_id]; n; n = porId[n.padre_id]) cadena.push(n.id);   // el nodo y sus superiores
-      const opc = this.opcionesUsuarios;
-      let resp = null;
-      for (const id of cadena) { resp = opc.find(u => u.ambito.includes(id) && !u.yo) || null; if (resp) break; }
-      const cargan = opc.filter(u => u.puede_cargar && u.miembro.some(m => cadena.includes(m)));
-      this.ficha.responsable_id = resp ? resp.id : yo;
-      const quienes = cargan.length ? cargan : (resp ? (resp.puede_cargar ? [resp] : []) : opc.filter(u => u.yo && u.puede_cargar));
-      this.ficha.cargadores = quienes.map(u => u.id);
-      if (!this.ficha.cargadores.length && opc.some(u => u.id === this.ficha.responsable_id && u.puede_cargar)) this.ficha.cargadores = [this.ficha.responsable_id];
+      const opc = this.opcionesUsuarios.filter(u => u.puede_cargar);
+      const aqui = opc.filter(u => u.miembro.some(m => cadena.includes(m)));
+      const jefes = opc.filter(u => !u.yo && u.ambito.some(a => cadena.includes(a)) && !aqui.includes(u));
+      const lista = [...aqui, ...jefes], yo = opc.find(u => u.yo);
+      const quienes = lista.length ? lista : (yo ? [yo] : []);
+      this.ficha.responsable_id = quienes[0]?.id ?? null;
+      this.ficha.suplente_id = quienes[1]?.id ?? null;
     },
-    puedeEditarI(i) { return this.puede('indicadores.editar') && i.soy_responsable; },
-    puedeAsignarI(i) { return this.puede('indicadores.asignar') && (i.en_ambito || i.soy_responsable); },
+    puedeEditarI(i) { return this.puede('indicadores.editar') && i.puede_modificar; },
+    puedeAsignarI(i) { return this.puede('indicadores.asignar') && i.puede_modificar; },
     async pedirCodigo() {
       if (this.ficha.id || !this.ficha.nodo_id) { this.codigoSugerido = ''; return; }
       try { this.codigoSugerido = (await this.api(`/api/indicadores/codigo-sugerido?nodo_id=${this.ficha.nodo_id}`)).codigo; } catch { this.codigoSugerido = ''; }
     },
     nuevaFicha() {
-      this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: (this.areas.find(a => a.nivel === 'jefatura') || this.areas[0])?.id, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
+      this.ficha = { codigo: '', nombre: '', objetivo: '', nodo_id: (this.areas.find(a => a.nivel === 'jefatura') || this.areas[0])?.id, responsable_id: null, suplente_id: null, unidad: '%', frecuencia: 'mensual', decimales: 2, sentido: 'mayor', nivel_optimo: 90, limite: 80, nivel_optimo_tope: null, limite_tope: null, formula: '', seguimiento: 'proceso', ref_nombre: '', ref_detalle: '', sigla: '', gerencia: '', lider: '', resp_medicion: '', resp_registro: '', resp_analisis: '', variables: [{ clave: '', etiqueta: '' }, { clave: '', etiqueta: '' }], constantes: [], fuente: '', notas: '', activo: true, n_mediciones: 0 };
       this.abrirFicha('Escriba la fórmula con las claves de las variables; use los botones «i» como ayuda.');
       this.pedirCodigo(); this.cargarOpcionesUsuarios(true).then(() => this.proponerAsignacion());
     },
     editarFicha(i) {
       this.ficha = JSON.parse(JSON.stringify(i)); this.ficha.constantes ||= [];
-      this.ficha._asig = JSON.stringify([i.nodo_id, i.responsable_id, [...i.cargadores].sort()]);
+      this.ficha._asig = JSON.stringify([i.nodo_id, i.responsable_id, i.suplente_id || null]);
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
       this.abrirFicha(''); this.validarFormula(); this.codigoSugerido = ''; this.cargarOpcionesUsuarios(true);
     },
     duplicarFicha(i) {
-      this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true, responsable_id: this.user.id, cargadores: this.puede('cargas.cargar') ? [this.user.id] : [], soy_responsable: true, en_ambito: true };
+      this.ficha = { ...JSON.parse(JSON.stringify(i)), id: undefined, codigo: '', nombre: i.nombre + ' (copia)', n_mediciones: 0, activo: true, responsable_id: null, suplente_id: null, puede_modificar: true, en_ambito: true };
       this.ficha.constantes ||= [];
       [...this.ficha.variables, ...this.ficha.constantes].forEach(v => v._manual = true);
-      this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo(); this.cargarOpcionesUsuarios(true);
+      this.abrirFicha('Ficha duplicada: el sistema le asignará un código nuevo.'); this.validarFormula(); this.pedirCodigo(); this.cargarOpcionesUsuarios(true).then(() => this.proponerAsignacion());
     },
     abrirFicha(msg) { this.formulaMsg = { ok: true, txt: msg }; this.prueba = { valores: {}, res: null }; this.ay = ''; this.modal = true; },
     get fichaBloqueada() { return (this.ficha.n_mediciones || 0) > 0; },
@@ -131,7 +128,7 @@ SIGT.modulos.indicadores = () => ({
     },
     cuerpoFicha(f) {
       return {
-        codigo: f.id ? f.codigo : '', nodo_id: f.nodo_id, responsable_id: f.responsable_id || null, cargadores: f.cargadores || [], nombre: f.nombre, objetivo: f.objetivo, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
+        codigo: f.id ? f.codigo : '', nodo_id: f.nodo_id, responsable_id: f.responsable_id || null, suplente_id: f.suplente_id || null, nombre: f.nombre, objetivo: f.objetivo, unidad: f.unidad, frecuencia: f.frecuencia, sentido: f.sentido, formula: f.formula,
         variables: f.variables.map(v => ({ clave: v.clave, etiqueta: v.etiqueta, ayuda: v.ayuda || '', unidad: v.unidad || '', opcional: !!v.opcional, defecto: Number(v.defecto || 0), negativo: !!v.negativo })),
         constantes: (f.constantes || []).map(c => ({ clave: c.clave, etiqueta: c.etiqueta, valor: Number(c.valor) })),
         decimales: Number(f.decimales ?? 2), fuente: f.fuente || '', notas: f.notas || '', nivel_optimo: f.nivel_optimo, limite: f.limite,
@@ -148,7 +145,7 @@ SIGT.modulos.indicadores = () => ({
         if (!id) nuevo = await this.api('/api/indicadores', { method: 'POST', body: this.cuerpoFicha(f) });
         else {
           if (this.puedeEditarFicha) await this.api(`/api/indicadores/${id}`, { method: 'PUT', body: this.cuerpoFicha(f) });
-          if (this.puedeAsignarFicha && this.asignacionCambio) await this.api(`/api/indicadores/${id}/asignacion`, { method: 'PUT', body: { nodo_id: f.nodo_id, responsable_id: f.responsable_id, cargadores: f.cargadores } });
+          if (this.puedeAsignarFicha && this.asignacionCambio) await this.api(`/api/indicadores/${id}/asignacion`, { method: 'PUT', body: { nodo_id: f.nodo_id, responsable_id: f.responsable_id, suplente_id: f.suplente_id || null } });
         }
         this.modal = false; await this.refrescarIndicadores();
         // En cascada: un indicador nuevo necesita su meta; si quien lo crea puede fijarla, se abre directamente en «Período y metas»
@@ -171,8 +168,12 @@ SIGT.modulos.indicadores = () => ({
 
     // Opciones de las listas desplegables de la ficha (ver js/combo.js)
     get opcionesNodos() { return this.areas.map(a => ({ valor: a.id, etiqueta: a.nombre, detalle: a.ruta !== a.nombre ? a.ruta : '', chip: NIVEL_ETIQUETA[a.nivel] || '', nivel: a.profundidad || 0 })); },
-    get opcionesResponsable() {
-      return this.opcionesOrdenadas.map(u => ({ valor: u.id, etiqueta: u.nombre + (u.yo ? ' (usted)' : ''), detalle: [u.rol, u.lejos ? 'otra área' : ''].filter(Boolean).join(' · '), tenue: u.lejos }));
+    // Responsable principal y suplente cargan datos: solo se ofrecen personas cuyo rol lo permite (y el suplente, otra distinta)
+    get opcionesResponsable() { return this.opcionesDeCarga(null); },
+    get opcionesSuplente() { return [{ valor: '', etiqueta: 'Sin suplente', tenue: true }, ...this.opcionesDeCarga(this.ficha.responsable_id)]; },
+    opcionesDeCarga(excepto) {
+      return this.opcionesOrdenadas.filter(u => u.puede_cargar && u.id !== excepto)
+        .map(u => ({ valor: u.id, etiqueta: u.nombre + (u.yo ? ' (usted)' : ''), detalle: [u.rol, u.lejos ? 'otra área' : ''].filter(Boolean).join(' · '), tenue: u.lejos }));
     },
     get opcionesNombres() { return this.sugerenciasPersonas.map(n => ({ valor: n, etiqueta: n })); },
     opcSeguimiento: [{ valor: 'proceso', etiqueta: 'Desempeño de proceso' }, { valor: 'objetivo', etiqueta: 'Objetivo organizacional' }, { valor: 'proveedor', etiqueta: 'Desempeño de proveedor externo' }],

@@ -150,13 +150,6 @@ class UsuarioUnidad(Base):
     unidad: Mapped[Unidad] = relationship(lazy="joined")
 
 
-class IndicadorCargador(Base):
-    """Quién carga el dato de un indicador (uno o varios)."""
-    __tablename__ = "indicador_cargadores"
-    indicador_id: Mapped[int] = mapped_column(ForeignKey("indicadores.id", ondelete="CASCADE"), primary_key=True)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), primary_key=True, index=True)
-
-
 class Indicador(Base):
     """Ficha técnica del indicador."""
     __tablename__ = "indicadores"
@@ -164,6 +157,7 @@ class Indicador(Base):
         CheckConstraint("sentido IN ('mayor', 'menor')", name="ck_indicadores_sentido"),
         CheckConstraint("seguimiento IN ('proceso', 'objetivo', 'proveedor')", name="ck_indicadores_seguimiento"),
         CheckConstraint("decimales BETWEEN 0 AND 6", name="ck_indicadores_decimales"),
+        CheckConstraint("suplente_id IS NULL OR suplente_id <> responsable_id", name="ck_indicadores_suplente"),
         CheckConstraint("frecuencia IN ('mensual', 'bimestral', 'trimestral', 'cuatrimestral', 'semestral', 'anual', 'eventual')",
                         name="ck_indicadores_frecuencia"),
     )
@@ -172,7 +166,8 @@ class Indicador(Base):
     nombre: Mapped[str] = mapped_column(String(150))
     objetivo: Mapped[str] = mapped_column(Text, default="")
     nodo_id: Mapped[int] = mapped_column(ForeignKey("unidades.id"), index=True)             # gerencia, departamento o jefatura dueña
-    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)  # el «dueño»: único que lo modifica
+    responsable_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)  # responsable principal: carga los datos
+    suplente_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), index=True)     # suplente / corresponsable: también carga
     unidad: Mapped[str] = mapped_column(String(20))        # %, días, TM, USD, cantidad
     frecuencia: Mapped[str] = mapped_column(String(20))    # mensual | trimestral | semestral
     sentido: Mapped[str] = mapped_column(String(10))       # mayor | menor  (mayor/menor es mejor)
@@ -201,10 +196,15 @@ class Indicador(Base):
     nivel_optimo_tope: Mapped[float | None] = mapped_column(Float)                    # otro extremo de la zona verde
     limite_tope: Mapped[float | None] = mapped_column(Float)                  # otro extremo de la zona amarilla
     nodo: Mapped[Unidad] = relationship(lazy="joined")
-    # responsable y cargadores NO se traen siempre (cada carga, panel o reporte arrastraba esas consultas): se piden explícitamente
+    # responsable y suplente NO se traen siempre (cada carga, panel o reporte arrastraba esas consultas): se piden explícitamente
     # (`indicadores.CON_ASIGNACION`) donde se muestran
-    responsable: Mapped[Usuario | None] = relationship()
-    cargadores: Mapped[list[Usuario]] = relationship(secondary="indicador_cargadores", order_by="Usuario.nombre")
+    responsable: Mapped[Usuario | None] = relationship(foreign_keys=[responsable_id])
+    suplente: Mapped[Usuario | None] = relationship(foreign_keys=[suplente_id])
+
+    @property
+    def cargadores(self) -> list[Usuario]:
+        """Quienes cargan los datos: el responsable principal y su suplente (nadie más)."""
+        return [x for x in (self.responsable, self.suplente) if x is not None]
 
     @property
     def precision(self) -> int:

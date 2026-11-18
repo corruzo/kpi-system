@@ -56,11 +56,10 @@ def indicador(i: Indicador, u: Usuario | None = None) -> dict:
          "gerencia": i.gerencia or "", "lider": i.lider or "", "resp_medicion": i.resp_medicion or "",
          "resp_registro": i.resp_registro or "", "resp_analisis": i.resp_analisis or "", "activo": i.activo}
     if u is not None:   # solo donde se muestra la asignación (el panel y los reportes no la necesitan: no se consulta)
-        d.update(responsable=i.responsable.nombre if i.responsable else None, cargadores=[x.id for x in i.cargadores],
-                 cargadores_info=[{"id": x.id, "nombre": x.nombre} for x in i.cargadores])
-        total = acceso.alcance_total(u)
-        d.update(soy_responsable=total or acceso.es_responsable(u, i), soy_cargador=acceso.puede_cargar(u, i),
-                 en_ambito=acceso.en_ambito(u, i))
+        d.update(responsable=i.responsable.nombre if i.responsable else None, suplente_id=i.suplente_id,
+                 suplente=i.suplente.nombre if i.suplente else None)
+        d.update(soy_responsable=acceso.es_responsable(u, i), soy_suplente=acceso.es_suplente(u, i), soy_cargador=acceso.puede_cargar(u, i),
+                 en_ambito=acceso.en_ambito(u, i), puede_modificar=acceso.puede_modificar(u, i))
     return d
 
 

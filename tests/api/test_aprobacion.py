@@ -1,4 +1,5 @@
-"""Aprobación jerárquica: el revisor es el superior más cercano; el Coordinador SGC es respaldo; nadie aprueba lo propio."""
+"""Aprobación: quien tenga el permiso en su rol Y el indicador en su ámbito (hacia abajo); el Coordinador SGC es respaldo;
+nadie aprueba lo propio y nadie aprueba fuera de su línea de mando."""
 import pytest
 from conftest import CLAVE_ADMIN, arbol, crear_indicador, entrar, id_de_usuario, periodo_actual, persona
 
@@ -23,21 +24,27 @@ def _en_bandeja(client, usuario, medicion_id):
 
 @pytest.fixture()
 def casa(client):
-    """Gerencia → departamento → jefatura, con gerente (gerencia), jefe (jefatura), analista y Coordinador SGC."""
+    """Gerencia → departamento → jefatura, con gerente (gerencia), jefe (jefatura), analista, Coordinador SGC y un jefe lateral
+    (con el mismo permiso de aprobar, pero en OTRA rama del árbol)."""
     a = arbol(client)
+    otra = arbol(client)
     p = {"gerente": persona(client, "Gerente", ambito=[a["gerencia"]]), "jefe": persona(client, "Jefe", ambito=[a["jefatura"]]),
-         "analista": persona(client, "Analista", miembro=[a["jefatura"]]), "coord": persona(client, "coordinador")}
+         "analista": persona(client, "Analista", miembro=[a["jefatura"]]), "coord": persona(client, "coordinador"),
+         "lateral": persona(client, "Jefe", ambito=[otra["jefatura"]])}
     entrar(client, "admin", CLAVE_ADMIN)
     uid = {k: id_de_usuario(client, v) for k, v in p.items()}
-    ind = crear_indicador(client, a["jefatura"], responsable_id=uid["jefe"], cargadores=[uid["analista"], uid["jefe"]])
+    ind = crear_indicador(client, a["jefatura"], responsable_id=uid["jefe"], suplente_id=uid["analista"])
     return {"a": a, "p": p, "uid": uid, "ind": ind}
 
 
-def test_aprueba_el_superior_directo_y_no_el_de_mas_arriba(client, casa):
+def test_aprueba_quien_tiene_el_permiso_y_el_indicador_en_su_ambito_no_el_lateral(client, casa):
     p = casa["p"]
     m = _cargar(client, p["analista"], casa["ind"])
-    assert _en_bandeja(client, p["jefe"], m) and not _en_bandeja(client, p["gerente"], m) and _en_bandeja(client, p["coord"], m)
-    assert _aprobar(client, p["gerente"], m).status_code == 403                 # el jefe es el superior directo
+    # permiso + ámbito que cubre el indicador (jefe y gerente: hacia abajo en su línea de mando) y el Coordinador SGC
+    assert _en_bandeja(client, p["jefe"], m) and _en_bandeja(client, p["gerente"], m) and _en_bandeja(client, p["coord"], m)
+    # el mismo permiso en otra rama del árbol no alcanza: ni lo ve en su bandeja ni puede aprobarlo
+    assert not _en_bandeja(client, p["lateral"], m)
+    assert _aprobar(client, p["lateral"], m).status_code in (403, 404)
     assert _aprobar(client, p["analista"], m).status_code == 403                # ni siquiera tiene el permiso
     r = _aprobar(client, p["jefe"], m)
     assert r.status_code == 200 and r.json()["estado"] == "aprobado"
@@ -53,17 +60,16 @@ def test_el_coordinador_sgc_puede_aprobar_siempre_como_respaldo(client, casa):
     assert b["rol"] == "Coordinador SGC"                                         # queda en bitácora quién y con qué rol
 
 
-def test_escala_al_nivel_siguiente_si_no_hay_aprobador_en_el_nivel_cercano(client):
-    a = arbol(client)                              # el jefe solo existe en el departamento; la jefatura no tiene aprobador
+def test_el_aprobador_no_tiene_que_ser_el_nivel_mas_cercano_basta_con_cubrir_el_indicador(client):
+    a = arbol(client)                              # el jefe solo existe en el departamento; la jefatura no tiene aprobador propio
     jefe_depto = persona(client, "Jefe", ambito=[a["depto"]])
     gerente = persona(client, "Gerente", ambito=[a["gerencia"]])
     analista = persona(client, "Analista", miembro=[a["jefatura"]])
     entrar(client, "admin", CLAVE_ADMIN)
-    ind = crear_indicador(client, a["jefatura"], responsable_id=id_de_usuario(client, jefe_depto), cargadores=[id_de_usuario(client, analista)])
+    ind = crear_indicador(client, a["jefatura"], responsable_id=id_de_usuario(client, jefe_depto), suplente_id=id_de_usuario(client, analista))
     m = _cargar(client, analista, ind)
-    assert _en_bandeja(client, jefe_depto, m) and not _en_bandeja(client, gerente, m)
-    assert _aprobar(client, gerente, m).status_code == 403
-    assert _aprobar(client, jefe_depto, m).status_code == 200
+    assert _en_bandeja(client, jefe_depto, m) and _en_bandeja(client, gerente, m)    # los dos cubren el nodo: ambos pueden
+    assert _aprobar(client, gerente, m).status_code == 200
 
 
 def test_si_hay_varios_aprobadores_en_el_mismo_nivel_cualquiera_aprueba(client):
@@ -71,18 +77,18 @@ def test_si_hay_varios_aprobadores_en_el_mismo_nivel_cualquiera_aprueba(client):
     j1, j2 = persona(client, "Jefe", ambito=[a["jefatura"]]), persona(client, "Jefe", ambito=[a["jefatura"]])
     analista = persona(client, "Analista", miembro=[a["jefatura"]])
     entrar(client, "admin", CLAVE_ADMIN)
-    ind = crear_indicador(client, a["jefatura"], responsable_id=id_de_usuario(client, j1), cargadores=[id_de_usuario(client, analista)])
+    ind = crear_indicador(client, a["jefatura"], responsable_id=id_de_usuario(client, j1), suplente_id=id_de_usuario(client, analista))
     m = _cargar(client, analista, ind)
     assert _en_bandeja(client, j1, m) and _en_bandeja(client, j2, m)
     assert _aprobar(client, j2, m).status_code == 200
 
 
-def test_nadie_aprueba_una_carga_propia_y_el_aprobador_se_busca_hacia_arriba(client, casa):
+def test_nadie_aprueba_una_carga_propia_y_otro_aprobador_de_su_linea_si_puede(client, casa):
     p = casa["p"]
     m = _cargar(client, p["jefe"], casa["ind"])                                   # carga el propio jefe
     assert _aprobar(client, p["jefe"], m).status_code == 403                       # segregación de funciones
     assert not _en_bandeja(client, p["jefe"], m)
-    assert _en_bandeja(client, p["gerente"], m)                                    # sube un nivel: el gerente
+    assert _en_bandeja(client, p["gerente"], m) and not _en_bandeja(client, p["lateral"], m)   # otro aprobador de su línea, no el lateral
     assert _aprobar(client, p["gerente"], m).status_code == 200
 
 
@@ -101,14 +107,14 @@ def test_autor_gerente_general_aprueba_el_coordinador(client):
     gg = persona(client, "Gerente general", raiz=True)
     coord = persona(client, "coordinador")
     entrar(client, "admin", CLAVE_ADMIN)
-    ind = crear_indicador(client, nodo, responsable_id=id_de_usuario(client, gg), cargadores=[id_de_usuario(client, gg)])
+    ind = crear_indicador(client, nodo, responsable_id=id_de_usuario(client, gg))
     m = _cargar(client, gg, ind)
     assert _en_bandeja(client, coord, m)
     assert _aprobar(client, gg, m).status_code == 403
     assert _aprobar(client, coord, m).status_code == 200
 
 
-def test_devolver_exige_motivo_y_reabrir_sigue_la_misma_regla(client, casa):
+def test_devolver_exige_motivo_y_reabrir_sigue_la_misma_regla_de_permiso_y_ambito(client, casa):
     p = casa["p"]
     m = _cargar(client, p["analista"], casa["ind"])
     entrar(client, p["jefe"])
@@ -119,8 +125,8 @@ def test_devolver_exige_motivo_y_reabrir_sigue_la_misma_regla(client, casa):
     assert client.post("/api/mediciones", json={"indicador_id": casa["ind"]["id"], "periodo": periodo_actual(client, casa["ind"]["id"]),
                                                 "valores": {"dias": 1, "tickets": 1}}).status_code == 201
     assert _aprobar(client, p["jefe"], m).status_code == 200
-    entrar(client, p["gerente"])
-    assert client.post(f"/api/mediciones/{m}/reabrir", json={"accion": "observar", "nota": "Se detectó un error"}).status_code == 403
+    entrar(client, p["lateral"])
+    assert client.post(f"/api/mediciones/{m}/reabrir", json={"accion": "observar", "nota": "Se detectó un error"}).status_code in (403, 404)
     entrar(client, p["jefe"])
     r = client.post(f"/api/mediciones/{m}/reabrir", json={"accion": "observar", "nota": "Se detectó un error"})
     assert r.status_code == 200 and r.json()["estado"] == "observado"
@@ -135,7 +141,9 @@ def test_la_bandeja_y_su_resumen_cuentan_solo_lo_que_le_toca_a_cada_quien(client
     entrar(client, p["jefe"])
     assert client.get("/api/bandeja/resumen").json()["total"] >= 1
     assert client.get("/api/arranque").json()["bandeja_total"] == client.get("/api/bandeja/resumen").json()["total"]
-    entrar(client, p["gerente"])
+    entrar(client, p["gerente"])                                                 # cubre el indicador: también le toca
+    assert m in {x["id"] for x in client.get("/api/bandeja?limite=500").json()}
+    entrar(client, p["lateral"])                                                 # misma función, otra rama: no le toca nada
     assert m not in {x["id"] for x in client.get("/api/bandeja?limite=500").json()}
     assert client.get("/api/bandeja/resumen").json()["total"] == 0
-    assert client.get("/api/mediciones?estado=enviado").status_code == 200       # (ve la carga en el historial de su ámbito, pero no es suya de aprobar)
+    assert client.get("/api/mediciones?estado=enviado").status_code == 200

@@ -120,8 +120,8 @@ def confirmar(db: Session, admin: Usuario, datos) -> dict:
             indicadores.validar_ficha(db, item)
         except Invalido as e:
             raise Invalido(f"{item.codigo}: {e.detalle}") from None
-        # llegan SIN responsable ni cargadores: el Coordinador SGC los asigna después en «Personas» o en la ficha
-        ind = Indicador(**{**indicadores.campos_de_ficha(item), "responsable_id": None, "activo": True})
+        # llegan SIN responsable ni suplente: el Coordinador SGC los asigna después en «Personas» o en la ficha
+        ind = Indicador(**{**indicadores.campos_de_ficha(item), "responsable_id": None, "suplente_id": None, "activo": True})
         db.add(ind)
         db.flush()
         periodos = _importar_mediciones(db, admin, ind, item, datos.archivo)

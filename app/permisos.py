@@ -15,7 +15,7 @@ VER, MODIFICAR = "ver", "modificar"
 ORDEN = {VER: 1, MODIFICAR: 2}
 
 A_VISIBLES = "Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados."
-A_PROPIOS = "Solo los indicadores de los que es responsable."
+A_PROPIOS = "Los indicadores de su ámbito (su nodo y lo que cuelga de él). Ser responsable o suplente no da este permiso: solo carga."
 A_DEBAJO = "A sí mismo o a personas que están debajo de él en la estructura."
 A_GLOBAL = "Toda la empresa."
 
@@ -46,7 +46,7 @@ CATALOGO: tuple[Permiso, ...] = (
     _p("indicadores.ver", "Indicadores", "Ver indicadores", "Consultar la lista de indicadores y su ficha técnica.", A_VISIBLES, _V,
        implica=("ejercicios.ver",)),
     _p("indicadores.crear", "Indicadores", "Crear indicadores",
-       "Crear fichas nuevas (el código lo asigna el sistema) y definir su nodo, responsable y quienes cargan.", A_DEBAJO,
+       "Crear fichas nuevas (el código lo asigna el sistema) y definir su nodo, responsable principal y suplente.", A_DEBAJO,
        implica=("indicadores.ver",)),
     _p("indicadores.editar", "Indicadores", "Editar indicadores", "Cambiar la ficha: fórmula, variables, semáforo y textos.", A_PROPIOS,
        implica=("indicadores.ver",)),
@@ -54,8 +54,8 @@ CATALOGO: tuple[Permiso, ...] = (
        A_PROPIOS, implica=("indicadores.ver",)),
     _p("indicadores.eliminar", "Indicadores", "Eliminar indicadores", "Borrar definitivamente un indicador que no tiene cargas.",
        A_PROPIOS, implica=("indicadores.ver",)),
-    _p("indicadores.asignar", "Indicadores", "Asignar responsable y cargadores",
-       "Cambiar el nodo, el responsable y las personas que cargan un indicador de su ámbito o propio.", A_DEBAJO,
+    _p("indicadores.asignar", "Indicadores", "Asignar responsable y suplente",
+       "Cambiar el nodo, el responsable principal y el suplente de un indicador de su ámbito.", A_DEBAJO,
        implica=("indicadores.ver",)),
     _p("formulas.probar", "Indicadores", "Validar y probar fórmulas", "Usar el validador y el probador de fórmulas de la ficha.",
        "No accede a datos."),
@@ -63,9 +63,9 @@ CATALOGO: tuple[Permiso, ...] = (
     _p("cargas.ver", "Cargas", "Ver cargas", "Consultar el historial de cargas, sus períodos y su estado.", A_VISIBLES, _V,
        implica=("indicadores.ver",)),
     _p("cargas.cargar", "Cargas", "Cargar datos", "Digitar el dato real de cada período y corregir las cargas devueltas.",
-       "Solo los indicadores en los que es cargador.", implica=("cargas.ver",)),
+       "Solo los indicadores en los que es responsable principal o suplente.", implica=("cargas.ver",)),
     _p("cargas.reabrir", "Cargas", "Reabrir cargas aprobadas", "Devolver a quien cargó una carga ya aprobada, con su motivo.",
-       "Las cargas que le corresponde aprobar.", implica=("cargas.ver",)),
+       "Las cargas que le corresponde aprobar (ver «Aprobar o devolver cargas»).", implica=("cargas.ver",)),
     _p("periodos.justificar", "Cargas", "Justificar períodos",
        "Marcar un período como «parada de planta», «empezó a medirse después» o «no aplica», con su motivo, para que no bloquee el cierre del ejercicio.",
        "Los indicadores de su ámbito (su nodo y lo que cuelga de él).", implica=("cargas.ver",)),
@@ -73,7 +73,7 @@ CATALOGO: tuple[Permiso, ...] = (
     # ------------------------------------------------------------ Aprobación
     _p("cargas.aprobar", "Aprobación", "Aprobar o devolver cargas",
        "Revisar las cargas enviadas: aprobarlas o devolverlas con observaciones. Nadie aprueba una carga propia.",
-       "Las cargas de su ámbito, como superior más cercano de quien cargó (el Coordinador SGC puede aprobar siempre).",
+       "Las cargas de los indicadores de su ámbito, hacia abajo en su línea de mando (el Coordinador SGC puede aprobar siempre).",
        implica=("cargas.ver",)),
     # ------------------------------------------------------------ Metas
     _p("metas.ver", "Metas", "Ver metas", "Consultar la meta de cada indicador por período.", A_VISIBLES, _V, implica=("indicadores.ver",)),

@@ -1,8 +1,8 @@
 /* Textos de ayuda (contenido editable sin tocar la lógica). */
 const AYUDA = {
   codigo: ['Identificación NC-16', 'El sistema asigna el código solo (prefijo del área + consecutivo, p. ej. <b>CAL-03</b>): no se escribe a mano, así nunca se repite. Es el identificador del indicador en su ficha NC-16, en las cargas, los reportes y la bitácora, y no se puede cambiar después.'],
-  responsable: ['Responsable', 'El «dueño» del indicador: la única persona que puede modificar su ficha, archivarlo o eliminarlo. Quienes están por encima lo ven (por la estructura) pero no lo modifican. Al crearlo, solo puede asignarlo a usted mismo o a personas que están debajo de usted.'],
-  cargadores: ['Quienes cargan el dato', 'Una o varias personas que digitan el dato real de cada período. Por defecto, el responsable es también cargador. Pueden ser un analista (que carga) mientras el jefe es el responsable, o varios analistas sobre el mismo indicador. Su rol debe permitir cargar datos.'],
+  responsable: ['Responsable principal', 'La persona que carga el dato real de cada período. No edita la ficha: crear, editar, archivar y asignar es de calidad (quien tenga ese permiso). Solo puede asignarlo a usted mismo o a personas que están debajo de usted.'],
+  suplente: ['Suplente / corresponsable', 'Segunda persona con permiso de cargar los datos de este indicador: cubre al responsable principal cuando falta. Tampoco edita la ficha. Es opcional y debe ser distinta del responsable.'],
   nombre: ['Nombre', 'Nombre completo y claro tal como aparece en el Sistema de Gestión de la Calidad. Ej.: <i>Cumplimiento de solicitudes de soporte</i>.'],
   objetivo: ['Objetivo del indicador', 'Lo que se solicita aquí es el objetivo de ESTE indicador: qué decisión o mejora busca apoyar su medición (no el objetivo del proceso, que va más abajo). Se muestra a quien carga el dato.'],
   area: ['Nodo de la estructura', 'Gerencia, departamento o jefatura a la que pertenece el indicador. Quienes tienen ese nodo (o uno superior) en su ámbito lo ven.'],

@@ -67,7 +67,7 @@ def indicadores_de(usuario_id: IdRuta, db: Session = Depends(get_db), u: Usuario
 @router.put("/usuarios/{usuario_id}/indicadores")
 def asignar_indicadores(usuario_id: IdRuta, datos: schemas.IndicadoresDePersonaIn, db: Session = Depends(get_db),
                         u: Usuario = Depends(asigna), _=Depends(escritura)):
-    return personas.asignar_indicadores(db, u, usuario_id, datos.responsable, datos.cargador)
+    return personas.asignar_indicadores(db, u, usuario_id, datos.responsable, datos.suplente)
 
 
 # ---------------------------------------------------------------- cuentas y soporte (técnico)

@@ -20,8 +20,8 @@ def dos_analistas(client):
     area = crear_area(client)
     a, b = crear_usuario(client, "jefe", area), crear_usuario(client, "jefe", area)
     dev = id_de_usuario(client, "admin")   # responsable de ambos; cada analista solo CARGA el suyo
-    ind_a = crear_indicador(client, area, responsable_id=dev, cargadores=[id_de_usuario(client, a)], nombre="Indicador SECRETO de A")
-    ind_b = crear_indicador(client, area, responsable_id=dev, cargadores=[id_de_usuario(client, b)], nombre="Indicador SECRETO de B")
+    ind_a = crear_indicador(client, area, responsable_id=dev, suplente_id=id_de_usuario(client, a), nombre="Indicador SECRETO de A")
+    ind_b = crear_indicador(client, area, responsable_id=dev, suplente_id=id_de_usuario(client, b), nombre="Indicador SECRETO de B")
     for usuario, ind in ((a, ind_a), (b, ind_b)):
         entrar(client, usuario)
         r = client.post("/api/mediciones", json={"indicador_id": ind["id"], "periodo": periodo_actual(client, ind["id"]),

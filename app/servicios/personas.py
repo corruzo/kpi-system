@@ -6,7 +6,7 @@
   el rol Desarrollador solo se da o se quita con el procedimiento explícito `designar_desarrollador`.
 - El sistema nunca queda sin un Desarrollador activo.
 """
-from sqlalchemy import func, select, union
+from sqlalchemy import func, or_, select, union
 from sqlalchemy.orm import Session
 
 from .. import permisos as cat
@@ -16,7 +16,6 @@ from ..models import (
     Bitacora,
     Ejercicio,
     Indicador,
-    IndicadorCargador,
     Medicion,
     Meta,
     NotaAuditoria,
@@ -58,7 +57,7 @@ def obtener(db: Session, u: Usuario, usuario_id: int) -> Usuario:
 
 
 def detalles(db: Session, personas: list[Usuario]) -> dict[int, dict]:
-    """{usuario_id: {rol, clave, ambito, miembro, responsable_de, cargador_de}} de una página de personas (4 consultas)."""
+    """{usuario_id: {rol, clave, ambito, miembro, responsable_de, suplente_de}} de una página de personas (4 consultas)."""
     ids = [p.id for p in personas]
     if not ids:
         return {}
@@ -69,15 +68,15 @@ def detalles(db: Session, personas: list[Usuario]) -> dict[int, dict]:
         enlaces.setdefault(uid, {"ambito": [], "miembro": []})[tipo].append(nodo)
     resp = dict(db.execute(select(Indicador.responsable_id, func.count()).where(Indicador.responsable_id.in_(ids))
                            .group_by(Indicador.responsable_id)).all())
-    carg = dict(db.execute(select(IndicadorCargador.usuario_id, func.count()).where(IndicadorCargador.usuario_id.in_(ids))
-                           .group_by(IndicadorCargador.usuario_id)).all())
+    supl = dict(db.execute(select(Indicador.suplente_id, func.count()).where(Indicador.suplente_id.in_(ids))
+                           .group_by(Indicador.suplente_id)).all())
     salida = {}
     for p in personas:
         rol = roles_.get(p.rol_id)
         e = enlaces.get(p.id, {"ambito": [], "miembro": []})
         salida[p.id] = {"rol_id": p.rol_id, "rol": rol.nombre if rol else None, "rol_clave": rol.clave if rol else None,
                         "pendiente": rol is None, "ambito_raiz": bool(p.ambito_raiz), "ambito": sorted(e["ambito"]),
-                        "miembro": sorted(e["miembro"]), "responsable_de": resp.get(p.id, 0), "cargador_de": carg.get(p.id, 0)}
+                        "miembro": sorted(e["miembro"]), "responsable_de": resp.get(p.id, 0), "suplente_de": supl.get(p.id, 0)}
     return salida
 
 
@@ -96,7 +95,7 @@ def opciones(db: Session, u: Usuario) -> list[dict]:
     for uid, nodo, tipo in (db.execute(select(UsuarioUnidad.usuario_id, UsuarioUnidad.unidad_id, UsuarioUnidad.tipo)
                                        .where(UsuarioUnidad.usuario_id.in_(ids))) if ids else []):
         posicion.setdefault(uid, {"ambito": [], "miembro": []})[tipo].append(nodo)
-    # `ambito` / `miembro` permiten proponer solos al responsable y a quienes cargan según el nodo elegido (ver interfaz)
+    # `ambito` / `miembro` permiten proponer solos al responsable principal y al suplente según el nodo elegido (ver interfaz)
     return [{"id": p.id, "nombre": p.nombre, "rol": roles_.get(p.rol_id), "puede_cargar": p.rol_id in cargan, "yo": p.id == u.id,
              "ambito": posicion.get(p.id, {}).get("ambito", []), "miembro": posicion.get(p.id, {}).get("miembro", [])}
             for p in personas]
@@ -117,21 +116,17 @@ def _es_desarrollador(db: Session, persona: Usuario) -> bool:
 
 
 def _asignaciones(db: Session, persona: Usuario) -> tuple[int, int]:
-    """(indicadores de los que es responsable, indicadores activos en los que es el ÚNICO cargador)."""
+    """(indicadores de los que es responsable principal, indicadores activos en los que es suplente)."""
     responsable = db.scalar(select(func.count()).select_from(Indicador).where(Indicador.responsable_id == persona.id)) or 0
-    otros = select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id != persona.id)
-    unico = db.scalar(select(func.count()).select_from(IndicadorCargador).join(Indicador, Indicador.id == IndicadorCargador.indicador_id)
-                      .where(IndicadorCargador.usuario_id == persona.id, Indicador.activo.is_(True),
-                             IndicadorCargador.indicador_id.not_in(otros))) or 0
-    return responsable, unico
+    suplente = db.scalar(select(func.count()).select_from(Indicador).where(Indicador.suplente_id == persona.id, Indicador.activo.is_(True))) or 0
+    return responsable, suplente
 
 
 def _exigir_sin_asignaciones(db: Session, persona: Usuario, accion: str) -> None:
-    responsable, unico = _asignaciones(db, persona)
-    if responsable or unico:
-        partes = [t for n, t in ((responsable, f"es responsable de {responsable} indicador(es)"),
-                                 (unico, f"es la única persona que carga {unico} indicador(es)")) if n]
-        raise Conflicto(f"«{persona.nombre}» {' y '.join(partes)}: reasígnelos a otra persona antes de {accion}.")
+    """El responsable principal no se abandona: sus indicadores se traspasan antes. Ser suplente no lo impide."""
+    responsable, _ = _asignaciones(db, persona)
+    if responsable:
+        raise Conflicto(f"«{persona.nombre}» es responsable de {responsable} indicador(es): reasígnelos a otra persona antes de {accion}.")
 
 
 def crear_cuenta(db: Session, dev: Usuario, datos) -> Usuario:
@@ -200,9 +195,8 @@ def eliminar_cuenta(db: Session, dev: Usuario, usuario_id: int) -> None:
         raise Invalido("No puede eliminar su propia cuenta.")
     if _es_desarrollador(db, p) and p.activo and not _desarrolladores_activos(db, salvo=p.id):
         raise Conflicto("El sistema no puede quedar sin un Desarrollador activo.")
-    if db.scalar(select(Indicador.id).where(Indicador.responsable_id == p.id).limit(1)) or \
-            db.scalar(select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id == p.id).limit(1)):
-        raise Conflicto("Tiene indicadores asignados (como responsable o cargador): reasígnelos antes de eliminarlo.")
+    if db.scalar(select(Indicador.id).where(or_(Indicador.responsable_id == p.id, Indicador.suplente_id == p.id)).limit(1)):
+        raise Conflicto("Tiene indicadores asignados (como responsable o suplente): reasígnelos antes de eliminarlo.")
     if p.id in ids_con_historial(db, [p.id]):
         raise Conflicto("Este usuario tiene actividad registrada (ingresos, cargas o revisiones) y no puede eliminarse sin perder la "
                         "trazabilidad. Inhabilítelo: no podrá ingresar y su historial se conserva.")
@@ -284,7 +278,7 @@ def asignar(db: Session, u: Usuario, usuario_id: int, rol_id: int | None, raiz: 
             if ajenos:
                 raise Prohibido("No puede dar un rol con permisos que usted no tiene: " + ", ".join(ajenos[:4]) + ".")
         responsable, _ = _asignaciones(db, p)
-        carga = db.scalar(select(func.count()).select_from(IndicadorCargador).where(IndicadorCargador.usuario_id == p.id)) or 0
+        carga = db.scalar(select(func.count()).select_from(Indicador).where(or_(Indicador.responsable_id == p.id, Indicador.suplente_id == p.id))) or 0
         if rol is None and (responsable or carga):
             raise Conflicto(f"«{p.nombre}» tiene indicadores asignados: reasígnelos antes de dejarlo sin rol.")
         if rol is not None and carga and not (rol.clave or "cargas.cargar" in roles.permisos_de(rol)):
@@ -315,43 +309,50 @@ def indicadores_de(db: Session, u: Usuario, usuario_id: int) -> dict:
     def item(i: Indicador) -> dict:
         return {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "nodo": i.nodo.nombre, "activo": i.activo}
     resp = db.scalars(select(Indicador).where(Indicador.responsable_id == p.id).order_by(Indicador.codigo)).all()
-    carg = db.scalars(select(Indicador).join(IndicadorCargador, IndicadorCargador.indicador_id == Indicador.id)
-                      .where(IndicadorCargador.usuario_id == p.id).order_by(Indicador.codigo)).all()
-    return {"responsable": [item(i) for i in resp], "cargador": [item(i) for i in carg]}
+    supl = db.scalars(select(Indicador).where(Indicador.suplente_id == p.id).order_by(Indicador.codigo)).all()
+    return {"responsable": [item(i) for i in resp], "suplente": [item(i) for i in supl]}
 
 
-def asignar_indicadores(db: Session, u: Usuario, usuario_id: int, responsable: list[int], cargador: list[int]) -> dict:
-    """Deja a la persona como responsable y como cargador exactamente de los indicadores indicados. La responsabilidad
-    no se «quita»: se traspasa asignándosela a otra persona; un indicador no puede quedar sin nadie que lo cargue."""
+def asignar_indicadores(db: Session, u: Usuario, usuario_id: int, responsable: list[int], suplente: list[int]) -> dict:
+    """Deja a la persona como responsable principal y como suplente exactamente de los indicadores indicados. Cada indicador
+    tiene un solo responsable y un solo suplente: asignarla ocupa ese puesto (lo traspasa). La responsabilidad no se «quita»:
+    se traspasa asignándosela a otra persona. Solo sobre indicadores del ámbito de quien lo hace."""
     p = _exigir_asignable(db, u, usuario_id)
     if not p.activo or not p.rol_id:
         raise Invalido("Asigne primero un rol a la persona (y verifique que su cuenta esté activa).")
     rol = db.get(Rol, p.rol_id)
-    responsable, cargador = set(responsable), set(cargador)
-    pedidos = responsable | cargador
+    responsable, suplente = set(responsable), set(suplente)
+    if responsable & suplente:
+        raise Invalido("Una persona no puede ser a la vez responsable y suplente del mismo indicador.")
+    pedidos = responsable | suplente
     inds = {i.id: i for i in db.scalars(select(Indicador).where(Indicador.id.in_(pedidos)))} if pedidos else {}
     if len(inds) != len(pedidos):
         raise Invalido("Alguno de los indicadores indicados no existe.")
-    if cargador and not (rol.clave or "cargas.cargar" in roles.permisos_de(rol)):
-        raise Invalido(f"El rol «{rol.nombre}» no permite cargar datos: no puede quedar como cargador.")
+    if pedidos and not (rol.clave or "cargas.cargar" in roles.permisos_de(rol)):
+        raise Invalido(f"El rol «{rol.nombre}» no permite cargar datos: no puede quedar como responsable ni suplente.")
     actuales_resp = set(db.scalars(select(Indicador.id).where(Indicador.responsable_id == p.id)))
-    actuales_carg = set(db.scalars(select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id == p.id)))
+    actuales_sup = set(db.scalars(select(Indicador.id).where(Indicador.suplente_id == p.id)))
     if actuales_resp - responsable:
         codigos = list(db.scalars(select(Indicador.codigo).where(Indicador.id.in_(actuales_resp - responsable)).order_by(Indicador.codigo)))
         raise Conflicto("La responsabilidad no se quita, se traspasa: asigne " + ", ".join(codigos[:6]) + " a otra persona.")
-    cambios = {"responsable_de": [], "cargador_de": [], "deja_de_cargar": []}
+    cambios = {"responsable_de": [], "suplente_de": [], "deja_de_ser_suplente": []}
     for iid in sorted(responsable - actuales_resp):
-        inds[iid].responsable_id = p.id
-        cambios["responsable_de"].append(inds[iid].codigo)
-    for iid in sorted(cargador - actuales_carg):
-        db.add(IndicadorCargador(indicador_id=iid, usuario_id=p.id))
-        cambios["cargador_de"].append(inds[iid].codigo)
-    for iid in sorted(actuales_carg - cargador):
+        ind = inds[iid]
+        acceso.exigir_modificable(u, ind)
+        if ind.suplente_id == p.id:
+            ind.suplente_id = None
+        ind.responsable_id = p.id
+        cambios["responsable_de"].append(ind.codigo)
+    for iid in sorted(suplente - actuales_sup):
+        ind = inds[iid]
+        acceso.exigir_modificable(u, ind)
+        ind.suplente_id = p.id
+        cambios["suplente_de"].append(ind.codigo)
+    for iid in sorted(actuales_sup - suplente - responsable):
         ind = db.get(Indicador, iid)
-        if len(ind.cargadores) <= 1:
-            raise Conflicto(f"{ind.codigo} quedaría sin nadie que lo cargue: asígnele antes otro cargador.")
-        db.execute(IndicadorCargador.__table__.delete().where(IndicadorCargador.indicador_id == iid, IndicadorCargador.usuario_id == p.id))
-        cambios["deja_de_cargar"].append(ind.codigo)
+        acceso.exigir_modificable(u, ind)
+        ind.suplente_id = None
+        cambios["deja_de_ser_suplente"].append(ind.codigo)
     cambios = {k: v for k, v in cambios.items() if v}
     if cambios:
         auditoria.registrar(db, u, "INDICADORES_ASIGNADOS", "usuario", p.id, {"username": p.username, **cambios})
@@ -382,18 +383,19 @@ def alcance(db: Session, u: Usuario, usuario_id: int, propuesta: dict | None = N
     nodos = estructura.todas(db)
     rutas_ambito = [r for _, r in ctx.ambito]
     visibles = list(db.scalars(acceso.indicadores_visibles(select(Indicador).order_by(Indicador.codigo), sujeto)))
-    a_cargo = set(db.scalars(select(IndicadorCargador.indicador_id).where(IndicadorCargador.usuario_id == p.id)))
-
     def motivo(i: Indicador) -> str:
         if i.responsable_id == p.id:
             return "responsable"
-        if i.id in a_cargo:
-            return "cargador"
+        if i.suplente_id == p.id:
+            return "suplente"
         return "alcance global" if ctx.global_ else "ámbito"
+
+    def en_su_ambito(i: Indicador) -> bool:
+        return ctx.global_ or acceso.dentro(i.nodo.ruta, rutas_ambito)
     return {"usuario": p.nombre, "rol": ctx.rol or None, "pendiente": not ctx.rol, "global": ctx.global_,
             "resumen": cat.resumen(ctx.permisos) if ctx.rol else ["Cuenta pendiente de asignación: no accede a nada."],
             "nodos": [{"id": n.id, "nombre": n.nombre, "nivel": n.nivel} for n in nodos if ctx.global_ or acceso.dentro(n.ruta, rutas_ambito)],
-            "total": len(visibles), "modifica": sum(1 for i in visibles if i.responsable_id == p.id or ctx.total),
-            "carga": sum(1 for i in visibles if i.activo and (i.id in a_cargo or ctx.total)),
+            "total": len(visibles), "modifica": sum(1 for i in visibles if ctx.total or ("indicadores.editar" in ctx.permisos and en_su_ambito(i))),
+            "carga": sum(1 for i in visibles if i.activo and (i.responsable_id == p.id or i.suplente_id == p.id or ctx.total)),
             "indicadores": [{"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "nodo": i.nodo.nombre, "motivo": motivo(i)}
                             for i in visibles[:300]]}

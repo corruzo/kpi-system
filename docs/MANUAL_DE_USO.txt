@@ -41,13 +41,14 @@ Cada año de gestión (ejercicio fiscal) se sigue este flujo:
     1. Estructura y personas   El Desarrollador crea las cuentas. El Coordinador SGC arma la
                                estructura (gerencias, departamentos, jefaturas), define los roles
                                y asigna a cada persona su rol, su posición e indicadores.
-    2. Indicadores             Se crea la ficha de cada indicador, con su nodo, su responsable y
-                               quienes lo cargan.
+    2. Indicadores             Calidad crea la ficha de cada indicador, con su nodo, su responsable
+                               principal y su suplente (los dos cargan).
     3. Período fiscal          Se abre el año (octubre a septiembre, configurable).
     4. Meta                    Se fija cuánto se espera lograr en cada período.
-    5. Carga mensual           El cargador digita el dato real; el sistema calcula el resultado,
+    5. Carga mensual           El responsable (o el suplente) digita el dato real; el sistema calcula el resultado,
                                el semáforo y lo compara con la meta.
-    6. Aprobación              Su superior directo lo aprueba o lo devuelve con observaciones.
+    6. Aprobación              Quien tiene el permiso de aprobar (calidad) y el indicador en su ámbito
+                               lo aprueba o lo devuelve con observaciones.
     7. Cierre del año          Se verifica, se cierra (queda en solo lectura) y se abre el siguiente.
 
 Todo cambio importante queda en una bitácora que nadie puede alterar.
@@ -65,9 +66,9 @@ Todo cambio importante queda en una bitácora que nadie puede alterar.
    visibilidad, pero la deja «debajo» de quien tiene ese nodo en su ámbito. Sin ámbito, la persona solo
    ve lo que se le asignó.
  * Indicador: ficha técnica (fórmula, variables, frecuencia, semáforo) que cuelga de un nodo de CUALQUIER
-   nivel (los propios de un gerente cuelgan de su gerencia). Tiene un RESPONSABLE (el «dueño»: único que
-   modifica la ficha) y uno o varios CARGADORES (quienes digitan el dato). Por defecto el responsable
-   también carga.
+   nivel (los propios de un gerente cuelgan de su gerencia). Tiene un RESPONSABLE PRINCIPAL y un SUPLENTE
+   (corresponsable, opcional): las dos personas que digitan el dato. Ninguno de los dos edita la ficha:
+   crear, editar, archivar y asignar indicadores es de quien tenga ese permiso en su rol (calidad).
  * Código del indicador: lo asigna el sistema (prefijo del nodo + consecutivo, p. ej. CAL-03) y no cambia.
  * Período fiscal (ejercicio): el año de gestión. Hay que crearlo antes de fijar metas o cargar datos.
  * META: lo que se espera lograr en un período. Se compara contra el
@@ -128,9 +129,10 @@ Todo cambio importante queda en una bitácora que nadie puede alterar.
   funcional (incluidas metas y reportes) más modificar/cargar sobre lo asignado, y ámbito en la raíz.
 
 3.5 Qué es «ver», «modificar», «cargar» y «asignar»
-  VER un indicador: su nodo está en un ámbito de la persona, o es su responsable, o es su cargador, o la
+  VER un indicador: su nodo está en un ámbito de la persona, o es su responsable o su suplente, o la
      persona tiene alcance global (Desarrollador, Coordinador, ámbito en la raíz).
-  MODIFICAR (editar, archivar, eliminar la ficha): solo su responsable. CARGAR datos: solo sus cargadores.
+  MODIFICAR (crear, editar, archivar, eliminar, asignar): quien tenga ese permiso en su rol, solo sobre
+     indicadores de su ÁMBITO. CARGAR datos: solo el responsable principal y el suplente.
   Si alguien ve algo que no puede modificar, el sistema responde «no tiene permiso» (403); lo que no ve,
   responde como si no existiera (404).
   CREAR/ASIGNAR indicadores y FIJAR METAS: a sí mismo o a personas que están DEBAJO en la estructura
@@ -138,9 +140,9 @@ Todo cambio importante queda en una bitácora que nadie puede alterar.
   Coordinador SGC y el Desarrollador no tienen esa restricción.
 
 3.6 Quién aprueba una carga
-  El revisor es el superior directo. Regla exacta: entre las personas con el permiso «Aprobar» cuyo ámbito
-  cubre el nodo del indicador, se toma el nivel más cercano hacia arriba que tenga al menos una distinta
-  de quien cargó; si en ese nivel hay varias (dos jefes en la misma jefatura), cualquiera puede aprobar.
+  Aprueba quien tenga el permiso «Aprobar» en su rol Y el indicador dentro de su ámbito (hacia abajo en su
+  línea de mando): un aprobador no puede aprobar lo de un departamento lateral ni lo de una gerencia ajena.
+  Si hay varios en ese caso, cualquiera puede aprobar. El permiso solo se da a quien deba aprobar (calidad).
   El Coordinador SGC es respaldo y puede aprobar siempre. NADIE aprueba una carga propia (segregación de
   funciones). La Bandeja de cada persona muestra solo lo que a ella le toca aprobar.
 
@@ -183,7 +185,7 @@ estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
     Solo el Desarrollador puede dar los roles Desarrollador y Coordinador SGC.
 
  Paso 4. INDICADORES  (Configurar > Indicadores)
-    «+ Nuevo indicador»: el nodo, el responsable y los cargadores vienen propuestos según la estructura y las
+    «+ Nuevo indicador»: el nodo, el responsable principal y el suplente vienen propuestos según la estructura y las
     personas; solo revise. Complete identificación, medición (unidad, frecuencia, sentido), semáforo (Nivel
     óptimo y Límite crítico), variables, fórmula (con validador y probador). El código lo da el sistema.
     Al guardar, el sistema lo lleva a Período y metas.
@@ -197,9 +199,9 @@ estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
     «Copiar del año anterior» trae las metas de quienes aún no las tienen. Un período con dato real ya no
     admite cambiar su meta.
 
- Paso 7. CARGA MENSUAL  (cargadores · Operar > Cargar datos)
+ Paso 7. CARGA MENSUAL  (responsable y suplente · Operar > Cargar datos)
     Quien carga entra directo a «Cargar datos» con su indicador elegido: escribe los datos base, ve el
-    resultado y el semáforo al instante, y envía. El superior lo aprueba en «Seguimiento de cargas», que reúne en una sola sección (con pestañas) lo
+    resultado y el semáforo al instante, y envía. Quien aprueba lo revisa en «Seguimiento de cargas», que reúne en una sola sección (con pestañas) lo
     «Por aprobar», lo «Pendiente de cargar» (con los recordatorios por Outlook) y el «Historial».
     El Panel de control lo ve cada persona solo con lo que su rol le permite ver: su nodo y lo que cuelga de él.
 
@@ -212,28 +214,28 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
     espacio ocupado en Supabase (con las tablas más pesadas y los días que faltan para el límite); estado
     público de Supabase y Vercel; versión del código desplegado; integridad de la bitácora; últimos 5 accesos
     y actividad reciente. Las alertas revisan semáforos incoherentes, fórmulas rotas o sin protección contra
-    división entre cero, datos atípicos, indicadores sin cargador, responsable o meta, cargas atascadas,
+    división entre cero, datos atípicos, indicadores sin responsable, suplente o meta, cargas atascadas,
     respaldos, intentos fallidos de ingreso y esquema de base de datos atrasado.
 
 ====================================================================================================
 6. OPERACIÓN MENSUAL
 ====================================================================================================
 
-6.1 El cargador carga su dato
+6.1 El responsable (o el suplente) carga su dato
   Operar > Cargar datos. Elija el indicador (solo aparecen los que usted carga) y el período (los
   pendientes aparecen resaltados). Digite los datos base; el resultado y el semáforo se calculan solos y
   se compara con la META del período. Si el semáforo es amarillo o rojo, escriba el análisis y el plan de
   mejora. Pulse «Enviar carga». Sin meta del período, o con el período fiscal sin crear o cerrado, no se
-  puede cargar (el aviso lo explica). Si un indicador tiene varios cargadores, el primero que carga un
-  período lo envía; el otro ve que ya fue cargado.
+  puede cargar (el aviso lo explica). El responsable principal y el suplente cargan el mismo indicador: el
+  primero que carga un período lo envía; el otro ve que ya fue cargado.
 
-6.2 El superior directo revisa
+6.2 Quien aprueba revisa
   Operar > Bandeja de aprobación: solo las cargas que le corresponde aprobar. «Aprobar» o «Devolver» (con
-  el motivo, obligatorio). La bandeja nunca incluye cargas propias. Si no hay aprobador en el nivel más
-  cercano, la carga sube al siguiente; el Coordinador SGC siempre puede aprobar.
+  el motivo, obligatorio). La bandeja nunca incluye cargas propias ni las de indicadores fuera de su ámbito;
+  el Coordinador SGC siempre puede aprobar.
 
 6.3 Corregir
-  Carga devuelta: el cargador la corrige y la reenvía (versión +1; conserva la meta con que nació).
+  Carga devuelta: quien cargó la corrige y la reenvía (versión +1; conserva la meta con que nació).
   Error en una carga ya aprobada: quien le corresponde aprobarla (o el Coordinador) la reabre desde
   Cargas con el motivo; vuelve a quedar «Devuelta». Todo queda en la bitácora.
 
@@ -270,7 +272,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
    asignación de personas (rol, ámbito, indicadores); designación de Desarrolladores; cuentas, claves y
    sesiones cerradas; metas; ejercicios (crear, cerrar, reabrir); parámetros; importaciones; reportes
    exportados; respaldos.
- * Segregación de funciones: nadie aprueba lo propio; el responsable es el único que modifica su ficha.
+ * Segregación de funciones: nadie aprueba lo propio; quien carga un indicador no edita su ficha (eso es de quien tenga el permiso, en su ámbito).
  * Notas de auditoría: quien tiene el permiso las agrega a cualquier carga visible.
  * Reportes firmados: cada Excel lleva número, hoja «Control» con huella y firma; «Verificar un reporte»
    comprueba que no fue alterado (ver 13).
@@ -285,7 +287,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
   Qué puede hacer un rol                       Coordinador SGC · Roles y permisos (rige de inmediato)
   Un indicador asignado a otra persona/nodo    Quien lo ve y tiene «Asignar»: Indicadores > Asignar
   La responsabilidad de un indicador           Se traspasa asignándola a otra persona (no se «quita»)
-  La ficha (fórmula, semáforo, textos)         Su responsable: Indicadores > Editar (con cargas no se
+  La ficha (fórmula, semáforo, textos)         Quien tenga «Editar» y lo tenga en su ámbito (con cargas no se
                                                cambian la frecuencia ni las claves de variables)
   La meta de un período                        Quien la fija: Período y metas (si no tiene dato real)
   Una carga ya enviada                         No se edita: se devuelve o reabre y se reenvía
@@ -301,8 +303,8 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
    ofrecerse para cargar; el historial se conserva; el responsable y el ámbito aún lo ven; se restaura
    cuando se quiera).
  * Cuenta SIN actividad: se elimina. Con actividad (ingresos, cargas, revisiones): solo se INHABILITA (no
-   puede ingresar; su historial se conserva). No se puede inhabilitar ni eliminar a quien es responsable de
-   indicadores o su única cargadora: reasígnelos primero.
+   puede ingresar; su historial se conserva). No se puede inhabilitar ni eliminar a quien es responsable principal de
+   indicadores: reasígnelos primero (el suplente sí puede dejar el puesto).
  * Nodo de la estructura: solo vacío (sin hijos, personas ni indicadores).
  * Rol: solo si nadie lo usa; los de sistema nunca.
  * Bitácora, cargas aprobadas y ejercicios cerrados: no se borran.
@@ -334,7 +336,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
  Control > Importar (permiso «Importar planillas»). Suba el libro de fichas NC-16 (una hoja por indicador);
  el sistema lee la definición, el semáforo, los períodos y los análisis, traduce la fórmula y muestra una
  vista previa editable. En las planillas, la palabra «Meta» designa el umbral y se importa como NIVEL
- ÓPTIMO. Los indicadores se crean SIN responsable ni cargadores (el Coordinador SGC los asigna después en
+ ÓPTIMO. Los indicadores se crean SIN responsable ni suplente (el Coordinador SGC los asigna después en
  Personas o en la ficha) y sus cargas históricas quedan aprobadas. Las áreas de la planilla se crean como
  departamentos bajo la gerencia indicada. Todo o nada; queda en la bitácora.
 
@@ -379,7 +381,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
   «Su cuenta está pendiente de asignación»             El Coordinador SGC debe asignarle rol, ámbito e indicadores
   No veo un indicador                                  Es lo esperado si su nodo no está en su ámbito y no es suyo;
                                                        Personas > «Ver accesos» lo comprueba; corrija en Rol y posición
-  «No tiene permisos para esta acción» (403)           Lo ve pero no le corresponde (no es responsable/cargador, o su
+  «No tiene permisos para esta acción» (403)           Lo ve pero no le corresponde (no es responsable/suplente, no lo tiene en su ámbito, o su
                                                        rol no tiene el permiso): pídalo al Coordinador SGC
   No puedo cargar un período                           Falta el período fiscal o la meta del período, el ejercicio está
                                                        cerrado, o ya fue cargado
@@ -398,14 +400,15 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
  Estructura: Gerencia de Producción > Planta Norte > Jefatura de Línea 1.
  Personas: Raúl (Gerente, ámbito Gerencia de Producción), Luis (Jefe, ámbito Jefatura de Línea 1), Ana
    (Analista, trabaja en Línea 1). Marta (Coordinador SGC) las asignó; el Desarrollador creó las cuentas.
- Indicador PRO-01 «Cumplimiento del plan» en Línea 1: responsable Luis, cargadora Ana; mayor es mejor;
+ Indicador PRO-01 «Cumplimiento del plan» en Línea 1: responsable principal Ana, suplente Luis; mayor es mejor;
    Nivel óptimo 95 %, Límite crítico 85 %; fórmula real / plan × 100.
- Meta de octubre: 96 (Luis la fija, el indicador es suyo). Ana carga real 450 y plan 500:
+ Meta de octubre: 96 (Luis la fija: Ana, la responsable, está debajo de él). Ana carga real 450 y plan 500:
    resultado 90 %, semáforo AMARILLO (≥ 85 y < 95); la meta del período es 96: diferencia −6 (93,8 % de la
    meta). Por ser amarillo, Ana escribe el análisis y el plan de mejora.
- La carga espera a LUIS (superior directo de Ana). Raúl, que ve todo lo de su gerencia, la ve en Cargas pero
-   no en su Bandeja. Luis la aprueba. Si Luis cargara él mismo, aprobaría Raúl, no Luis.
- Raúl puede fijar la meta de PRO-01 (está debajo de él) pero NO editar su ficha (no es su responsable): 403.
+ La carga espera a quien tenga el permiso de aprobar con PRO-01 en su ámbito: Marta (calidad) y, si sus roles
+   lo permiten, Luis y Raúl. Nadie aprueba lo propio: si Luis cargara como suplente, no la aprobaría Luis.
+   Un jefe de otra gerencia con el mismo permiso no la ve en su Bandeja ni puede aprobarla.
+ Raúl puede fijar la meta de PRO-01 (Ana está debajo de él); editar su ficha solo si su rol tiene «Editar».
  Un analista de otra jefatura no ve PRO-01: 404.
 
 ====================================================================================================
@@ -413,7 +416,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
 ====================================================================================================
 
  Ámbito        Nodos del árbol que una persona ve completos (con todo lo que cuelga de ellos).
- Cargador      Persona que digita el dato real de un indicador.
+ Suplente      Segunda persona (corresponsable) que también digita el dato de un indicador.
  Coordinador SGC  Rol de sistema funcional: define roles y asigna personas.
  Desarrollador Rol de sistema técnico: todo, incluido soporte, respaldos y bitácora.
  Ejercicio     Año de gestión (p. ej. octubre 2026 – septiembre 2027).
@@ -422,8 +425,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
  Nivel óptimo  Umbral de la zona verde del semáforo.
  Nodo          Gerencia, departamento o jefatura del árbol.
  Pendiente de asignación  Cuenta sin rol: no accede a nada.
- Responsable   «Dueño» de un indicador: único que modifica su ficha.
- Superior directo  Aprobador más cercano hacia arriba en el árbol.
+ Responsable   Responsable principal de un indicador: carga su dato (no edita la ficha).
 
 ====================================================================================================
 FIN DEL MANUAL

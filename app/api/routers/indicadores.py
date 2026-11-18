@@ -54,7 +54,7 @@ def editar(indicador_id: IdRuta, datos: schemas.IndicadorIn, db: Session = Depen
 def asignar(indicador_id: IdRuta, datos: schemas.AsignacionIndicadorIn, db: Session = Depends(get_db),
             u: Usuario = Depends(requiere_permiso("indicadores.asignar")), _=Depends(escritura)):
     """Nodo, responsable y quienes cargan."""
-    return ser.indicador(indicadores.asignar(db, u, indicador_id, datos.nodo_id, datos.responsable_id, datos.cargadores), u)
+    return ser.indicador(indicadores.asignar(db, u, indicador_id, datos.nodo_id, datos.responsable_id, datos.suplente_id), u)
 
 
 @router.post("/indicadores/{indicador_id}/archivar")

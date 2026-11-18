@@ -55,13 +55,14 @@ def generar() -> str:
          "El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alcance** es fijo y lo aplica siempre el motor "
          "(`app/servicios/acceso.py`). «Ver y modificar» incluye «Ver». Lo que no se puede ver responde **404**; lo que se ve pero no se puede "
          "hacer, **403**.", "", "## Reglas del motor (no configurables)", "",
-         "- **Visible** = el nodo del indicador está dentro de algún ámbito de la persona, **o** es su responsable, **o** es su cargador, **o** "
+         "- **Visible** = el nodo del indicador está dentro de algún ámbito de la persona, **o** es su responsable principal o su suplente, **o** "
          "la persona tiene alcance global (Desarrollador, Coordinador SGC o ámbito en la raíz de la empresa). La visibilidad solo baja por el árbol.",
-         "- **Modificar** una ficha (editar, archivar, eliminar): solo su responsable. **Cargar** datos: solo sus cargadores. "
-         "Los roles de sistema tienen alcance total.",
+         "- **Cargar** datos: solo el responsable principal y el suplente de cada indicador. **Crear, editar, archivar, eliminar y asignar** "
+         "indicadores: quien tenga ese permiso en su rol y solo sobre indicadores de su ámbito; ser responsable o suplente no da derecho a "
+         "modificar la ficha. Los roles de sistema tienen alcance total.",
          "- **Crear / asignar indicadores y fijar metas**: a sí mismo o a personas que están **debajo** en la estructura.",
-         "- **Aprobar**: el superior más cercano hacia arriba que tenga el permiso `cargas.aprobar` y sea distinto del autor; si hay varios en "
-         "ese nivel, cualquiera. El Coordinador SGC es respaldo. Nadie aprueba una carga propia.",
+         "- **Aprobar**: quien tenga el permiso `cargas.aprobar` en su rol **y** el indicador dentro de su ámbito (hacia abajo en su línea de "
+         "mando); un aprobador no alcanza lo que queda fuera de ella. El Coordinador SGC puede aprobar siempre. Nadie aprueba una carga propia.",
          "- **Anti-escalada**: nadie edita su propio rol, nadie concede un permiso que no tiene y los permisos técnicos no se conceden a ningún rol.",
          "- **Usuario nuevo = sin acceso** hasta que el Coordinador SGC le asigne rol, ámbito e indicadores.", "",
          "## Roles de sistema", "",

@@ -1,5 +1,5 @@
 """Fichas técnicas de indicadores: consulta según el alcance de cada persona, alta, edición, asignación (nodo, responsable
-y cargadores), archivado y ficha por ejercicio. Quién ve y quién modifica lo decide `acceso`."""
+y suplente), archivado y ficha por ejercicio. Quién ve y quién modifica lo decide `acceso`."""
 
 import unicodedata
 
@@ -7,13 +7,13 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..dominio import calendario, formulas, semaforo
-from ..errores import Conflicto, Invalido, Prohibido
+from ..errores import Conflicto, Invalido
 from ..models import Indicador, Medicion, Meta, PeriodoJustificado, Unidad, Usuario, ahora
 from . import acceso, auditoria, ejercicios
 from .periodos import justificados_de
 
-# Responsable y cargadores se cargan explícitamente (y en bloque) solo en las listas que los muestran
-CON_ASIGNACION = (joinedload(Indicador.responsable), selectinload(Indicador.cargadores))
+# Responsable y suplente se cargan explícitamente (y en bloque) solo en las listas que los muestran
+CON_ASIGNACION = (joinedload(Indicador.responsable), joinedload(Indicador.suplente))
 
 
 # ---------------------------------------------------------------- acceso y consulta
@@ -192,7 +192,7 @@ def sugerir_codigo(db: Session, nodo_id: int) -> str:
     return f"{prefijo}-{max(numeros, default=0) + 1:02d}"
 
 
-# ---------------------------------------------------------------- asignación: nodo, responsable y cargadores
+# ---------------------------------------------------------------- asignación: nodo, responsable principal y suplente
 def _personas(db: Session, ids: list[int]) -> list[Usuario]:
     encontradas = {x.id: x for x in db.scalars(select(Usuario).where(Usuario.id.in_(ids)))} if ids else {}
     if len(encontradas) != len(set(ids)):
@@ -200,35 +200,35 @@ def _personas(db: Session, ids: list[int]) -> list[Usuario]:
     return [encontradas[i] for i in dict.fromkeys(ids)]
 
 
-def _resolver_asignacion(db: Session, u: Usuario, nodo_id: int, responsable_id: int | None, cargadores: list[int] | None):
-    """(nodo, responsable, cargadores) ya validados contra la regla «a sí mismo o a personas debajo de él».
-    Sin responsable indicado lo es quien crea; sin cargadores indicados, carga el responsable."""
+def _resolver_asignacion(db: Session, u: Usuario, nodo_id: int, responsable_id: int | None, suplente_id: int | None):
+    """(nodo, responsable, suplente) ya validados contra la regla «a sí mismo o a personas debajo de él».
+    Sin responsable indicado lo es quien crea; el suplente es opcional."""
     nodo = db.get(Unidad, nodo_id)
     if not nodo:
         raise Invalido("Nodo de la estructura inexistente.")
-    responsable = _personas(db, [responsable_id or u.id])[0]
-    quienes = _personas(db, cargadores if cargadores else [responsable.id])
-    if acceso.contexto(responsable).clave == acceso.DESARROLLADOR and not acceso.es_desarrollador(u):
-        raise Invalido("Alguna de las personas indicadas no existe.")
-    acceso.exigir_asignacion(db, u, nodo, responsable, quienes)
-    return nodo, responsable, quienes
+    responsable, *resto = _personas(db, [responsable_id or u.id, *([suplente_id] if suplente_id else [])])
+    suplente = resto[0] if resto else None
+    if suplente_id and suplente_id == (responsable_id or u.id):
+        raise Invalido("El suplente debe ser una persona distinta del responsable principal.")
+    for x in (responsable, suplente):
+        if x is not None and acceso.contexto(x).clave == acceso.DESARROLLADOR and not acceso.es_desarrollador(u):
+            raise Invalido("Alguna de las personas indicadas no existe.")
+    acceso.exigir_asignacion(db, u, nodo, responsable, suplente)
+    return nodo, responsable, suplente
 
 
-def asignar(db: Session, u: Usuario, indicador_id: int, nodo_id: int, responsable_id: int, cargadores: list[int]) -> Indicador:
-    """Cambia el nodo, el responsable y quienes cargan. Puede hacerlo quien tiene el indicador en su ámbito o es su
-    responsable, y solo hacia sí mismo o personas debajo de él (los roles de sistema, sin restricción)."""
+def asignar(db: Session, u: Usuario, indicador_id: int, nodo_id: int, responsable_id: int, suplente_id: int | None) -> Indicador:
+    """Cambia el nodo, el responsable principal y el suplente. Solo quien tiene el permiso en su rol y el indicador en su
+    ámbito, y solo hacia personas debajo de él (los roles de sistema, sin restricción)."""
     ind = obtener_visible(db, u, indicador_id)
-    if not (acceso.alcance_total(u) or acceso.en_ambito(u, ind) or acceso.es_responsable(u, ind)):
-        raise Prohibido("Solo puede reasignar indicadores de su ámbito o de los que es responsable.")
-    if not cargadores:
-        raise Invalido("Indique al menos una persona que cargue el indicador.")
-    nodo, responsable, quienes = _resolver_asignacion(db, u, nodo_id, responsable_id, cargadores)
+    acceso.exigir_modificable(u, ind)
+    nodo, responsable, suplente = _resolver_asignacion(db, u, nodo_id, responsable_id, suplente_id)
     antes = {"nodo": ind.nodo.nombre, "responsable": ind.responsable.nombre if ind.responsable else None,
-             "cargadores": sorted(x.nombre for x in ind.cargadores)}
-    despues = {"nodo": nodo.nombre, "responsable": responsable.nombre, "cargadores": sorted(x.nombre for x in quienes)}
+             "suplente": ind.suplente.nombre if ind.suplente else None}
+    despues = {"nodo": nodo.nombre, "responsable": responsable.nombre, "suplente": suplente.nombre if suplente else None}
     if antes != despues:
-        ind.nodo_id, ind.responsable_id, ind.cargadores = nodo.id, responsable.id, quienes
-        ind.nodo, ind.responsable = nodo, responsable
+        ind.nodo_id, ind.responsable_id, ind.suplente_id = nodo.id, responsable.id, suplente.id if suplente else None
+        ind.nodo, ind.responsable, ind.suplente = nodo, responsable, suplente
         auditoria.registrar(db, u, "INDICADOR_ASIGNADO", "indicador", ind.id,
                             {"codigo": ind.codigo, "cambios": {k: [antes[k], despues[k]] for k in antes if antes[k] != despues[k]}}, ind)
     db.commit()
@@ -236,24 +236,23 @@ def asignar(db: Session, u: Usuario, indicador_id: int, nodo_id: int, responsabl
 
 
 # ---------------------------------------------------------------- alta, edición y baja
-SOLO_AL_CREAR = ("codigo", "nodo_id", "responsable_id", "activo")   # la edición de la ficha no los toca (ver `asignar` y `archivar`)
+SOLO_AL_CREAR = ("codigo", "nodo_id", "responsable_id", "suplente_id", "activo")   # la edición de la ficha no los toca (ver `asignar` y `archivar`)
 
 
 def crear(db: Session, u: Usuario, datos) -> Indicador:
-    nodo, responsable, quienes = _resolver_asignacion(db, u, datos.nodo_id, datos.responsable_id, datos.cargadores)
+    nodo, responsable, suplente = _resolver_asignacion(db, u, datos.nodo_id, datos.responsable_id, datos.suplente_id)
     if not datos.codigo:
         datos.codigo = sugerir_codigo(db, nodo.id)
     validar_ficha(db, datos)
     campos = campos_de_ficha(datos)
     if not campos.get("gerencia"):   # por defecto, la gerencia de la que cuelga el nodo
         campos["gerencia"] = db.get(Unidad, int(nodo.ruta.strip("/").split("/")[0])).nombre
-    ind = Indicador(**{**campos, "responsable_id": responsable.id, "activo": True})
-    ind.cargadores = quienes
+    ind = Indicador(**{**campos, "responsable_id": responsable.id, "suplente_id": suplente.id if suplente else None, "activo": True})
     db.add(ind)
     db.flush()
     auditoria.registrar(db, u, "INDICADOR_CREADO", "indicador", ind.id,
                         {"codigo": ind.codigo, "nombre": ind.nombre, "nodo": nodo.nombre, "responsable": responsable.nombre,
-                         "cargadores": [x.nombre for x in quienes], "formula": ind.formula, "nivel_optimo": ind.nivel_optimo,
+                         "suplente": suplente.nombre if suplente else None, "formula": ind.formula, "nivel_optimo": ind.nivel_optimo,
                          "limite": ind.limite, "sentido": ind.sentido}, ind)
     db.commit()
     return ind
@@ -271,14 +270,14 @@ def _proteger_historial(ind: Indicador, datos) -> None:
 
 
 def _modificable(db: Session, u: Usuario, indicador_id: int) -> Indicador:
-    """El indicador, si la persona lo ve (si no, 404) y además es su responsable (si no, 403)."""
+    """El indicador, si la persona lo ve (si no, 404) y además lo tiene en su ámbito (si no, 403)."""
     ind = obtener_visible(db, u, indicador_id)
     acceso.exigir_modificable(u, ind)
     return ind
 
 
 def editar(db: Session, u: Usuario, indicador_id: int, datos) -> Indicador:
-    """Cambia la ficha (no el nodo, el responsable, los cargadores ni el estado: eso va por `asignar` y `archivar`)."""
+    """Cambia la ficha (no el nodo, el responsable, el suplente ni el estado: eso va por `asignar` y `archivar`)."""
     ind = _modificable(db, u, indicador_id)
     datos.codigo = ind.codigo   # el código identifica al indicador en bitácora y reportes: no se cambia
     validar_ficha(db, datos, indicador_id)
@@ -316,5 +315,5 @@ def eliminar(db: Session, u: Usuario, indicador_id: int) -> None:
     auditoria.registrar(db, u, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
     db.execute(delete(Meta).where(Meta.indicador_id == ind.id))   # sin cargas: su meta se va con él
     db.execute(delete(PeriodoJustificado).where(PeriodoJustificado.indicador_id == ind.id))
-    db.delete(ind)   # la relación `cargadores` borra también sus filas de asignación
+    db.delete(ind)
     db.commit()

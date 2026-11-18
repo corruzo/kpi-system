@@ -13,7 +13,7 @@ SIGT.modulos.inicio = () => ({
       if (!this.marcha) return [];
       const txt = {
         estructura: { t: 'Estructura de la empresa', d: 'Arme el árbol: gerencias, departamentos y jefaturas. De él depende quién ve qué. Al crear una, el formulario queda listo para lo que cuelga de ella.', b: 'Armar la estructura', ir: () => this.go('estructura') },
-        roles: { t: 'Roles y permisos', d: 'Cree los roles (qué puede hacer cada cargo). Con un clic puede crear los típicos: Analista, Jefe, Gerente y Gerente general, y ajustarlos en la matriz.', b: 'Crear roles', ir: () => this.go('roles') },
+        roles: { t: 'Roles y permisos', d: 'Cree los roles (qué puede hacer cada cargo). Con un clic puede crear los típicos: Analista, Jefe, Gerente, Gerente general y Calidad, y ajustarlos en la matriz.', b: 'Crear roles', ir: () => this.go('roles') },
         personas: this.puede('usuarios.cuentas')
           ? { t: 'Personas', d: 'Cree la cuenta de cada persona; al guardarla se abre su rol y su posición en la estructura. Una cuenta sin rol no accede a nada.', b: 'Crear y asignar personas', ir: () => this.go('personas') }
           : { t: 'Personas', d: 'El Desarrollador registra las cuentas (es una tarea técnica). Usted asigna a cada persona su rol y su posición en la estructura con «Rol y posición». Una cuenta sin rol no accede a nada.', b: 'Asignar personas', ir: () => this.go('personas') },

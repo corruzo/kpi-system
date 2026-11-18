@@ -25,13 +25,13 @@
     <form class="sheet max-h-[94vh] w-full max-w-2xl" @submit.prevent="guardarIndicadores()" @keydown.escape.window="indPersona=null">
       <div class="card-h"><div><h2 class="text-lg font-bold">Indicadores de la persona</h2><p class="text-xs text-slate-500" x-text="indPersona && indPersona.nombre"></p></div><button type="button" class="btn btn-s btn-sm" @click="indPersona=null" aria-label="Cerrar">✕</button></div>
       <div class="card-b space-y-3 overflow-y-auto">
-        <p class="text-xs text-slate-500"><b>Responsable</b>: es el «dueño»: único que modifica la ficha (la responsabilidad no se quita, se traspasa a otra persona). <b>Cargador</b>: quien digita el dato cada período (un indicador puede tener varios).</p>
-        <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900" x-show="indPersona && !indPersona.puedeCargar">El rol de esta persona no permite cargar datos: no puede quedar como cargador.</p>
+        <p class="text-xs text-slate-500"><b>Responsable principal</b>: carga el dato cada período (uno por indicador; la responsabilidad no se quita, se traspasa a otra persona). <b>Suplente</b>: segunda persona que también carga y cubre al responsable (uno por indicador). Ninguno edita la ficha; asignarla aquí ocupa ese puesto.</p>
+        <p class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900" x-show="indPersona && !indPersona.puedeCargar">El rol de esta persona no permite cargar datos: no puede quedar como responsable ni suplente.</p>
         <input type="search" class="inp" x-model="indQ" placeholder="Buscar indicador" aria-label="Buscar indicador">
         <ul class="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200"><template x-for="i in indFiltrados" :key="i.id"><li class="flex flex-wrap items-center gap-3 p-2.5">
           <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold" x-text="i.codigo + ' · ' + i.nombre"></span><span class="block truncate text-xs text-slate-500" x-text="i.area + (i.responsable ? ' · responsable: ' + i.responsable : '')"></span></span>
-          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.responsable.includes(i.id)" :disabled="indPersona.r0.includes(i.id)" @change="alternarInd('responsable', i.id)"> Responsable</label>
-          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.cargador.includes(i.id)" :disabled="!indPersona.puedeCargar" @change="alternarInd('cargador', i.id)"> Carga</label></li></template></ul>
+          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.responsable.includes(i.id)" :disabled="indPersona.r0.includes(i.id)" @change="alternarInd('responsable', i.id)" > Responsable</label>
+          <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" class="h-5 w-5" :checked="indPersona.suplente.includes(i.id)" :disabled="!indPersona.puedeCargar" @change="alternarInd('suplente', i.id)"> Suplente</label></li></template></ul>
       </div>
       <div class="flex justify-end gap-2 border-t border-slate-100 p-4 safe-b"><button type="button" class="btn btn-s" @click="indPersona=null">Cancelar</button><button class="btn btn-p" :disabled="busy">Guardar</button></div>
     </form>

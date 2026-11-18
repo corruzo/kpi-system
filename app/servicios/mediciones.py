@@ -1,4 +1,4 @@
-"""Cargas de indicadores: cálculo, envío, aprobación jerárquica, reapertura y notas de auditoría."""
+"""Cargas de indicadores: cálculo, envío, aprobación (permiso + ámbito), reapertura y notas de auditoría."""
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -139,8 +139,8 @@ def _filtrar(q, u, estado, indicador_id, nodo_id, periodo, semaforo_, ejercicio)
 
 # ---------------------------------------------------------------- bandeja: lo que a cada quien le toca aprobar
 def _bandeja_ids(db: Session, u: Usuario, ejercicio: int | None = None) -> list[tuple[int, int]]:
-    """[(id de la carga, ejercicio)] de las cargas enviadas que ESTA persona puede aprobar según la regla jerárquica (ver
-    `acceso.aprobadores_de`), de la más reciente a la más antigua. Nunca incluye las propias. Consulta liviana: solo columnas
+    """[(id de la carga, ejercicio)] de las cargas enviadas que ESTA persona puede aprobar según la regla de aprobación (permiso
+    `cargas.aprobar` + indicador en su ámbito; ver `acceso.aprobadores_de`), de la más reciente a la más antigua. Nunca incluye las propias. Consulta liviana: solo columnas
     sueltas, no objetos completos (la bandeja del arranque solo necesita contarlas)."""
     if not acceso.puede(u, "cargas.aprobar"):
         return []
@@ -197,12 +197,12 @@ def _exigir_aprobador(db: Session, u: Usuario, m: Medicion) -> None:
     if m.cargado_por_id == u.id:
         raise Prohibido("Segregación de funciones: una carga propia debe revisarla otra persona.")
     if u.id not in acceso.aprobadores_de(m.indicador.nodo.ruta, m.cargado_por_id, acceso.mapa_aprobadores(db)):
-        raise Prohibido("Esta carga le corresponde aprobarla al superior más cercano de quien la cargó (o al Coordinador SGC).")
+        raise Prohibido("Esta carga la aprueba quien tenga el permiso de aprobar y el indicador dentro de su ámbito (o el Coordinador SGC).")
 
 
 def revisar(db: Session, u: Usuario, medicion_id: int, accion: str, nota: str) -> Medicion:
-    """Aprueba o devuelve una carga enviada. Lo hace el aprobador más cercano hacia arriba de quien cargó; el Coordinador
-    SGC, siempre. Quien la cargó no puede revisarla (segregación de funciones)."""
+    """Aprueba o devuelve una carga enviada. Lo hace quien tenga el permiso de aprobar y el indicador en su ámbito; el
+    Coordinador SGC, siempre. Quien la cargó no puede revisarla (segregación de funciones)."""
     m = _obtener_modificable(db, u, medicion_id)
     _exigir_aprobador(db, u, m)
     if m.estado != "enviado":

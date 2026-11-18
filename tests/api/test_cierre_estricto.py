@@ -13,7 +13,7 @@ def _escenario(client, anios_atras: int):
     """Un indicador mensual con UNA carga aprobada en el primer mes de un ejercicio terminado; los otros 11 meses faltan."""
     area = crear_area(client)
     cargador = crear_usuario(client, "jefe", area)
-    ind = crear_indicador(client, area, responsable_id=id_de_usuario(client, cargador), cargadores=[id_de_usuario(client, cargador)])
+    ind = crear_indicador(client, area, responsable_id=id_de_usuario(client, cargador))
     anio = calendario.ejercicio_de_fecha(calendario.hoy()) - anios_atras
     fijar_metas(client, ind, anio=anio)
     meses = calendario.periodos_del_ejercicio("mensual", anio)

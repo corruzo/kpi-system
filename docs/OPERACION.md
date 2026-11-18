@@ -35,8 +35,8 @@ Un respaldo que nunca se verificó no es un respaldo. Haga una restauración de 
 |---|---|
 | Usuario bloqueado por intentos | Personas → *Desbloquear accesos* (Desarrollador) |
 | Persona sospecha que otra usa su cuenta | Personas → Soporte → *Cerrar sus sesiones* + generar clave temporal (Desarrollador) |
-| Alguien no ve un indicador | Es lo esperado si el nodo del indicador no está en su ámbito y no es su responsable ni su cargador: Personas → *Ver accesos* para comprobarlo; Indicadores → Editar → *Asignación* para corregirlo |
-| No se puede inhabilitar/eliminar a una persona | Es responsable de indicadores o su única cargadora: reasígnelos primero (Personas → *Indicadores*) |
+| Alguien no ve un indicador | Es lo esperado si el nodo del indicador no está en su ámbito y no es su responsable ni su suplente: Personas → *Ver accesos* para comprobarlo; Indicadores → Editar → *Asignación* para corregirlo |
+| No se puede inhabilitar/eliminar a una persona | Es responsable principal de indicadores: reasígnelos primero (Personas → *Indicadores*) |
 | Cuenta nueva «pendiente de asignación» | El Coordinador SGC debe darle rol, ámbito e indicadores (Personas → *Rol y posición*) |
 | Hay que cambiar lo que un rol puede hacer | Coordinador SGC → Roles y permisos; rige desde la siguiente petición de cada persona |
 | «La cadena de la bitácora no es válida» | Detenga escrituras, conserve la base tal cual, restaure el último respaldo verificado en una base nueva y compare |
@@ -63,4 +63,4 @@ desarrollo: lo ejecuta una persona autorizada.**
    y siembra los roles de sistema (Desarrollador y Coordinador SGC). **Elimine `SIGT_ADMIN_PASSWORD`** del entorno y cambie la contraseña.
 6. Siga *Puesta en marcha* en la aplicación: el Desarrollador crea las cuentas (incluido el Coordinador SGC, que se le asigna con
    Personas → *Rol y posición*); el Coordinador arma la estructura, los roles y asigna a cada persona su rol, su ámbito e indicadores.
-7. Verifique: `alembic current` = `v2_0003`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.
+7. Verifique: `alembic current` = `v2_0005`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.

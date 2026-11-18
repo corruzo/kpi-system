@@ -231,48 +231,54 @@ def test_asignar_posicion_y_alcance_con_vista_previa(client):
     assert client.put(f"/api/usuarios/{uid}/asignacion", json={"rol_id": rol_jefe, "raiz": False, "ambito": [a["jefatura"]], "miembro": [a["jefatura"]]}).status_code == 422
 
 
-def test_casos_de_carga_solo_el_jefe_solo_el_gerente_analista_y_varios_analistas(client):
+def test_casos_de_carga_responsable_principal_y_suplente_son_los_unicos_que_cargan(client):
     nodo = arbol(client)["jefatura"]
     jefe = persona(client, "Jefe", ambito=[nodo])
     gerente = persona(client, "Gerente", ambito=[nodo])
     a1, a2 = persona(client, "Analista", miembro=[nodo]), persona(client, "Analista", miembro=[nodo])
     entrar(client, "admin", CLAVE_ADMIN)
     uid = lambda u: id_de_usuario(client, u)       # noqa: E731
-    casos = {"solo_jefe": (uid(jefe), [uid(jefe)]), "solo_gerente": (uid(gerente), [uid(gerente)]),
-             "analista_y_jefe_responsable": (uid(jefe), [uid(a1)]), "varios_analistas": (uid(jefe), [uid(a1), uid(a2)])}
-    inds = {k: crear_indicador(client, nodo, responsable_id=r, cargadores=c, nombre=k) for k, (r, c) in casos.items()}
-    quien_carga = {"solo_jefe": [jefe], "solo_gerente": [gerente], "analista_y_jefe_responsable": [a1], "varios_analistas": [a1, a2]}
+    casos = {"solo_jefe": (uid(jefe), None), "solo_gerente": (uid(gerente), None),
+             "jefe_y_analista": (uid(jefe), uid(a1)), "dos_analistas": (uid(a1), uid(a2))}
+    inds = {k: crear_indicador(client, nodo, responsable_id=r, suplente_id=sup, nombre=k) for k, (r, sup) in casos.items()}
+    quien_carga = {"solo_jefe": [jefe], "solo_gerente": [gerente], "jefe_y_analista": [jefe, a1], "dos_analistas": [a1, a2]}
     for caso, ind in inds.items():
         for u in (jefe, gerente, a1, a2):
             entrar(client, u)
             periodo = periodo_actual(client, ind["id"])
             r = client.post("/api/mediciones", json={"indicador_id": ind["id"], "periodo": periodo, "valores": {"dias": 1, "tickets": 1}})
             if u in quien_carga[caso]:
-                assert r.status_code in (201, 409), (caso, u, r.text)     # 409 si otro cargador ya cargó este período
+                assert r.status_code in (201, 409), (caso, u, r.text)     # 409 si el otro ya cargó este período
                 if r.status_code == 409:
                     assert "ya fue cargado" in r.json()["detail"]
             else:   # quien lo ve por su ámbito pero no lo carga recibe 403; quien ni siquiera lo ve (analista ajeno), 404
                 assert r.status_code == (403 if u in (jefe, gerente) else 404), (caso, u, r.status_code)
     entrar(client, a2)
-    assert client.get("/api/arranque").json()["indicadores"] and {i["id"] for i in client.get("/api/arranque").json()["indicadores"]} == {inds["varios_analistas"]["id"]}
+    visibles = {i["id"] for i in client.get("/api/arranque").json()["indicadores"]}
+    assert visibles == {inds["dos_analistas"]["id"]}                     # solo carga (y ve) lo suyo
 
 
-def test_traspasar_responsabilidad_y_no_dejar_un_indicador_sin_cargador(client):
+def test_traspasar_responsabilidad_y_ocupar_el_puesto_de_suplente(client):
     nodo = crear_nodo(client)
     a, b = persona(client, "Jefe", miembro=[nodo]), persona(client, "Jefe", miembro=[nodo])
     entrar(client, "admin", CLAVE_ADMIN)
     ia, ib = id_de_usuario(client, a), id_de_usuario(client, b)
-    ind = crear_indicador(client, nodo, responsable_id=ia, cargadores=[ia])
+    ind = crear_indicador(client, nodo, responsable_id=ia)
     entrar(client, "admin", CLAVE_ADMIN)
-    r = client.put(f"/api/usuarios/{ia}/indicadores", json={"responsable": [], "cargador": [ind["id"]]})
+    r = client.put(f"/api/usuarios/{ia}/indicadores", json={"responsable": [], "suplente": []})
     assert r.status_code == 409 and "traspasa" in r.json()["detail"]                    # la responsabilidad no se «quita»
-    r = client.put(f"/api/usuarios/{ia}/indicadores", json={"responsable": [ind["id"]], "cargador": []})
-    assert r.status_code == 409 and "sin nadie que lo cargue" in r.json()["detail"]
-    assert client.put(f"/api/usuarios/{ib}/indicadores", json={"responsable": [ind["id"]], "cargador": [ind["id"]]}).status_code == 200
-    assert client.put(f"/api/usuarios/{ia}/indicadores", json={"responsable": [], "cargador": []}).status_code == 200   # ya traspasado y con otro cargador
-    visto = client.put(f"/api/indicadores/{ind['id']}/asignacion", json={"nodo_id": nodo, "responsable_id": ib, "cargadores": [ib]}).json()
-    assert visto["responsable_id"] == ib and visto["cargadores"] == [ib]
-    assert client.put(f"/api/indicadores/{ind['id']}/asignacion", json={"nodo_id": nodo, "responsable_id": ib, "cargadores": []}).status_code == 422
+    assert client.put(f"/api/usuarios/{ib}/indicadores", json={"responsable": [ind["id"]], "suplente": [ind["id"]]}).status_code == 422
+    ocupado = client.put(f"/api/usuarios/{ib}/indicadores", json={"responsable": [], "suplente": [ind["id"]]}).json()
+    assert [i["id"] for i in ocupado["suplente"]] == [ind["id"]]
+    # b pasa a responsable principal: deja el puesto de suplente y a a se le traspasó la responsabilidad
+    assert client.put(f"/api/usuarios/{ib}/indicadores", json={"responsable": [ind["id"]], "suplente": []}).status_code == 200
+    assert client.put(f"/api/usuarios/{ia}/indicadores", json={"responsable": [], "suplente": []}).status_code == 200
+    visto = client.get(f"/api/indicadores?gestion=true&q={ind['codigo']}").json()[0]
+    assert visto["responsable_id"] == ib and visto["suplente_id"] is None
+    r = client.put(f"/api/indicadores/{ind['id']}/asignacion", json={"nodo_id": nodo, "responsable_id": ib, "suplente_id": ia})
+    assert r.status_code == 200 and r.json()["responsable_id"] == ib and r.json()["suplente_id"] == ia
+    assert client.put(f"/api/indicadores/{ind['id']}/asignacion", json={"nodo_id": nodo, "responsable_id": ib, "suplente_id": ib}).status_code == 422
+    assert client.put(f"/api/indicadores/{ind['id']}/asignacion", json={"nodo_id": nodo, "responsable_id": ib, "suplente_id": None}).json()["suplente"] is None
 
 
 def test_inhabilitar_a_un_responsable_sigue_bloqueado_hasta_reasignar(client):
@@ -280,10 +286,23 @@ def test_inhabilitar_a_un_responsable_sigue_bloqueado_hasta_reasignar(client):
     p = persona(client, "Jefe", miembro=[nodo])
     entrar(client, "admin", CLAVE_ADMIN)
     uid = id_de_usuario(client, p)
-    crear_indicador(client, nodo, responsable_id=uid, cargadores=[uid])
+    crear_indicador(client, nodo, responsable_id=uid)
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.put(f"/api/usuarios/{uid}", json={"nombre": "Nombre Nuevo", "activo": False})
     assert r.status_code == 409 and "reasígnelos" in r.json()["detail"]
     assert client.delete(f"/api/usuarios/{uid}").status_code == 409
     r = client.put(f"/api/usuarios/{uid}/asignacion", json={"rol_id": None, "raiz": False, "ambito": [], "miembro": []})
     assert r.status_code == 409                                                           # tampoco se le quita el rol con indicadores
+
+
+def test_el_suplente_debe_ser_otra_persona_activa_con_rol_que_pueda_cargar(client):
+    nodo = crear_nodo(client)
+    a, b = persona(client, "Jefe", miembro=[nodo]), persona(client, "Analista", miembro=[nodo])
+    sin_rol = cuenta(client)
+    entrar(client, "admin", CLAVE_ADMIN)
+    ia, ib, isr = id_de_usuario(client, a), id_de_usuario(client, b), id_de_usuario(client, sin_rol)
+    from conftest import ficha_base
+    assert client.post("/api/indicadores", json=ficha_base(nodo, responsable_id=ia, suplente_id=ia)).status_code == 422     # misma persona
+    assert client.post("/api/indicadores", json=ficha_base(nodo, responsable_id=ia, suplente_id=isr)).status_code == 422    # sin rol
+    assert client.post("/api/indicadores", json=ficha_base(nodo, responsable_id=ia, suplente_id=999999)).status_code == 422  # no existe
+    assert "cargadores" not in client.post("/api/indicadores", json=ficha_base(nodo, responsable_id=ia, suplente_id=ib)).json()

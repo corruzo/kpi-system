@@ -25,7 +25,6 @@ from ..models import (
     Bitacora,
     Ejercicio,
     Indicador,
-    IndicadorCargador,
     IntentoFallido,
     Medicion,
     Meta,
@@ -264,14 +263,15 @@ def diagnostico(db: Session, bd: dict | None = None, cadena: dict | None = None)
         a.append(_alerta("aviso", "Algoritmo", f"{len(r)} dato(s) atípico(s) en la última medición", f"Se alejan más de 3 desviaciones de su historial: {_lista(r)}.",
                          "Pida al cargador que confirme el dato (posible error de digitación o de unidad).", "historial"))
 
-    cargables = {i for (i,) in db.execute(select(IndicadorCargador.indicador_id).join(Usuario).where(Usuario.activo))}
-    sin_cargador = [i.codigo for i in activos if i.id not in cargables]
-    if sin_cargador:
-        a.append(_alerta("aviso", "Datos", f"{len(sin_cargador)} indicador(es) sin nadie que los cargue", _lista(sin_cargador),
-                         "Asigne un cargador activo: mientras tanto no recibirán datos ni recordatorios.", "personas"))
-    sin_resp = [i.codigo for i in activos if i.responsable_id is None]
+    activos_ids = {i for (i,) in db.execute(select(Usuario.id).where(Usuario.activo))}
+    sin_resp = [i.codigo for i in activos if i.responsable_id is None or i.responsable_id not in activos_ids]
     if sin_resp:
-        a.append(_alerta("aviso", "Datos", f"{len(sin_resp)} indicador(es) sin responsable", _lista(sin_resp), "Asigne un responsable (el dueño del indicador).", "personas"))
+        a.append(_alerta("aviso", "Datos", f"{len(sin_resp)} indicador(es) sin responsable activo", _lista(sin_resp),
+                         "Asigne un responsable principal activo: mientras tanto no recibirán datos ni recordatorios.", "personas"))
+    sin_suplente = [i.codigo for i in activos if i.suplente_id is None or i.suplente_id not in activos_ids]
+    if sin_suplente:
+        a.append(_alerta("aviso", "Datos", f"{len(sin_suplente)} indicador(es) sin suplente", _lista(sin_suplente),
+                         "Asigne un suplente (corresponsable): cubre al responsable si falta.", "personas"))
     anio = calendario.ejercicio_de_fecha(calendario.hoy())
     if db.get(Ejercicio, anio) and activos:
         con_meta = {i for (i,) in db.execute(select(Meta.indicador_id).where(Meta.ejercicio == anio).distinct())}

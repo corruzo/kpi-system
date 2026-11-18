@@ -26,7 +26,7 @@ SIGT.modulos.personas = () => ({
       if (x.ambito_raiz) p.push('toda la empresa');
       if (x.ambito.length) p.push('ve: ' + x.ambito.map(i => this.nombreNodo(i)).join(', '));
       if (x.miembro.length) p.push('trabaja en: ' + x.miembro.map(i => this.nombreNodo(i)).join(', '));
-      if (x.responsable_de || x.cargador_de) p.push(`${x.responsable_de} a su cargo · ${x.cargador_de} que carga`);
+      if (x.responsable_de || x.suplente_de) p.push(`${x.responsable_de} como responsable · ${x.suplente_de} como suplente`);
       return p.join(' · ') || 'Sin ámbito: solo ve lo que se le asigne';
     },
 
@@ -45,7 +45,7 @@ SIGT.modulos.personas = () => ({
     },
     // Ficha «Accesos de la persona» (permisos efectivos: qué puede hacer y de dónde sale cada indicador que ve)
     async abrirAccesos(x) { this.previa = await this.api(`/api/usuarios/${x.id}/alcance`); },
-    motivoTxt: m => ({ responsable: 'Es su responsable', cargador: 'Lo carga', 'ámbito': 'Está dentro de su ámbito', 'alcance global': 'Ve toda la empresa' }[m] || m),
+    motivoTxt: m => ({ responsable: 'Es su responsable', suplente: 'Es su suplente', 'ámbito': 'Está dentro de su ámbito', 'alcance global': 'Ve toda la empresa' }[m] || m),
     // Solo un Desarrollador da el rol Coordinador SGC (el servidor lo exige): a los demás ni se les ofrece
     get rolesAsignables() { return this.rolesLista.filter(r => r.clave !== 'desarrollador' && (r.clave !== 'coordinador' || this.user.rol_clave === 'desarrollador' || String(this.asig?.rol_id) === String(r.id))); },
     get opcionesRol() { return [{ valor: '', etiqueta: 'Sin rol (pendiente de asignación)', tenue: true }, ...this.rolesAsignables.map(r => ({ valor: r.id, etiqueta: r.nombre }))]; },
@@ -69,17 +69,20 @@ SIGT.modulos.personas = () => ({
         const [actual, todos] = await Promise.all([this.api(`/api/usuarios/${x.id}/indicadores`), this.api('/api/indicadores?gestion=true&limite=500')]);
         this.indOpciones = todos;
         this.indPersona = { id: x.id, nombre: x.nombre, puedeCargar: !!x.rol && (x.rol_clave || this.rolesLista.find(r => r.id === x.rol_id)?.permisos['cargas.cargar']),
-          responsable: actual.responsable.map(i => i.id), cargador: actual.cargador.map(i => i.id), r0: actual.responsable.map(i => i.id) };
+          responsable: actual.responsable.map(i => i.id), suplente: actual.suplente.map(i => i.id), r0: actual.responsable.map(i => i.id) };
       } catch { }
       this.busy = false;
     },
     get indFiltrados() { const q = this.indQ.trim().toLowerCase(); return this.indOpciones.filter(i => !q || (i.codigo + ' ' + i.nombre).toLowerCase().includes(q)); },
-    alternarInd(lista, id) { const l = this.indPersona[lista], k = l.indexOf(id); if (k >= 0) l.splice(k, 1); else l.push(id); },
+    alternarInd(lista, id) {   // una persona no puede ser responsable y suplente del mismo indicador
+      const l = this.indPersona[lista], otra = this.indPersona[lista === 'responsable' ? 'suplente' : 'responsable'], k = l.indexOf(id);
+      if (k >= 0) l.splice(k, 1); else { l.push(id); const j = otra.indexOf(id); if (j >= 0) otra.splice(j, 1); }
+    },
     async guardarIndicadores() {
       this.busy = true;
       try {
         const p = this.indPersona;
-        await this.api(`/api/usuarios/${p.id}/indicadores`, { method: 'PUT', body: { responsable: p.responsable, cargador: p.cargador } });
+        await this.api(`/api/usuarios/${p.id}/indicadores`, { method: 'PUT', body: { responsable: p.responsable, suplente: p.suplente } });
         this.indPersona = null; this.avisar('Indicadores asignados.'); await this.cargarUsuarios(this.pg('usuarios').pagina);
       } catch { }
       this.busy = false;

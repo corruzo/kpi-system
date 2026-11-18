@@ -87,7 +87,7 @@ class AsignacionIn(BaseModel):
 
 class IndicadoresDePersonaIn(BaseModel):
     responsable: list[Id] = Field(default_factory=list, max_length=2000)
-    cargador: list[Id] = Field(default_factory=list, max_length=2000)
+    suplente: list[Id] = Field(default_factory=list, max_length=2000)
 
 
 class DesarrolladorIn(BaseModel):
@@ -133,8 +133,8 @@ class ConstanteIn(BaseModel):
 class IndicadorIn(BaseModel):
     codigo: str = Field(default="", max_length=20)   # vacío = lo genera el sistema; al editar no se puede cambiar
     nodo_id: int = Field(ge=1, le=ID_MAX)                              # gerencia, departamento o jefatura dueña
-    responsable_id: int | None = Field(default=None, ge=1, le=ID_MAX)  # sin indicar: quien lo crea
-    cargadores: list[Annotated[int, Field(ge=1, le=ID_MAX)]] | None = Field(default=None, max_length=30)   # sin indicar: el responsable
+    responsable_id: int | None = Field(default=None, ge=1, le=ID_MAX)  # responsable principal; sin indicar: quien lo crea
+    suplente_id: int | None = Field(default=None, ge=1, le=ID_MAX)     # suplente / corresponsable (opcional); también carga
     nombre: str = Field(min_length=3, max_length=150)
     objetivo: str = Field(default="", max_length=1000)
     unidad: str = Field(min_length=1, max_length=12)
@@ -174,7 +174,7 @@ class IndicadorIn(BaseModel):
 class AsignacionIndicadorIn(BaseModel):
     nodo_id: int = Field(ge=1, le=ID_MAX)
     responsable_id: int = Field(ge=1, le=ID_MAX)
-    cargadores: list[Annotated[int, Field(ge=1, le=ID_MAX)]] = Field(min_length=1, max_length=30)
+    suplente_id: int | None = Field(default=None, ge=1, le=ID_MAX)
 
 
 class FormulaIn(BaseModel):

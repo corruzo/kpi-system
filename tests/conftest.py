@@ -4,7 +4,7 @@ La base se crea una sola vez por sesión de pruebas (SQLite temporal, o PostgreS
 Cada prueba crea sus propios datos con nombres únicos, por lo que no dependen unas de otras ni del orden.
 
 Personas de prueba (todas se crean con el Desarrollador `admin` y se asignan con `persona`):
-  analista  — carga datos donde es cargador; sin ámbito (solo ve lo que le asignan)
+  analista  — carga datos donde es responsable o suplente; sin ámbito (solo ve lo que le asignan)
   jefe      — Analista + aprueba, crea/edita sus indicadores, metas; ámbito en un nodo
   gerente   — igual que jefe (otro nombre de rol), normalmente con ámbito en una gerencia o en la raíz
   coordinador — rol de sistema «Coordinador SGC»
@@ -38,7 +38,7 @@ ROLES = {
              "reportes.fichas": "ver", "reportes.verificar": "ver", "recordatorios.enviar": "modificar"},
     "Gerente general": {"indicadores.ver": "ver", "cargas.ver": "ver", "metas.ver": "ver", "panel.ver": "ver", "reportes.general": "ver",
                         "reportes.fichas": "ver", "ejercicios.ver": "ver", "estructura.ver": "ver", "usuarios.ver": "ver",
-                        "cargas.cargar": "modificar", "indicadores.editar": "modificar", "indicadores.archivar": "modificar"},
+                        "cargas.cargar": "modificar"},
 }
 ROLES["Gerente"] = ROLES["Jefe"]
 _ROLES_CREADOS: dict[str, int] = {}
@@ -183,14 +183,14 @@ def fijar_metas(c, indicador: dict, valor: float | None = None, anio: int | None
 
 def crear_indicador(c, nodo_id: int, meta: bool = True, **cambios) -> dict:
     """Crea un indicador (lo hace el Desarrollador) y, salvo que se pida lo contrario, con meta (vigente y año anterior).
-    `encargado_id` = responsable y cargador a la vez; por defecto, el analista creado en ese nodo con `crear_usuario`."""
+    `encargado_id` = responsable principal; por defecto, el analista creado en ese nodo con `crear_usuario`.
+    `suplente_id` = el suplente (también carga); opcional."""
     como_dev(c)
     if "encargado_id" not in cambios and "responsable_id" not in cambios and nodo_id in JEFES_POR_AREA:
         cambios["encargado_id"] = JEFES_POR_AREA[nodo_id]
     if "encargado_id" in cambios:
         e = cambios.pop("encargado_id")
         cambios.setdefault("responsable_id", e)
-        cambios.setdefault("cargadores", [e])
     cuerpo = ficha_base(nodo_id, **cambios)
     r = c.post("/api/indicadores", json=cuerpo)
     assert r.status_code == 201, r.text
@@ -206,8 +206,7 @@ def escenario(client):
     nodo = crear_area(client)
     analista = crear_usuario(client, "jefe", nodo)
     return {"area": nodo, "jefe": analista, "gerente": crear_usuario(client, "gerente"),
-            "indicador": crear_indicador(client, nodo, responsable_id=id_de_usuario(client, analista),
-                                         cargadores=[id_de_usuario(client, analista)])}
+            "indicador": crear_indicador(client, nodo, responsable_id=id_de_usuario(client, analista))}
 
 
 def periodo_actual(c, indicador_id: int, posicion: int = 0) -> str:

@@ -6,10 +6,10 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 
 ## Reglas del motor (no configurables)
 
-- **Visible** = el nodo del indicador está dentro de algún ámbito de la persona, **o** es su responsable, **o** es su cargador, **o** la persona tiene alcance global (Desarrollador, Coordinador SGC o ámbito en la raíz de la empresa). La visibilidad solo baja por el árbol.
-- **Modificar** una ficha (editar, archivar, eliminar): solo su responsable. **Cargar** datos: solo sus cargadores. Los roles de sistema tienen alcance total.
+- **Visible** = el nodo del indicador está dentro de algún ámbito de la persona, **o** es su responsable principal o su suplente, **o** la persona tiene alcance global (Desarrollador, Coordinador SGC o ámbito en la raíz de la empresa). La visibilidad solo baja por el árbol.
+- **Cargar** datos: solo el responsable principal y el suplente de cada indicador. **Crear, editar, archivar, eliminar y asignar** indicadores: quien tenga ese permiso en su rol y solo sobre indicadores de su ámbito; ser responsable o suplente no da derecho a modificar la ficha. Los roles de sistema tienen alcance total.
 - **Crear / asignar indicadores y fijar metas**: a sí mismo o a personas que están **debajo** en la estructura.
-- **Aprobar**: el superior más cercano hacia arriba que tenga el permiso `cargas.aprobar` y sea distinto del autor; si hay varios en ese nivel, cualquiera. El Coordinador SGC es respaldo. Nadie aprueba una carga propia.
+- **Aprobar**: quien tenga el permiso `cargas.aprobar` en su rol **y** el indicador dentro de su ámbito (hacia abajo en su línea de mando); un aprobador no alcanza lo que queda fuera de ella. El Coordinador SGC puede aprobar siempre. Nadie aprueba una carga propia.
 - **Anti-escalada**: nadie edita su propio rol, nadie concede un permiso que no tiene y los permisos técnicos no se conceden a ningún rol.
 - **Usuario nuevo = sin acceso** hasta que el Coordinador SGC le asigne rol, ámbito e indicadores.
 
@@ -25,11 +25,11 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
 | `indicadores.ver` | **Ver indicadores**: Consultar la lista de indicadores y su ficha técnica. | Ninguno / Ver | Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados. | `GET /api/indicadores`<br>`GET /api/indicadores/{indicador_id}/ficha` |
-| `indicadores.crear` | **Crear indicadores**: Crear fichas nuevas (el código lo asigna el sistema) y definir su nodo, responsable y quienes cargan. | Ninguno / Sí | A sí mismo o a personas que están debajo de él en la estructura. | `GET /api/indicadores/codigo-sugerido`<br>`GET /api/usuarios/opciones`<br>`POST /api/indicadores` |
-| `indicadores.editar` | **Editar indicadores**: Cambiar la ficha: fórmula, variables, semáforo y textos. | Ninguno / Sí | Solo los indicadores de los que es responsable. | `PUT /api/indicadores/{indicador_id}` |
-| `indicadores.archivar` | **Archivar y restaurar**: Archivar un indicador (conserva su historial) o restaurarlo. | Ninguno / Sí | Solo los indicadores de los que es responsable. | `POST /api/indicadores/{indicador_id}/archivar`<br>`POST /api/indicadores/{indicador_id}/restaurar` |
-| `indicadores.eliminar` | **Eliminar indicadores**: Borrar definitivamente un indicador que no tiene cargas. | Ninguno / Sí | Solo los indicadores de los que es responsable. | `DELETE /api/indicadores/{indicador_id}` |
-| `indicadores.asignar` | **Asignar responsable y cargadores**: Cambiar el nodo, el responsable y las personas que cargan un indicador de su ámbito o propio. | Ninguno / Sí | A sí mismo o a personas que están debajo de él en la estructura. | `GET /api/usuarios/opciones`<br>`PUT /api/indicadores/{indicador_id}/asignacion` |
+| `indicadores.crear` | **Crear indicadores**: Crear fichas nuevas (el código lo asigna el sistema) y definir su nodo, responsable principal y suplente. | Ninguno / Sí | A sí mismo o a personas que están debajo de él en la estructura. | `GET /api/indicadores/codigo-sugerido`<br>`GET /api/usuarios/opciones`<br>`POST /api/indicadores` |
+| `indicadores.editar` | **Editar indicadores**: Cambiar la ficha: fórmula, variables, semáforo y textos. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él). Ser responsable o suplente no da este permiso: solo carga. | `PUT /api/indicadores/{indicador_id}` |
+| `indicadores.archivar` | **Archivar y restaurar**: Archivar un indicador (conserva su historial) o restaurarlo. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él). Ser responsable o suplente no da este permiso: solo carga. | `POST /api/indicadores/{indicador_id}/archivar`<br>`POST /api/indicadores/{indicador_id}/restaurar` |
+| `indicadores.eliminar` | **Eliminar indicadores**: Borrar definitivamente un indicador que no tiene cargas. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él). Ser responsable o suplente no da este permiso: solo carga. | `DELETE /api/indicadores/{indicador_id}` |
+| `indicadores.asignar` | **Asignar responsable y suplente**: Cambiar el nodo, el responsable principal y el suplente de un indicador de su ámbito. | Ninguno / Sí | A sí mismo o a personas que están debajo de él en la estructura. | `GET /api/usuarios/opciones`<br>`PUT /api/indicadores/{indicador_id}/asignacion` |
 | `formulas.probar` | **Validar y probar fórmulas**: Usar el validador y el probador de fórmulas de la ficha. | Ninguno / Sí | No accede a datos. | `POST /api/formula/probar`<br>`POST /api/formula/validar` |
 
 ## Cargas
@@ -37,8 +37,8 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
 | `cargas.ver` | **Ver cargas**: Consultar el historial de cargas, sus períodos y su estado. | Ninguno / Ver | Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados. | `GET /api/indicadores/{indicador_id}/periodos`<br>`GET /api/mediciones`<br>`GET /api/mediciones/resumen-ejercicios` |
-| `cargas.cargar` | **Cargar datos**: Digitar el dato real de cada período y corregir las cargas devueltas. | Ninguno / Sí | Solo los indicadores en los que es cargador. | `POST /api/calcular`<br>`POST /api/mediciones` |
-| `cargas.reabrir` | **Reabrir cargas aprobadas**: Devolver a quien cargó una carga ya aprobada, con su motivo. | Ninguno / Sí | Las cargas que le corresponde aprobar. | `POST /api/mediciones/{medicion_id}/reabrir` |
+| `cargas.cargar` | **Cargar datos**: Digitar el dato real de cada período y corregir las cargas devueltas. | Ninguno / Sí | Solo los indicadores en los que es responsable principal o suplente. | `POST /api/calcular`<br>`POST /api/mediciones` |
+| `cargas.reabrir` | **Reabrir cargas aprobadas**: Devolver a quien cargó una carga ya aprobada, con su motivo. | Ninguno / Sí | Las cargas que le corresponde aprobar (ver «Aprobar o devolver cargas»). | `POST /api/mediciones/{medicion_id}/reabrir` |
 | `periodos.justificar` | **Justificar períodos**: Marcar un período como «parada de planta», «empezó a medirse después» o «no aplica», con su motivo, para que no bloquee el cierre del ejercicio. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él). | `DELETE /api/indicadores/{indicador_id}/justificaciones/{periodo}`<br>`POST /api/indicadores/{indicador_id}/justificaciones` |
 | `cargas.notas` | **Notas de auditoría**: Agregar notas de auditoría a una carga. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados. | `POST /api/mediciones/{medicion_id}/notas` |
 
@@ -46,7 +46,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 
 | Permiso | Función | Niveles | Alcance | Rutas |
 |---|---|---|---|---|
-| `cargas.aprobar` | **Aprobar o devolver cargas**: Revisar las cargas enviadas: aprobarlas o devolverlas con observaciones. Nadie aprueba una carga propia. | Ninguno / Sí | Las cargas de su ámbito, como superior más cercano de quien cargó (el Coordinador SGC puede aprobar siempre). | `GET /api/bandeja`<br>`GET /api/bandeja/resumen`<br>`POST /api/mediciones/{medicion_id}/revision` |
+| `cargas.aprobar` | **Aprobar o devolver cargas**: Revisar las cargas enviadas: aprobarlas o devolverlas con observaciones. Nadie aprueba una carga propia. | Ninguno / Sí | Las cargas de los indicadores de su ámbito, hacia abajo en su línea de mando (el Coordinador SGC puede aprobar siempre). | `GET /api/bandeja`<br>`GET /api/bandeja/resumen`<br>`POST /api/mediciones/{medicion_id}/revision` |
 
 ## Metas
 

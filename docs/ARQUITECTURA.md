@@ -43,17 +43,19 @@
 | `roles`, `rol_permisos` | roles (de sistema: `desarrollador`, `coordinador`) y su nivel por permiso del catálogo |
 | `usuarios` | cuenta; `rol_id` nulo = pendiente de asignación; `ambito_raiz` = ámbito en toda la empresa |
 | `usuario_unidades` | nodos de la persona: `ambito` (ve el nodo y lo que cuelga) o `miembro` (solo lo sitúa; el analista) |
-| `indicadores` | ficha; `nodo_id` (cualquier nivel), `responsable_id`; `nivel_optimo` / `limite` (semáforo) |
-| `indicador_cargadores` | quién carga cada indicador (1..n) |
+| `indicadores` | ficha; `nodo_id` (cualquier nivel), `responsable_id` (principal) y `suplente_id` (los dos cargan); `archivado_en`; `nivel_optimo` / `limite` (semáforo) |
+| `periodos_justificados` | períodos que no se cargan por una razón formal (parada de planta, no aplica…); cuentan como cubiertos para el cierre |
 | `metas`, `mediciones` | meta por período; carga real con foto de la ficha y de la meta vigentes |
 
-**Visibilidad de un indicador** = su nodo está dentro de algún ámbito de la persona **o** es su responsable **o** es su cargador **o** la
-persona tiene alcance global (Desarrollador, Coordinador SGC, ámbito en la raíz). Solo baja por el árbol. **Modificar** = ser su
-responsable; **cargar** = ser su cargador (los roles de sistema, alcance total). **Crear / asignar / fijar metas** = a sí mismo o a
+**Visibilidad de un indicador** = su nodo está dentro de algún ámbito de la persona **o** es su responsable principal **o** su suplente **o** la
+persona tiene alcance global (Desarrollador, Coordinador SGC, ámbito en la raíz). Solo baja por el árbol. **Modificar** (crear, editar,
+archivar, eliminar, asignar) = tener el permiso en el rol **y** el indicador en el ámbito; **cargar** = ser su responsable principal o su
+suplente (los roles de sistema, alcance total). Quien carga no edita la ficha. **Crear / asignar / fijar metas** = a sí mismo o a
 personas *debajo* (miembro de un nodo del ámbito, o con ámbito en un nodo inferior; los pares no están debajo).
 
-**Aprobación:** aprobadores elegibles = personas con `cargas.aprobar` cuyo ámbito cubre el nodo del indicador; se toma el nivel más cercano
-hacia arriba que tenga al menos uno distinto del autor (cualquiera de ese nivel aprueba) y se suman siempre los roles de sistema.
+**Aprobación:** aprobadores elegibles = personas con `cargas.aprobar` en su rol cuyo ámbito cubre el nodo del indicador (el propio nodo o un
+ancestro; con ámbito en la raíz, todos), más los roles de sistema, menos el autor. Sin recorrido por «superior directo»: un aprobador no
+alcanza lo que queda fuera de su línea de mando.
 
 **Anti-escalada** (`servicios/roles.py`, `servicios/personas.py`): nadie edita su propio rol ni se asigna a sí mismo; nadie concede un permiso
 (o nivel) que no tiene; los permisos técnicos no se conceden a ningún rol; el Coordinador no ve ni toca a un Desarrollador y solo un
@@ -81,6 +83,6 @@ Desarrollador da o quita el rol Coordinador; el rol Desarrollador es inmutable y
 | **Supabase: 500 MB de base** | crecimiento de la bitácora | Registros pequeños (JSON) y sin imágenes; el respaldo diario por GitHub Actions es externo y **mantiene activo el proyecto** (Supabase pausa los gratuitos tras 7 días sin actividad). |
 | **Vercel: invocaciones y ancho de banda** | cada archivo estático despertaba la función | Estáticos con huella y `s-maxage` de un año (los sirve la CDN, no la función); HTML y `/api/publico` con `s-maxage` corto; gzip. |
 | **Vercel: 10 s por función (Hobby)** | operaciones largas | Lo pesado (respaldo completo, restauración) se hace con la línea de comandos o el flujo de GitHub Actions, no con el botón, si la base crece. |
-| **Memoria de la función** | cargar objetos completos «por si acaso» | `Medicion.notas`, `Indicador.responsable` e `Indicador.cargadores` ya no se traen siempre: se piden en bloque solo en las listas que los muestran. La bandeja decide qué le toca a cada persona con una consulta liviana (columnas sueltas) y solo carga completas las de la página pedida. |
+| **Memoria de la función** | cargar objetos completos «por si acaso» | `Medicion.notas`, `Indicador.responsable` e `Indicador.suplente` ya no se traen siempre: se piden en bloque solo en las listas que los muestran. La bandeja decide qué le toca a cada persona con una consulta liviana (columnas sueltas) y solo carga completas las de la página pedida. |
 
 Regla práctica: antes de agregar una pantalla o ruta, `tests/api/test_robustez.py` comprueba que el número de consultas no crezca con las filas.
