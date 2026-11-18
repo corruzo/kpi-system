@@ -204,7 +204,7 @@ estructura -> roles -> personas -> indicadores -> período -> meta -> carga.
     El Panel de control lo ve cada persona solo con lo que su rol le permite ver: su nodo y lo que cuelga de él.
 
  Antes de entregar el sistema: Configuración > Empresa y logo (nombre, código del formato, inicio del
- ejercicio fiscal, contraseña de los reportes) y Listas de apoyo (procesos, objetivos, gerencias, cargos).
+ ejercicio fiscal, contraseña de los reportes).
  El inicio del ejercicio no puede cambiarse cuando ya hay metas, cargas no mensuales o ejercicios cerrados.
 
 PANEL DE SALUD DEL DESARROLLADOR (Inicio)
@@ -292,7 +292,6 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
   Nombre, correo o clave de una cuenta         Desarrollador · Personas > Editar cuenta / clave temporal
   Nombre de un nodo o su lugar                 Coordinador · Estructura > Renombrar / Mover
   Empresa, logo, formato, inicio del año       Quien tenga «Parámetros» · Configuración
-  Listas de la ficha                           Quien tenga «Listas» · Configuración > Listas de apoyo
 
 ====================================================================================================
 10. ELIMINAR, ARCHIVAR Y LO QUE NO SE PUEDE BORRAR
@@ -346,7 +345,7 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
 ====================================================================================================
 
  * Reinicio de fábrica (Configuración > Avanzado > Zona de peligro; Desarrollador): borra TODO (indicadores,
-   cargas, estructura, personas, roles definidos, listas, parámetros, logo y bitácora). Conserva solo su
+   cargas, estructura, personas, roles definidos, parámetros, logo y bitácora). Conserva solo su
    cuenta y los roles de sistema. Pide escribir «BORRAR TODO» y su contraseña. No se puede deshacer.
  * Reinicio a la versión 2 en producción: procedimiento y script en docs/OPERACION.md
    (scripts/reset_produccion_v2.sql). Destruye los datos de la versión 1 (eran de prueba).

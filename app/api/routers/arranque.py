@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ...dominio import calendario
 from ...models import Indicador, Usuario
-from ...servicios import acceso, ejercicios, estructura, indicadores, metas, organizacion, parametros
+from ...servicios import acceso, ejercicios, estructura, indicadores, metas, parametros
 from .. import serializadores as ser
 from ..deps import AnioConsulta, cuenta_propia, get_db
 from . import ejercicios as r_ejercicios
@@ -65,8 +65,6 @@ def arranque(ejercicio: AnioConsulta = None, db: Session = Depends(get_db), u: U
         datos["bandeja_total"], datos["bandeja_ejercicios"] = bandeja["total"], bandeja["ejercicios"]
     if puede("panel.ver"):
         datos["resumen"] = ejercicios.foto(db, sel, None, hoy, u)["resumen"]   # lo que muestra la pantalla de inicio
-    if puede("catalogos.gestionar") or puede("indicadores.crear") or puede("indicadores.editar"):
-        datos["catalogos"] = [ser.catalogo(c) for c in organizacion.listar_catalogos(db)]
     if puede("sistema.puesta_en_marcha") or puede("usuarios.asignar"):   # la guía de arranque la usan quienes configuran
         datos["marcha"] = metas.avance_de_puesta_en_marcha(db, u, hoy)
     return datos

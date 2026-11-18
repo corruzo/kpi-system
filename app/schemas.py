@@ -95,12 +95,6 @@ class DesarrolladorIn(BaseModel):
     password: str = Field(max_length=128)
 
 
-class CatalogoIn(BaseModel):
-    tipo: Literal["gerencia", "proceso", "objetivo", "cargo"]
-    valor: str = Field(min_length=2, max_length=300)
-    detalle: str = Field(default="", max_length=2000)
-
-
 class ParametrosIn(BaseModel):
     empresa: str = Field(min_length=2, max_length=120)
     gerencia_emisora: str = Field(default="", max_length=150)
@@ -265,15 +259,10 @@ class ImpIndicador(IndicadorIn):
     mediciones: list[ImpMedicion] = Field(default_factory=list, max_length=400)
 
 
-class ImpCatalogo(CatalogoIn):
-    pass
-
-
 class ImpIn(BaseModel):
     archivo: str = ""
     inicio_ejercicio: int | None = None
     indicadores: list[ImpIndicador] = Field(max_length=100)
-    catalogos: list[ImpCatalogo] = Field(default_factory=list, max_length=500)
     areas_nuevas: list[str] = Field(default_factory=list, max_length=60)
 
 

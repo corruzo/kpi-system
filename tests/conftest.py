@@ -35,7 +35,7 @@ ROLES = {
              "indicadores.crear": "modificar", "indicadores.editar": "modificar", "indicadores.archivar": "modificar",
              "indicadores.eliminar": "modificar", "indicadores.asignar": "modificar", "formulas.probar": "modificar",
              "metas.cargar": "modificar", "metas.copiar": "modificar", "panel.ver": "ver", "reportes.general": "ver",
-             "reportes.fichas": "ver", "reportes.verificar": "ver", "recordatorios.enviar": "modificar", "catalogos.gestionar": "modificar"},
+             "reportes.fichas": "ver", "reportes.verificar": "ver", "recordatorios.enviar": "modificar"},
     "Gerente general": {"indicadores.ver": "ver", "cargas.ver": "ver", "metas.ver": "ver", "panel.ver": "ver", "reportes.general": "ver",
                         "reportes.fichas": "ver", "ejercicios.ver": "ver", "estructura.ver": "ver", "usuarios.ver": "ver",
                         "cargas.cargar": "modificar", "indicadores.editar": "modificar", "indicadores.archivar": "modificar"},

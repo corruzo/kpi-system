@@ -2,7 +2,7 @@
 from ..dominio import calendario
 from ..dominio.ficha_texto import nivel_optimo_texto
 from ..dominio.meta import comparar
-from ..models import Bitacora, Catalogo, Indicador, Medicion, Unidad, Usuario
+from ..models import Bitacora, Indicador, Medicion, Unidad, Usuario
 from ..servicios import acceso
 
 
@@ -38,10 +38,6 @@ def unidad(n: Unidad, ruta_nombres: str = "", personas: int | None = None, indic
     if personas is not None:
         d.update(personas=personas, indicadores=indicadores or 0)
     return d
-
-
-def catalogo(c: Catalogo) -> dict:
-    return {"id": c.id, "tipo": c.tipo, "valor": c.valor, "detalle": c.detalle or ""}
 
 
 def indicador(i: Indicador, u: Usuario | None = None) -> dict:

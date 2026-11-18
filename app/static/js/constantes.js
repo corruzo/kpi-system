@@ -46,7 +46,7 @@ const SECCIONES = [
   ['reportes', ['reportes.general', 'reportes.fichas', 'reportes.verificar'], 'Reportes', 'Reportes', 'Analizar'],
   ['ejercicios', ['ejercicios.crear', 'ejercicios.cerrar', 'ejercicios.reabrir'], 'Cierre de años', 'Cierre', 'Control'],
   ['importar', ['importacion.usar'], 'Importar', 'Importar', 'Control'],
-  ['config', ['parametros.gestionar', 'catalogos.gestionar', 'respaldo.exportar', 'respaldo.restaurar', 'sistema.reiniciar', 'soporte.desbloquear'], 'Configuración', 'Ajustes', 'Control'],
+  ['config', ['parametros.gestionar', 'respaldo.exportar', 'respaldo.restaurar', 'sistema.reiniciar', 'soporte.desbloquear'], 'Configuración', 'Ajustes', 'Control'],
   ['bitacora', ['bitacora.ver'], 'Bitácora', 'Bitácora', 'Control'],
 ];
 const SEGUIMIENTO = ['bandeja', 'recordatorios', 'historial'];

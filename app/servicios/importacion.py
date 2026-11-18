@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
-from ..models import Catalogo, Indicador, Medicion, Unidad, Usuario, ahora
+from ..models import Indicador, Medicion, Unidad, Usuario, ahora
 from . import auditoria, ejercicios, estructura, indicadores, lector_excel, mediciones
 
 
@@ -104,26 +104,12 @@ def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind,
     return periodos
 
 
-def _importar_catalogos(db: Session, admin: Usuario, datos) -> int:
-    existentes = {(c.tipo, c.valor.lower()) for c in db.scalars(select(Catalogo))}
-    nuevos = 0
-    for c in datos.catalogos:
-        llave = (c.tipo, c.valor.strip().lower())
-        if llave not in existentes:
-            db.add(Catalogo(tipo=c.tipo, valor=c.valor.strip(), detalle=c.detalle.strip()))
-            existentes.add(llave)
-            nuevos += 1
-    if nuevos:
-        auditoria.registrar(db, admin, "CATALOGO_CREADO", "catalogo", None, {"cantidad": nuevos, "origen": f"importación {datos.archivo}"})
-    return nuevos
-
-
 def confirmar(db: Session, admin: Usuario, datos) -> dict:
-    """Crea indicadores, mediciones históricas (aprobadas), áreas y listas de apoyo en una sola transacción."""
+    """Crea indicadores, mediciones históricas (aprobadas), y áreas en una sola transacción."""
     _exigir_mismo_ejercicio(datos)
     areas = _nodos_por_nombre(db)
     nuevas = {n.strip().lower() for n in datos.areas_nuevas}
-    resumen = {"indicadores": 0, "mediciones": 0, "areas": 0, "catalogos": 0}
+    resumen = {"indicadores": 0, "mediciones": 0, "areas": 0}
     codigos = set()
     for item in datos.indicadores:
         if item.codigo in codigos:
@@ -146,6 +132,5 @@ def confirmar(db: Session, admin: Usuario, datos) -> dict:
     for nombre in sorted(nuevas - set(areas)):   # departamentos marcados que no tienen indicadores en este archivo
         original = next(n.strip() for n in datos.areas_nuevas if n.strip().lower() == nombre)
         _resolver_nodo(db, admin, original, "", areas, nuevas, resumen)
-    resumen["catalogos"] = _importar_catalogos(db, admin, datos)
     db.commit()
     return resumen

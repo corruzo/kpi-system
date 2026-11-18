@@ -1,20 +1,16 @@
-/* Configuración: parámetros y logo, listas de apoyo de la ficha, respaldo cifrado y reinicio de fábrica.
+/* Configuración: parámetros y logo, respaldo cifrado y reinicio de fábrica.
    (La estructura de la empresa, los roles y las personas tienen sus propios módulos.) */
 SIGT.modulos.organizacion = () => ({
-    catalogos: [], orgTab: 'empresa',
-    catTab: 'proceso', catForm: { id: null, valor: '', detalle: '' },
+    orgTab: 'empresa',
     reinicio: { abierto: false, frase: '', password: '' },
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
-      entrar: { async config() {
-        this.orgTab = this.configTabs[0]?.[0] || 'empresa';
-        if (this.puede('catalogos.gestionar')) this.catalogos = await this.api('/api/catalogos');
-      } },
+      entrar: { config() { this.orgTab = this.configTabs[0]?.[0] || 'empresa'; } },
     },
     // Pestañas disponibles según los permisos de la persona
     get configTabs() {
-      return [['empresa', 'Empresa y logo', 'parametros.gestionar'], ['listas', 'Listas de apoyo', 'catalogos.gestionar'],
+      return [['empresa', 'Empresa y logo', 'parametros.gestionar'], 
         ['avanzado', 'Avanzado', ['respaldo.exportar', 'respaldo.restaurar', 'sistema.reiniciar']]].filter(([, , p]) => this.puedeAlguno([].concat(p)));
     },
     respFrase: '', restaurar: { archivo: null, frase: '', password: '', confirmacion: '' },
@@ -41,22 +37,6 @@ SIGT.modulos.organizacion = () => ({
       } catch (e) { this.avisar(e.message, true); }
       this.busy = false;
     },
-    get catActual() { return this.catalogos.filter(c => c.tipo === this.catTab); },
-    async guardarCat() {
-      this.busy = true;
-      try {
-        const f = this.catForm, id = f.id;
-        await this.api(id ? `/api/catalogos/${id}` : '/api/catalogos', { method: id ? 'PUT' : 'POST', body: { tipo: this.catTab, valor: f.valor, detalle: f.detalle } });
-        this.catForm = { id: null, valor: '', detalle: '' }; this.catalogos = await this.api('/api/catalogos'); this.avisar('Lista actualizada.');
-      } catch { }
-      this.busy = false;
-    },
-    async eliminarCat(c) {
-      if (!confirm(`¿Quitar «${c.valor}» de la lista? Las fichas que ya lo usan conservan el texto.`)) return;
-      try { await this.api(`/api/catalogos/${c.id}`, { method: 'DELETE' }); this.catalogos = await this.api('/api/catalogos'); } catch { }
-    },
-    lista(tipo) { return this.catalogos.filter(c => c.tipo === tipo); },
-
     // ------------------------------------------------------------ reinicio de fábrica
     abrirReinicio() { this.reinicio = { abierto: true, frase: '', password: '' }; },
     async confirmarReinicio() {

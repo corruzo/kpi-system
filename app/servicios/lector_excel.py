@@ -78,24 +78,9 @@ def _lista_columna(ws, col: int, etiqueta: str, maximo=200) -> list[str]:
     return []
 
 
-def _catalogos(ws) -> dict:
-    cat = {"gerencia": _lista_columna(ws, 13, "Gerencias:"), "area": _lista_columna(ws, 20, "Departamentos:"),
-           "cargo": _lista_columna(ws, 25, "Cargos:"), "objetivo": [], "proceso": []}
-    for r in range(1, 200):  # objetivos organizacionales: columnas B (N°) y C (texto)
-        if _txt(ws.cell(r, 2).value) == "N°" and _norm(_txt(ws.cell(r, 3).value)) == "objetivo":
-            k = r + 1
-            while _txt(ws.cell(k, 3).value):
-                cat["objetivo"].append(_txt(ws.cell(k, 3).value))
-                k += 1
-            break
-    for r in range(200, 400):  # procesos: lista en la columna F, tras una línea de marcas «xxxx»
-        if _txt(ws.cell(r, 1).value).lower().startswith("xxxx"):
-            k = r + 2
-            while _txt(ws.cell(k, 6).value):
-                cat["proceso"].append(_txt(ws.cell(k, 6).value))
-                k += 1
-            break
-    return cat
+def _areas_del_libro(ws) -> list[str]:
+    """Departamentos que lista la hoja (columna T, bajo «Departamentos:»): se ofrecen para crearlos como áreas."""
+    return _lista_columna(ws, 20, "Departamentos:")
 
 
 # ------------------------------------------------------------------ fórmula
@@ -322,13 +307,11 @@ def leer_libro(contenido: bytes, archivo: str = "") -> dict:
             inds.append(r)
         else:
             avisos.append(f"Hoja «{ws.title}»: no tiene el formato de ficha técnica; se omitió.")
-    cat = {}
+    areas = []
     for ws in wb.worksheets:
-        cat = _catalogos(ws)
-        if any(cat.values()):
+        areas = _areas_del_libro(ws)
+        if areas:
             break
-    # el objetivo de cada proceso se toma de las propias fichas
-    detalle = {i["ref_nombre"]: i["ref_detalle"] for i in inds if i["seguimiento"] != "objetivo" and i["ref_nombre"]}
     inicios = {i["inicio_ejercicio"] for i in inds if i["inicio_ejercicio"]}
-    return {"archivo": archivo, "indicadores": inds, "avisos": avisos, "catalogos": cat,
-            "detalle_procesos": detalle, "inicio_ejercicio": inicios.pop() if len(inicios) == 1 else None}
+    return {"archivo": archivo, "indicadores": inds, "avisos": avisos, "areas": areas,
+            "inicio_ejercicio": inicios.pop() if len(inicios) == 1 else None}

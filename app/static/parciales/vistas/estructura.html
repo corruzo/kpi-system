@@ -24,7 +24,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-50 p-3" x-show="moverForm.id===n.id" x-transition>
               <label class="lbl !mb-0" :for="'mover-'+n.id">Nuevo lugar (con todo lo que cuelga de él)</label>
-              <select :id="'mover-'+n.id" class="inp !w-auto min-w-[14rem]" x-model="moverForm.padre_id"><option value="">Seleccione…</option><template x-for="a in padresPosibles(n)" :key="a.id"><option :value="a.id" x-text="a.ruta"></option></template></select>
+              <div class="min-w-[14rem] flex-1" x-data="combo({ id: 'mover-' + n.id, etiqueta: 'Nuevo lugar', opciones: () => padresPosibles(n).map(a => ({ valor: a.id, etiqueta: a.nombre, detalle: a.ruta !== a.nombre ? a.ruta : '', chip: etiquetaNivel(a.nivel) })), valor: () => moverForm.padre_id, elegir: v => moverForm.padre_id = v })"></div>
               <button class="btn btn-p btn-sm" :disabled="busy || !moverForm.padre_id" @click="confirmarMover(n)">Mover</button>
             </div>
           </li></template>

@@ -30,7 +30,7 @@ SIGT.modulos.guia = () => ({
         recordatorios: 'Quién tiene cargas pendientes en su ámbito y un correo ya redactado para Outlook.', historial: 'Historial de las cargas que usted ve.',
         panel: 'Resultados, tendencias y mapa de calor de su ámbito.', reportes: 'Excel del informe general y de las fichas técnicas de lo que usted ve.',
         ejercicios: 'Al terminar el año, verifíquelo y ciérrelo: queda archivado en solo lectura.', importar: 'Traiga las fichas de años anteriores desde Excel.',
-        config: 'Empresa, listas de apoyo, respaldo y soporte.', bitacora: 'Registro inalterable de todo lo que ocurre en el sistema.' };
+        config: 'Empresa, respaldo y soporte.', bitacora: 'Registro inalterable de todo lo que ocurre en el sistema.' };
       for (const n of this.nav()) pasos.push(nav(n.id, n.label, textos[n.id] || ''));
       return [...pasos, ej, info, menu, fin];
     },

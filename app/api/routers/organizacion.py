@@ -1,4 +1,4 @@
-"""Configuración: listas de apoyo, parámetros del sistema, logo, respaldo y reinicio de fábrica."""
+"""Configuración: parámetros del sistema, logo, respaldo y reinicio de fábrica."""
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
@@ -7,39 +7,11 @@ from sqlalchemy.orm import Session
 from ... import schemas
 from ...errores import Invalido, NoEncontrado
 from ...models import Usuario
-from ...servicios import acceso, auditoria, marca, organizacion, parametros, reinicio, respaldo
-from .. import serializadores as ser
-from ..deps import IdRuta, escritura, get_db, requiere_permiso
+from ...servicios import acceso, auditoria, marca, parametros, reinicio, respaldo
+from ..deps import escritura, get_db, requiere_permiso
 
 router = APIRouter(prefix="/api", tags=["configuración"])
-listas = requiere_permiso("catalogos.gestionar")
 params = requiere_permiso("parametros.gestionar")
-
-
-# ---------------------------------------------------------------- listas de apoyo
-@router.get("/catalogos")
-def listar_catalogos(db: Session = Depends(get_db),
-                     _=Depends(requiere_permiso("catalogos.gestionar", "indicadores.crear", "indicadores.editar"))):
-    """Las listas se ofrecen a quien las mantiene y a quien llena fichas (procesos, objetivos, cargos…)."""
-    return [ser.catalogo(c) for c in organizacion.listar_catalogos(db)]
-
-
-@router.post("/catalogos", status_code=201)
-def crear_catalogo(datos: schemas.CatalogoIn, db: Session = Depends(get_db), u: Usuario = Depends(listas),
-                   _=Depends(escritura)):
-    return ser.catalogo(organizacion.crear_catalogo(db, u, datos))
-
-
-@router.put("/catalogos/{elemento_id}")
-def editar_catalogo(elemento_id: IdRuta, datos: schemas.CatalogoIn, db: Session = Depends(get_db),
-                    u: Usuario = Depends(listas), _=Depends(escritura)):
-    return ser.catalogo(organizacion.editar_catalogo(db, u, elemento_id, datos))
-
-
-@router.delete("/catalogos/{elemento_id}")
-def eliminar_catalogo(elemento_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(listas), _=Depends(escritura)):
-    organizacion.eliminar_catalogo(db, u, elemento_id)
-    return {"ok": True}
 
 
 # ---------------------------------------------------------------- parámetros del sistema

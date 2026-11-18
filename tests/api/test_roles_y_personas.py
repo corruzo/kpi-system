@@ -199,7 +199,7 @@ def test_una_cuenta_sin_rol_no_accede_a_nada_salvo_a_su_cuenta(client):
     arr = client.get("/api/arranque").json()
     assert set(arr) == {"usuario", "parametros"} and set(arr["parametros"]) == {"empresa", "logo_url"}
     for url in ("/api/indicadores", "/api/mediciones", "/api/unidades", "/api/usuarios", "/api/roles", "/api/ejercicios", "/api/tablero",
-                "/api/reportes/general.xlsx", "/api/bandeja", "/api/parametros", "/api/catalogos", "/api/bitacora", "/api/recordatorios"):
+                "/api/reportes/general.xlsx", "/api/bandeja", "/api/parametros", "/api/bitacora", "/api/recordatorios"):
         assert client.get(url).status_code == 403, url
     assert client.post("/api/tour", json={"visto": True}).status_code == 200                       # su cuenta sí
     assert client.post("/api/cambiar-clave", json={"actual": CLAVE, "nueva": "otra-clave-muy-larga-1"}).status_code == 200

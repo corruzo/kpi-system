@@ -114,14 +114,14 @@ def test_el_arranque_entrega_a_cada_rol_solo_lo_suyo_en_una_peticion(client, dos
     entrar(client, d["a"])
     r = client.get("/api/arranque").json()
     assert {i["id"] for i in r["indicadores"]} == {d["ind_a"]["id"]}
-    for clave in ("usuarios", "catalogos", "bandeja_total", "marcha", "resumen", "areas"):
+    for clave in ("usuarios", "bandeja_total", "marcha", "resumen", "areas"):
         assert clave not in r, clave
     assert r["usuario"]["username"] == d["a"] and r["ejercicio"] in {e["anio"] for e in r["ejercicios"]["ejercicios"]}
     assert r["usuario"]["permisos"]["cargas.cargar"] == "modificar" and "usuarios.cuentas" not in r["usuario"]["permisos"]
     entrar(client, "admin", CLAVE_ADMIN)
     r = client.get("/api/arranque").json()
     assert {"usuario", "parametros", "ejercicios", "ejercicio", "indicadores", "unidades", "bandeja_total", "bandeja_ejercicios",
-            "catalogos", "marcha", "resumen"} <= r.keys()
+            "marcha", "resumen"} <= r.keys()
     assert "usuarios" not in r and "bandeja" not in r   # las listas largas se piden paginadas, no en el arranque
     client.cookies.clear()
     assert client.get("/api/arranque").status_code == 401

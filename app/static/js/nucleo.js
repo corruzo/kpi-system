@@ -31,7 +31,7 @@ SIGT.modulos.nucleo = () => ({
       if (d.ejercicios) { this.aplicarEjercicios(d.ejercicios.ejercicios); this.ejVigente = d.ejercicios.vigente; }
       this.ejSel = d.ejercicio;
       this.indicadores = d.indicadores; this.areas = d.unidades || [];
-      this.bandejaN = d.bandeja_total || 0; this.bandejaEj = d.bandeja_ejercicios || []; this.catalogos = d.catalogos || []; this.usuarios = [];
+      this.bandejaN = d.bandeja_total || 0; this.bandejaEj = d.bandeja_ejercicios || []; this.usuarios = [];
       this.marcha = d.marcha || null; this.resumenInicio = d.resumen || null; this._inicioListo = true;   // la pantalla de inicio ya tiene sus datos
       for (const cargar of this.ganchos.ingreso) await cargar.call(this);   // lo que no viene en el arranque (p. ej. valores por defecto)
       await this.go(VISTA_INICIAL);

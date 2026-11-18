@@ -121,16 +121,6 @@ class IntentoFallido(Base):
     fecha: Mapped[datetime] = mapped_column(DateTime, index=True, default=ahora)
 
 
-class Catalogo(Base):
-    """Listas de apoyo de la ficha: gerencias, procesos (con su objetivo), objetivos organizacionales, cargos."""
-    __tablename__ = "catalogos"
-    __table_args__ = (UniqueConstraint("tipo", "valor"),)
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tipo: Mapped[str] = mapped_column(String(20))      # gerencia | proceso | objetivo | cargo
-    valor: Mapped[str] = mapped_column(String(300))
-    detalle: Mapped[str] = mapped_column(Text, default="")
-
-
 class Usuario(Base):
     """Cuenta de una persona. Sin rol (`rol_id` nulo) está «pendiente de asignación»: no accede a nada."""
     __tablename__ = "usuarios"

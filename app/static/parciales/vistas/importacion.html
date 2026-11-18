@@ -6,7 +6,7 @@
         <label class="btn btn-p w-full cursor-pointer sm:w-auto"><input type="file" accept=".xlsx" class="sr-only" @change="analizarExcel($event)"><span x-text="imp.cargando ? 'Analizando…' : 'Seleccionar archivo Excel (.xlsx)'"></span></label>
       </div></div>
 
-      <div class="card border-green-300 bg-green-50" x-show="imp.res"><div class="card-b text-sm text-green-900"><b>Importación completada:</b> <span x-text="imp.res && `${imp.res.indicadores} indicadores, ${imp.res.mediciones} mediciones, ${imp.res.areas} áreas y ${imp.res.catalogos} elementos de lista creados.`"></span>
+      <div class="card border-green-300 bg-green-50" x-show="imp.res"><div class="card-b text-sm text-green-900"><b>Importación completada:</b> <span x-text="imp.res && `${imp.res.indicadores} indicadores, ${imp.res.mediciones} mediciones, ${imp.res.areas} áreas creadas.`"></span>
         <div class="mt-2"><button class="btn btn-s btn-sm" @click="go('fichas')">Ir a Indicadores</button></div></div></div>
 
       <template x-if="imp.prev">
@@ -24,8 +24,8 @@
                   <div class="flex flex-wrap gap-1.5"><template x-for="m in i.mediciones" :key="m.periodo"><span class="chip border-slate-200 bg-white text-slate-700"><span class="h-2 w-2 rounded-full" :class="semBg(m.semaforo)"></span><span x-text="m.etiqueta + ': ' + fmt(m.resultado, i.unidad, i.decimales)"></span></span></template></div></div>
               </div></div>
           </template>
-          <div class="card"><div class="card-h"><h2 class="font-semibold">Listas de apoyo encontradas en el archivo</h2></div><div class="card-b space-y-2 text-sm">
-            <template x-for="t in [['gerencia','Gerencias'],['proceso','Procesos'],['objetivo','Objetivos organizacionales'],['cargo','Cargos'],['area','Departamentos (se crean como áreas)']]" :key="t[0]"><label class="flex items-center gap-2" x-show="(imp.prev.catalogos[t[0]]||[]).length"><input type="checkbox" class="h-5 w-5" x-model="imp.cat[t[0]]"> <span x-text="t[1] + ' (' + imp.prev.catalogos[t[0]].length + ')'"></span></label></template>
+          <div class="card" x-show="(imp.prev.areas || []).length"><div class="card-h"><h2 class="font-semibold">Departamentos encontrados en el archivo</h2></div><div class="card-b text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" class="h-5 w-5" x-model="imp.crearAreas"> <span x-text="'Crear los ' + imp.prev.areas.length + ' departamentos que aún no existan como áreas de la estructura'"></span></label>
           </div></div>
           <div class="flex flex-col gap-2 sm:flex-row sm:justify-end"><button class="btn btn-s" @click="imp.prev=null">Cancelar</button><button class="btn btn-p" :disabled="busy || !impSeleccion.length || impInicioDistinto || impSeleccion.some(i => !i.formula || !i.codigo)" @click="confirmarImportacion()" x-text="busy ? 'Importando…' : 'Importar ' + impSeleccion.length + ' indicador(es)'"></button></div>
         </div>

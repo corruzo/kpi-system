@@ -25,7 +25,7 @@ def test_importar_fichas_historicas_y_reemplazar_el_excel(client):
     assert io["frecuencia"] == "trimestral" and [m["periodo"] for m in io["mediciones"]] == ["2026-Q1", "2026-Q2"]
 
     cuerpo = {"archivo": "fichas.xlsx", "inicio_ejercicio": prev["inicio_ejercicio"], "indicadores": prev["indicadores"],
-              "areas_nuevas": ["Sistemas"], "catalogos": [{"tipo": "gerencia", "valor": g} for g in prev["catalogos"]["gerencia"]]}
+              "areas_nuevas": ["Sistemas"]}
     ok = client.post("/api/importar/confirmar", json=cuerpo)
     if calendario.inicio_mes() != 10:                      # el calendario del sistema debe coincidir con el de las fichas
         assert ok.status_code == 409

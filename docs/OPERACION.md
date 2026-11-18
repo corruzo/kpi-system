@@ -63,4 +63,4 @@ desarrollo: lo ejecuta una persona autorizada.**
    y siembra los roles de sistema (Desarrollador y Coordinador SGC). **Elimine `SIGT_ADMIN_PASSWORD`** del entorno y cambie la contraseña.
 6. Siga *Puesta en marcha* en la aplicación: el Desarrollador crea las cuentas (incluido el Coordinador SGC, que se le asigna con
    Personas → *Rol y posición*); el Coordinador arma la estructura, los roles y asigna a cada persona su rol, su ámbito e indicadores.
-7. Verifique: `alembic current` = `v2_0002`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.
+7. Verifique: `alembic current` = `v2_0003`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.

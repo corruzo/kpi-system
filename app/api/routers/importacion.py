@@ -21,5 +21,5 @@ async def previsualizar(archivo: UploadFile = File(...), db: Session = Depends(g
 @router.post("/confirmar", status_code=201)
 def confirmar(datos: schemas.ImpIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("importacion.usar")),
               _=Depends(escritura)):
-    """Crea indicadores, mediciones históricas aprobadas y listas de apoyo; todo o nada."""
+    """Crea indicadores, mediciones históricas aprobadas y áreas; todo o nada."""
     return importacion.confirmar(db, u, datos)

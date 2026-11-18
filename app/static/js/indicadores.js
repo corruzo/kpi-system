@@ -53,7 +53,6 @@ SIGT.modulos.indicadores = () => ({
         .sort((a, b) => a.lejos - b.lejos || a.nombre.localeCompare(b.nombre));
     },
     get personasCarga() { return this.opcionesOrdenadas.filter(u => u.puede_cargar); },
-    etiquetaPersona(u) { return u.nombre + (u.yo ? ' (usted)' : '') + (u.rol ? ' · ' + u.rol : '') + (u.lejos ? ' · otra área' : ''); },
     nodoEtiqueta(a) { return '\u2003'.repeat(a.profundidad || 0) + a.nombre + ' · ' + (NIVEL_ETIQUETA[a.nivel] || ''); },
     alternarCargador(id) { const c = this.ficha.cargadores || (this.ficha.cargadores = []), k = c.indexOf(id); if (k >= 0) c.splice(k, 1); else c.push(id); },
     get puedeEditarFicha() { return !this.ficha.id || (this.ficha.soy_responsable && this.puede('indicadores.editar')); },
@@ -168,9 +167,16 @@ SIGT.modulos.indicadores = () => ({
       if (!confirm(`¿Eliminar definitivamente el indicador ${i.codigo}?`)) return;
       try { await this.api(`/api/indicadores/${i.id}`, { method: 'DELETE' }); this.avisar('Indicador eliminado.'); await this.refrescarIndicadores(); } catch { }
     },
-    elegirRef() {
-      const c = this.catalogos.find(c => c.tipo === 'proceso' && c.valor === this.ficha.ref_nombre);
-      if (c && c.detalle && !this.ficha.ref_detalle) this.ficha.ref_detalle = c.detalle;
-    },
     get sugerenciasPersonas() { return [...new Set(this.opcionesUsuarios.map(u => u.nombre.split(' (')[0]))]; },
+
+    // Opciones de las listas desplegables de la ficha (ver js/combo.js)
+    get opcionesNodos() { return this.areas.map(a => ({ valor: a.id, etiqueta: a.nombre, detalle: a.ruta !== a.nombre ? a.ruta : '', chip: NIVEL_ETIQUETA[a.nivel] || '', nivel: a.profundidad || 0 })); },
+    get opcionesResponsable() {
+      return this.opcionesOrdenadas.map(u => ({ valor: u.id, etiqueta: u.nombre + (u.yo ? ' (usted)' : ''), detalle: [u.rol, u.lejos ? 'otra área' : ''].filter(Boolean).join(' · '), tenue: u.lejos }));
+    },
+    get opcionesNombres() { return this.sugerenciasPersonas.map(n => ({ valor: n, etiqueta: n })); },
+    opcSeguimiento: [{ valor: 'proceso', etiqueta: 'Desempeño de proceso' }, { valor: 'objetivo', etiqueta: 'Objetivo organizacional' }, { valor: 'proveedor', etiqueta: 'Desempeño de proveedor externo' }],
+    opcFrecuencia: [['mensual', 'Mensual'], ['bimestral', 'Bimestral'], ['trimestral', 'Trimestral'], ['cuatrimestral', 'Cuatrimestral'], ['semestral', 'Semestral'], ['anual', 'Anual'], ['eventual', 'Eventual (cuando ocurra)']].map(([valor, etiqueta]) => ({ valor, etiqueta })),
+    opcSentido: [{ valor: 'mayor', etiqueta: 'Mayor es mejor (ej. cumplimiento)' }, { valor: 'menor', etiqueta: 'Menor es mejor (ej. obsolescencia, tiempo)' }],
+    opcUnidad: ['%', 'días', 'horas', 'TM', 'kg', 'USD', 'cantidad'].map(u => ({ valor: u, etiqueta: u })),
 });

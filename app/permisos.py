@@ -105,8 +105,6 @@ CATALOGO: tuple[Permiso, ...] = (
        "Su rama: su ámbito, lo que cuelga de él y el camino hasta la raíz (todo el árbol si su alcance es global).", _V),
     _p("estructura.gestionar", "Estructura", "Gestionar la estructura", "Crear, renombrar, mover y eliminar nodos del árbol.", A_GLOBAL,
        implica=("estructura.ver",)),
-    _p("catalogos.gestionar", "Estructura", "Listas de apoyo", "Mantener las listas de la ficha: procesos, objetivos, gerencias y cargos.",
-       A_GLOBAL),
     _p("parametros.gestionar", "Estructura", "Parámetros y logo",
        "Empresa, código del formato, inicio del ejercicio fiscal, protección de reportes y logo.", A_GLOBAL),
     _p("importacion.usar", "Estructura", "Importar planillas NC-16", "Traer fichas históricas desde Excel (crea indicadores y cargas aprobadas).",

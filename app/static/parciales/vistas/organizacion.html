@@ -1,6 +1,6 @@
     <!-- ============ ORGANIZACIÓN ============ -->
     <section data-vista="config" x-show="view==='config'" class="space-y-4">
-      <div><p class="eyebrow">Se configura una sola vez</p><h1 class="page-title">Configuración</h1><p class="text-sm text-slate-600">Datos de la empresa, listas de apoyo de la ficha, respaldo y zona de peligro. La estructura de la empresa, los roles y las personas tienen su propia sección.</p></div>
+      <div><p class="eyebrow">Se configura una sola vez</p><h1 class="page-title">Configuración</h1><p class="text-sm text-slate-600">Datos de la empresa, respaldo y zona de peligro. La estructura de la empresa, los roles y las personas tienen su propia sección.</p></div>
       <div class="pill-nav !flex-wrap sm:!flex-nowrap" role="tablist">
         <template x-for="t in configTabs" :key="t[0]"><button class="pill flex-1 justify-center" :class="orgTab===t[0] && 'pill-on'" role="tab" :aria-selected="orgTab===t[0]" @click="orgTab=t[0]" x-text="t[1]"></button></template>
       </div>
@@ -29,16 +29,6 @@
             <p class="text-xs text-slate-500">Ejercicio vigente: <b x-text="params.ejercicio_actual"></b></p>
             <button class="btn btn-p" :disabled="busy">Guardar parámetros</button>
           </form></div>
-        <div class="card self-start lg:col-span-2" x-show="orgTab==='listas'"><div class="card-h"><h2 class="font-semibold">Listas de apoyo de la ficha</h2></div>
-          <div class="card-b space-y-3">
-            <div class="flex flex-wrap gap-1"><template x-for="t in [['proceso','Procesos'],['objetivo','Objetivos'],['gerencia','Gerencias'],['cargo','Cargos']]" :key="t[0]"><button class="btn btn-sm" :class="catTab===t[0] ? 'btn-p' : 'btn-s'" @click="catTab=t[0]; catForm={id:null,valor:'',detalle:''}" x-text="t[1] + ' (' + lista(t[0]).length + ')'"></button></template></div>
-            <form class="space-y-2" @submit.prevent="guardarCat()"><input class="inp" x-model="catForm.valor" required minlength="2" :placeholder="catForm.id ? 'Editar elemento' : 'Nuevo elemento'">
-              <textarea class="inp" rows="2" x-model="catForm.detalle" x-show="catTab==='proceso'" placeholder="Objetivo del proceso (se copia a la ficha al elegirlo)"></textarea>
-              <div class="flex gap-2"><button class="btn btn-p btn-sm" :disabled="busy" x-text="catForm.id ? 'Guardar' : 'Agregar'"></button><button type="button" class="btn btn-s btn-sm" x-show="catForm.id" @click="catForm={id:null,valor:'',detalle:''}">Cancelar</button></div></form>
-            <ul class="max-h-72 divide-y divide-slate-100 overflow-y-auto"><template x-for="c in catActual" :key="c.id"><li class="flex items-center justify-between gap-2 py-2"><span class="min-w-0 text-sm"><span class="block truncate" x-text="c.valor"></span><span class="block truncate text-xs text-slate-500" x-show="c.detalle" x-text="c.detalle"></span></span>
-              <span class="flex shrink-0 gap-1"><button class="btn btn-s btn-sm" @click="catForm={id:c.id,valor:c.valor,detalle:c.detalle}">Editar</button><button class="btn btn-d btn-sm" @click="eliminarCat(c)">Quitar</button></span></li></template></ul>
-            <p class="py-3 text-center text-sm text-slate-500" x-show="!catActual.length">Lista vacía. También puede cargarla desde <b>Importar</b>.</p>
-          </div></div>
         <div class="card self-start lg:col-span-2" x-show="orgTab==='avanzado' && puedeAlguno(['respaldo.exportar','respaldo.restaurar'])"><div class="card-h"><h2 class="font-semibold">Respaldo de la base de datos</h2></div>
           <div class="card-b grid grid-cols-1 gap-4 md:grid-cols-2">
             <form class="space-y-3 rounded-2xl border border-slate-200 p-4" x-show="puede('respaldo.exportar')" @submit.prevent="descargarRespaldo()">
