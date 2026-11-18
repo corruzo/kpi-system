@@ -1,5 +1,5 @@
 -- ============================================================================================================
--- SPE TPV · INSTALACIÓN COMPLETA DE LA BASE DE DATOS (Supabase / PostgreSQL) · revisión v2_0005
+-- SPE TPV · INSTALACIÓN COMPLETA DE LA BASE DE DATOS (Supabase / PostgreSQL) · revisión v2_0006
 -- GENERADO por scripts/generar_sql_supabase.py: no se edita a mano (una prueba verifica que coincida con los modelos).
 --
 -- ¡DESTRUCTIVO E IRREVERSIBLE! Borra TODO el esquema `public` (tablas, datos, bitácora) y lo crea de nuevo, vacío.
@@ -8,7 +8,7 @@
 -- Después de ejecutarlo:
 --   1. Defina en el despliegue SIGT_ADMIN_USER y SIGT_ADMIN_PASSWORD (10+ caracteres): al arrancar con la base vacía la
 --      aplicación crea el primer Desarrollador y siembra los roles de sistema y los parámetros. Elimine la contraseña luego.
---   2. La aplicación ve `alembic_version` = v2_0005: no migra nada.
+--   2. La aplicación ve `alembic_version` = v2_0006: no migra nada.
 -- ============================================================================================================
 
 BEGIN;
@@ -280,12 +280,27 @@ CREATE TABLE notas_auditoria (
 CREATE INDEX ix_notas_auditoria_medicion_id ON notas_auditoria (medicion_id);
 CREATE INDEX ix_notas_auditoria_usuario_id ON notas_auditoria (usuario_id);
 
+CREATE TABLE revisiones (
+	id SERIAL NOT NULL, 
+	medicion_id INTEGER NOT NULL, 
+	accion VARCHAR(10) NOT NULL, 
+	nota TEXT NOT NULL, 
+	por_id INTEGER NOT NULL, 
+	en TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	PRIMARY KEY (id), 
+	CONSTRAINT ck_revisiones_accion CHECK (accion IN ('aprobada', 'devuelta', 'reabierta')), 
+	FOREIGN KEY(medicion_id) REFERENCES mediciones (id), 
+	FOREIGN KEY(por_id) REFERENCES usuarios (id)
+);
+CREATE INDEX ix_revisiones_medicion_id ON revisiones (medicion_id);
+CREATE INDEX ix_revisiones_por_id ON revisiones (por_id);
+
 -- ------------------------------------------------------------------------------------- control de versión (Alembic)
 CREATE TABLE alembic_version (
 	version_num VARCHAR(32) NOT NULL,
 	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
 );
-INSERT INTO alembic_version (version_num) VALUES ('v2_0005');
+INSERT INTO alembic_version (version_num) VALUES ('v2_0006');
 
 -- -------------------------------------------------------------------------------- endurecimiento (migración v2_0002)
 -- Bitácora inalterable a nivel de motor:
@@ -311,6 +326,7 @@ ALTER TABLE public."mediciones" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."metas" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."periodos_justificados" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."notas_auditoria" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."revisiones" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."alembic_version" ENABLE ROW LEVEL SECURITY;
 
 -- Sin permisos para los roles públicos de Supabase (solo si existen):

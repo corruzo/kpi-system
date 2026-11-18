@@ -235,7 +235,10 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
   el Coordinador SGC siempre puede aprobar.
 
 6.3 Corregir
-  Carga devuelta: quien cargó la corrige y la reenvía (versión +1; conserva la meta con que nació).
+  Carga devuelta: quien cargó la corrige y la reenvía (versión +1; conserva la meta con que nació). En la
+  pantalla de carga, debajo del aviso, aparece el HISTORIAL DE REVISIONES: todas las devoluciones (no solo
+  la última) con su motivo, quién la hizo y cuándo, y las aprobaciones y reaperturas. Quien revisa lo ve
+  también en la Bandeja y en el Historial de cargas, para no repetir observaciones ya hechas.
   Error en una carga ya aprobada: quien le corresponde aprobarla (o el Coordinador) la reabre desde
   Cargas con el motivo; vuelve a quedar «Devuelta». Todo queda en la bitácora.
 
@@ -266,6 +269,11 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
  * Bitácora (solo Desarrollador): Control > Bitácora. Cada registro tiene fecha, persona, ROL AL MOMENTO
    DE LA ACCIÓN, acción, entidad y detalle, y el hash SHA-256 del registro anterior. «Verificar
    integridad» recorre la cadena. En PostgreSQL un trigger impide actualizar o borrar registros.
+ * Historial de cambios de UN indicador (permiso «Ver historial de cambios»; lo ve quien ve el indicador): en
+   su ficha técnica, «Historial de cambios > Ver quién cambió qué». Muestra, lo más reciente primero, quién
+   (y con qué rol) hizo cada cambio, cuándo y qué cambió (antes → después): ficha, asignación de responsable y
+   suplente (también si se hizo desde Personas), metas, cargas, aprobaciones, devoluciones con su motivo,
+   justificaciones y archivado. Es una vista de la bitácora: no agrega ni modifica nada.
  * Se registran, entre otras: ingresos; cargas, reenvíos, aprobaciones, devoluciones y reaperturas; notas de
    auditoría; indicadores (crear, editar, asignar, archivar, restaurar, eliminar); estructura (crear,
    renombrar, mover, eliminar); ROLES (crear, editar con los permisos que cambian, eliminar);

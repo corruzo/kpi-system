@@ -56,6 +56,24 @@
               <template x-for="p in fv.data.periodos.filter(p => p.medicion && (p.medicion.analisis || p.medicion.plan_mejora))" :key="p.periodo"><div class="grid grid-cols-1 gap-3 p-4 text-sm lg:grid-cols-[8rem_1fr_1fr]"><div class="font-semibold" x-text="p.etiqueta"></div><div><div class="lbl">Resultados del análisis</div><div class="whitespace-pre-line" x-text="p.medicion.analisis || '—'"></div></div><div><div class="lbl">Correcciones, oportunidades o necesidades de mejora</div><div class="whitespace-pre-line" x-text="p.medicion.plan_mejora || '—'"></div></div></div></template>
               <p class="p-6 text-center text-sm text-slate-500" x-show="!fv.data.periodos.some(p => p.medicion && (p.medicion.analisis || p.medicion.plan_mejora))">Sin análisis registrados en este ejercicio.</p>
             </div></div>
+          <div class="card no-print" x-show="puede('indicadores.historial')">
+            <div class="card-h"><h2 class="font-semibold">Historial de cambios</h2>
+              <button class="btn btn-s btn-sm" @click="fv.hist.abierto ? fv.hist.abierto = false : abrirHistorialInd()" x-text="fv.hist.abierto ? 'Ocultar' : 'Ver quién cambió qué'"></button></div>
+            <div class="card-b space-y-3" x-show="fv.hist.abierto">
+              <p class="text-sm text-slate-500" x-show="fv.hist.cargando && !fv.hist.items.length">Cargando…</p>
+              <p class="text-sm text-slate-500" x-show="!fv.hist.cargando && !fv.hist.items.length">Todavía no hay cambios registrados.</p>
+              <ul class="divide-y divide-slate-100">
+                <template x-for="e in fv.hist.items" :key="e.id">
+                  <li class="space-y-1 py-3 text-sm">
+                    <div class="flex flex-wrap items-baseline justify-between gap-x-3"><b x-text="e.titulo"></b><span class="text-xs text-slate-500" x-text="e.usuario + ' (' + e.rol + ') · ' + fecha(e.fecha)"></span></div>
+                    <ul class="space-y-0.5 text-slate-700"><template x-for="(c, k) in e.cambios" :key="k"><li><span class="font-semibold" x-text="c.campo + ':'"></span> <span class="text-slate-500" x-show="c.antes !== '—'" x-text="c.antes + ' → '"></span><span x-text="c.despues"></span></li></template></ul>
+                    <p class="whitespace-pre-line text-slate-600" x-show="e.nota" x-text="e.nota"></p>
+                  </li>
+                </template>
+              </ul>
+              <button class="btn btn-s btn-sm" x-show="fv.hist.items.length < fv.hist.total" :disabled="fv.hist.cargando" @click="abrirHistorialInd(true)" x-text="'Ver más (' + (fv.hist.total - fv.hist.items.length) + ' restantes)'"></button>
+            </div>
+          </div>
           <div class="card" x-show="fv.data.indicador.notas"><div class="card-h"><h2 class="font-semibold">Notas</h2></div><div class="card-b whitespace-pre-line text-sm" x-text="fv.data.indicador.notas"></div></div>
           <p class="text-right text-xs text-slate-400" x-text="fv.data.parametros.codigo_formato"></p>
         </div>

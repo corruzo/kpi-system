@@ -28,6 +28,7 @@
             </button>
             <div x-show="open" class="space-y-3 border-t border-slate-100 p-4" x-transition>
               <div x-html="detalleHtml(m)"></div>
+              <div x-data="{ lista: m.revisiones }"><!--#incluir parciales/componentes/revisiones.html--></div>
               <div class="space-y-2 rounded-lg bg-amber-50 p-3" x-show="puede('cargas.reabrir') && m.estado==='aprobado'">
                 <p class="text-xs text-amber-900">¿Se detectó un error en una carga aprobada? Devuélvala a quien la cargó para corregirla (solo puede hacerlo el aprobador que le corresponde) (queda registrado).</p>
                 <div class="flex flex-col gap-2 sm:flex-row"><input class="inp" x-model="reabrirNota[m.id]" placeholder="Motivo de la reapertura"><button class="btn btn-d whitespace-nowrap" :disabled="busy" @click="reabrir(m)">Reabrir carga</button></div></div>

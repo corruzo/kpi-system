@@ -11,6 +11,7 @@
           </div>
           <div class="card-b space-y-4">
             <div x-html="detalleHtml(m)"></div>
+            <div x-data="{ lista: m.revisiones }"><!--#incluir parciales/componentes/revisiones.html--></div>
             <div><label class="lbl">Nota de auditoría / motivo de devolución</label><textarea class="inp" rows="2" x-model="notas[m.id]" placeholder="Opcional al aprobar; obligatoria al devolver"></textarea></div>
             <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" x-show="m.cargado_por_id===user.id">Carga realizada por usted: por segregación de funciones debe revisarla otra persona.</p>
             <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">

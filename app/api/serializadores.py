@@ -84,7 +84,9 @@ def medicion(m: Medicion) -> dict:
             "cargado_por": m.cargado_por.nombre, "cargado_por_id": m.cargado_por_id, "cargado_en": iso(m.cargado_en),
             "revisado_por": m.revisado_por.nombre if m.revisado_por else None, "revisado_en": iso(m.revisado_en),
             "nota_revision": m.nota_revision,
-            "notas": [{"id": n.id, "usuario": n.usuario.nombre, "fecha": iso(n.fecha), "texto": n.texto} for n in m.notas]}
+            "notas": [{"id": n.id, "usuario": n.usuario.nombre, "fecha": iso(n.fecha), "texto": n.texto} for n in m.notas],
+            # historial completo de revisiones (la más reciente primero): qué se devolvió, por qué, quién y cuándo
+            "revisiones": [{"id": r.id, "accion": r.accion, "nota": r.nota, "por": r.por.nombre, "en": iso(r.en)} for r in reversed(m.revisiones)]}
 
 
 def bitacora(b: Bitacora, codigo: str | None = None) -> dict:

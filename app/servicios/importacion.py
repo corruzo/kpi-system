@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
-from ..models import Indicador, Medicion, Unidad, Usuario, ahora
+from ..models import Indicador, Medicion, Revision, Unidad, Usuario, ahora
 from . import auditoria, ejercicios, estructura, indicadores, lector_excel, mediciones
 
 
@@ -93,13 +93,14 @@ def _importar_mediciones(db: Session, admin: Usuario, ind: Indicador, datos_ind,
         if not r["ok"]:
             raise Invalido(f"{ind.codigo} {med.periodo}: {r['error']}")
         ahora_ = ahora()
+        nota = f"Importado desde Excel «{archivo}» (hoja «{datos_ind.hoja}»)."
         db.add(Medicion(
             indicador_id=ind.id, periodo=med.periodo, valores=r["valores"], resultado=r["resultado"], semaforo=r["semaforo"],
             nivel_optimo=ind.nivel_optimo, limite=ind.limite, sentido=ind.sentido, nivel_optimo_tope=ind.nivel_optimo_tope, limite_tope=ind.limite_tope,
             estado="aprobado", analisis=med.analisis.strip(), plan_mejora=med.plan_mejora.strip(), version=1,
             formula=ind.formula, constantes=ind.constantes or [], decimales=ind.precision, ejercicio=anio,
             cargado_por_id=admin.id, cargado_en=ahora_, revisado_por_id=admin.id, revisado_en=ahora_,
-            nota_revision=f"Importado desde Excel «{archivo}» (hoja «{datos_ind.hoja}»)."))
+            nota_revision=nota, revisiones=[Revision(accion="aprobada", nota=nota, por_id=admin.id, en=ahora_)]))
         periodos.append(med.periodo)
     return periodos
 

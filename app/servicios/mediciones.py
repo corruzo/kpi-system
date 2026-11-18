@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..dominio import calendario, formulas, meta, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
-from ..models import Indicador, Medicion, NotaAuditoria, Unidad, Usuario, ahora
+from ..models import Indicador, Medicion, NotaAuditoria, Revision, Unidad, Usuario, ahora
 from . import acceso, auditoria, ejercicios, indicadores, metas
 from .periodos import justificados_de
 
@@ -110,7 +110,7 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
 # ---------------------------------------------------------------- consulta
 def listar(db: Session, u: Usuario, *, estado=None, indicador_id=None, nodo_id=None, periodo=None,
            semaforo_=None, ejercicio=None, desde=0, limite=100) -> list[Medicion]:
-    q = (select(Medicion).join(Indicador).options(selectinload(Medicion.notas)).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
+    q = (select(Medicion).join(Indicador).options(selectinload(Medicion.notas), selectinload(Medicion.revisiones)).order_by(Medicion.cargado_en.desc(), Medicion.id.desc())
          .offset(max(desde, 0)).limit(max(1, min(limite, 500))))
     return list(db.scalars(_filtrar(q, u, estado, indicador_id, nodo_id, periodo, semaforo_, ejercicio)))
 
@@ -167,7 +167,7 @@ def bandeja(db: Session, u: Usuario, ejercicio: int | None = None, desde: int = 
     pagina = ids[desde:desde + limite]
     if not pagina:
         return len(ids), []
-    por_id = {m.id: m for m in db.scalars(select(Medicion).where(Medicion.id.in_(pagina)).options(selectinload(Medicion.notas)))}
+    por_id = {m.id: m for m in db.scalars(select(Medicion).where(Medicion.id.in_(pagina)).options(selectinload(Medicion.notas), selectinload(Medicion.revisiones)))}
     return len(ids), [por_id[i] for i in pagina]
 
 
@@ -212,6 +212,7 @@ def revisar(db: Session, u: Usuario, medicion_id: int, accion: str, nota: str) -
         raise Invalido("Indique el motivo de la devolución.")
     m.estado = "aprobado" if accion == "aprobar" else "observado"
     m.revisado_por_id, m.revisado_en, m.nota_revision = u.id, ahora(), nota
+    m.revisiones.append(Revision(accion="aprobada" if accion == "aprobar" else "devuelta", nota=nota, por_id=u.id, en=m.revisado_en))   # historial
     auditoria.registrar(db, u, "APROBACION" if accion == "aprobar" else "OBSERVACION", "medicion", m.id,
                         {"periodo": m.periodo, "nota": nota}, m.indicador)
     db.commit()
@@ -229,6 +230,7 @@ def reabrir(db: Session, u: Usuario, medicion_id: int, nota: str) -> Medicion:
     if len(nota) < MIN_TEXTO_NOTA:
         raise Invalido("Indique el motivo de la reapertura.")
     m.estado, m.revisado_por_id, m.revisado_en, m.nota_revision = "observado", u.id, ahora(), nota
+    m.revisiones.append(Revision(accion="reabierta", nota=nota, por_id=u.id, en=m.revisado_en))
     auditoria.registrar(db, u, "REAPERTURA", "medicion", m.id, {"periodo": m.periodo, "nota": nota}, m.indicador)
     db.commit()
     return m

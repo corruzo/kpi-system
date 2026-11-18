@@ -313,6 +313,13 @@ def indicadores_de(db: Session, u: Usuario, usuario_id: int) -> dict:
     return {"responsable": [item(i) for i in resp], "suplente": [item(i) for i in supl]}
 
 
+def _registrar_en_el_indicador(db: Session, u: Usuario, ind: Indicador, previo: dict, **nuevo) -> None:
+    """Además del registro de la persona, deja constancia en el historial del PROPIO indicador (quién cambió su responsable o su suplente)."""
+    cambios = {k: [previo[k], v] for k, v in nuevo.items() if previo.get(k) != v}
+    if cambios:
+        auditoria.registrar(db, u, "INDICADOR_ASIGNADO", "indicador", ind.id, {"codigo": ind.codigo, "cambios": cambios}, ind)
+
+
 def asignar_indicadores(db: Session, u: Usuario, usuario_id: int, responsable: list[int], suplente: list[int]) -> dict:
     """Deja a la persona como responsable principal y como suplente exactamente de los indicadores indicados. Cada indicador
     tiene un solo responsable y un solo suplente: asignarla ocupa ese puesto (lo traspasa). La responsabilidad no se «quita»:
@@ -339,20 +346,26 @@ def asignar_indicadores(db: Session, u: Usuario, usuario_id: int, responsable: l
     for iid in sorted(responsable - actuales_resp):
         ind = inds[iid]
         acceso.exigir_modificable(u, ind)
+        previo = {"responsable": ind.responsable.nombre if ind.responsable else None, "suplente": ind.suplente.nombre if ind.suplente else None}
         if ind.suplente_id == p.id:
             ind.suplente_id = None
         ind.responsable_id = p.id
         cambios["responsable_de"].append(ind.codigo)
+        _registrar_en_el_indicador(db, u, ind, previo, responsable=p.nombre)
     for iid in sorted(suplente - actuales_sup):
         ind = inds[iid]
         acceso.exigir_modificable(u, ind)
+        previo = {"responsable": ind.responsable.nombre if ind.responsable else None, "suplente": ind.suplente.nombre if ind.suplente else None}
         ind.suplente_id = p.id
         cambios["suplente_de"].append(ind.codigo)
+        _registrar_en_el_indicador(db, u, ind, previo, suplente=p.nombre)
     for iid in sorted(actuales_sup - suplente - responsable):
         ind = db.get(Indicador, iid)
         acceso.exigir_modificable(u, ind)
+        previo = {"responsable": ind.responsable.nombre if ind.responsable else None, "suplente": ind.suplente.nombre if ind.suplente else None}
         ind.suplente_id = None
         cambios["deja_de_ser_suplente"].append(ind.codigo)
+        _registrar_en_el_indicador(db, u, ind, previo, suplente=None)
     cambios = {k: v for k, v in cambios.items() if v}
     if cambios:
         auditoria.registrar(db, u, "INDICADORES_ASIGNADOS", "usuario", p.id, {"username": p.username, **cambios})

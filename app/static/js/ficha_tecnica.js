@@ -1,15 +1,24 @@
 /* Ficha técnica en pantalla: el mismo contenido de la ficha en papel, por ejercicio fiscal. */
 SIGT.modulos.ficha_tecnica = () => ({
-    fv: { id: null, ejercicio: '', data: null },
+    fv: { id: null, ejercicio: '', data: null, hist: { abierto: false, items: [], total: 0, cargando: false } },
 
     async verFicha(id, ejercicio = this.ejSel || '') {
-      this.fv = { id, ejercicio, data: null, volver: this.view };
+      this.fv = { id, ejercicio, data: null, volver: this.view, hist: { abierto: false, items: [], total: 0, cargando: false } };
       await this.go('ficha'); await this.cargarFicha();
     },
     async cargarFicha() {
       this.fv.data = await this.api(`/api/indicadores/${this.fv.id}/ficha` + (this.fv.ejercicio ? `?ejercicio=${this.fv.ejercicio}` : ''));
       this.fv.ejercicio = this.fv.data.ejercicio;
       this.$nextTick(() => this.dibujarFicha());
+    },
+    // Historial de cambios del indicador (quién, qué cambió y cuándo): se pide al abrirlo y de 30 en 30
+    async abrirHistorialInd(mas = false) {
+      const h = this.fv.hist; h.abierto = true; h.cargando = true;
+      try {
+        const r = await this.api(`/api/indicadores/${this.fv.id}/historial?limite=30&desde=${mas ? h.items.length : 0}`, { conTotal: true });
+        h.items = mas ? [...h.items, ...r.items] : r.items; h.total = r.total;
+      } catch { }
+      h.cargando = false;
     },
     fichaDescargar() { return this.descargar(`/api/reportes/fichas.xlsx?indicador_id=${this.fv.id}&ejercicio=${this.fv.ejercicio}`, 'ficha_spe_tpv.xlsx'); },
     valorFicha(p, clave) { const m = p.medicion; return m && m.estado !== 'observado' && m.valores[clave] !== undefined ? nf(m.valores[clave], 2) : ''; },

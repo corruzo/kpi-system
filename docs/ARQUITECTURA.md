@@ -44,6 +44,7 @@
 | `usuarios` | cuenta; `rol_id` nulo = pendiente de asignación; `ambito_raiz` = ámbito en toda la empresa |
 | `usuario_unidades` | nodos de la persona: `ambito` (ve el nodo y lo que cuelga) o `miembro` (solo lo sitúa; el analista) |
 | `indicadores` | ficha; `nodo_id` (cualquier nivel), `responsable_id` (principal) y `suplente_id` (los dos cargan); `archivado_en`; `nivel_optimo` / `limite` (semáforo) |
+| `revisiones` | cada aprobación, devolución (con su motivo) y reapertura de una carga: el historial que ve quien carga (`mediciones.nota_revision` guarda solo la última) |
 | `periodos_justificados` | períodos que no se cargan por una razón formal (parada de planta, no aplica…); cuentan como cubiertos para el cierre |
 | `metas`, `mediciones` | meta por período; carga real con foto de la ficha y de la meta vigentes |
 

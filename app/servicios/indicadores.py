@@ -96,7 +96,7 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
     existente y si el ejercicio está cerrado. Los pendientes de otros ejercicios se informan aparte."""
     ind = obtener_visible(db, u, indicador_id)
     hoy = calendario.hoy()
-    medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id).options(selectinload(Medicion.notas)))}
+    medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id).options(selectinload(Medicion.notas), selectinload(Medicion.revisiones)))}
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
     justificados = justificados_de(db, [ind.id]).get(ind.id, {})
     estados = {**dict.fromkeys(justificados, "justificado"), **{p: m.estado for p, m in medidas.items()}}
@@ -112,7 +112,7 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
 def contexto_ficha(db: Session, ind: Indicador, ejercicio: int | None):
     """(año del ejercicio mostrado, ejercicios disponibles, períodos del ejercicio con su medición)."""
     hoy, f = calendario.hoy(), ind.frecuencia
-    medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind.id).options(selectinload(Medicion.notas)))}
+    medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == ind.id).options(selectinload(Medicion.notas), selectinload(Medicion.revisiones)))}
     vigente = calendario.ejercicio_de(f, calendario.periodo_actual(f, hoy))
     con_datos = sorted({calendario.ejercicio_de(f, p) for p in medidas}, reverse=True)
     disponibles = sorted(set(con_datos) | {vigente}, reverse=True)

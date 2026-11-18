@@ -275,6 +275,7 @@ class Medicion(Base):
     cargado_por: Mapped[Usuario] = relationship(foreign_keys=[cargado_por_id], lazy="joined")
     revisado_por: Mapped[Usuario | None] = relationship(foreign_keys=[revisado_por_id], lazy="joined")
     notas: Mapped[list["NotaAuditoria"]] = relationship(back_populates="medicion", order_by="NotaAuditoria.id")   # se piden con selectinload donde se muestran
+    revisiones: Mapped[list["Revision"]] = relationship(back_populates="medicion", order_by="Revision.id", cascade="all, delete-orphan")   # ídem
 
     @property
     def precision(self) -> int:
@@ -288,6 +289,24 @@ class Medicion(Base):
     @property
     def constantes_aplicadas(self) -> list:
         return self.constantes if self.constantes is not None else (self.indicador.constantes or [])
+
+
+ACCIONES_REVISION = ("aprobada", "devuelta", "reabierta")
+
+
+class Revision(Base):
+    """Cada revisión de una carga (aprobada, devuelta con su motivo, o reabierta después de aprobarla). Es el historial que ve quien
+    carga para saber qué corregir; `Medicion.estado` y `nota_revision` solo guardan la última."""
+    __tablename__ = "revisiones"
+    __table_args__ = (CheckConstraint("accion IN ('aprobada', 'devuelta', 'reabierta')", name="ck_revisiones_accion"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    medicion_id: Mapped[int] = mapped_column(ForeignKey("mediciones.id"), index=True)
+    accion: Mapped[str] = mapped_column(String(10))
+    nota: Mapped[str] = mapped_column(Text, default="")
+    por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    medicion: Mapped[Medicion] = relationship(back_populates="revisiones")
+    por: Mapped[Usuario] = relationship(lazy="joined")
 
 
 class NotaAuditoria(Base):

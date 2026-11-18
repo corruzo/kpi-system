@@ -57,6 +57,9 @@ CATALOGO: tuple[Permiso, ...] = (
     _p("indicadores.asignar", "Indicadores", "Asignar responsable y suplente",
        "Cambiar el nodo, el responsable principal y el suplente de un indicador de su ámbito.", A_DEBAJO,
        implica=("indicadores.ver",)),
+    _p("indicadores.historial", "Indicadores", "Ver historial de cambios",
+       "Consultar quién cambió qué y cuándo en un indicador: ficha, asignación, metas, cargas, revisiones y justificaciones.", A_VISIBLES, _V,
+       implica=("indicadores.ver",)),
     _p("formulas.probar", "Indicadores", "Validar y probar fórmulas", "Usar el validador y el probador de fórmulas de la ficha.",
        "No accede a datos."),
     # ------------------------------------------------------------ Cargas

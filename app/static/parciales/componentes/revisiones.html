@@ -1,0 +1,14 @@
+    <!-- Historial de revisiones de una carga (aprobada, devuelta con su motivo, reabierta). Usa `lista` = las revisiones, la más reciente primero. -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-3" x-show="lista && lista.length">
+      <div class="eyebrow mb-2" x-text="'Historial de revisiones (' + (lista ? lista.length : 0) + ')'"></div>
+      <ul class="space-y-2.5">
+        <template x-for="r in (lista || [])" :key="r.id">
+          <li class="flex gap-2.5 text-sm">
+            <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" :class="{ 'bg-green-600': r.accion === 'aprobada', 'bg-amber-500': r.accion === 'devuelta', 'bg-red-600': r.accion === 'reabierta' }"></span>
+            <span class="min-w-0"><b x-text="({ aprobada: 'Aprobada', devuelta: 'Devuelta para corregir', reabierta: 'Reabierta tras aprobarla' })[r.accion]"></b>
+              <span class="text-slate-500" x-text="'por ' + r.por + ' · ' + fecha(r.en)"></span>
+              <span class="block whitespace-pre-line text-slate-700" x-show="r.nota" x-text="r.nota"></span></span>
+          </li>
+        </template>
+      </ul>
+    </div>

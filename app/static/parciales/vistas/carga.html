@@ -73,6 +73,7 @@
             <div x-show="medActual && medActual.estado==='observado'" class="card border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <b>Carga devuelta por quien la revisó.</b> Corrija y reenvíe.<br><span x-text="'Observación: ' + (medActual ? medActual.nota_revision : '')"></span>
             </div>
+            <div x-data="{ get lista() { return medActual ? medActual.revisiones : [] } }"><!--#incluir parciales/componentes/revisiones.html--></div>
 
             <div class="card">
               <div class="card-h"><h2 class="font-semibold">Datos del período</h2></div>

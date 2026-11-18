@@ -7,6 +7,7 @@ from ... import schemas
 from ...dominio import calendario
 from ...errores import Invalido
 from ...models import Usuario
+from ...servicios import historial as historial_de
 from ...servicios import indicadores, justificaciones, parametros
 from .. import serializadores as ser
 from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, con_total, escritura, get_db, requiere_permiso
@@ -89,6 +90,15 @@ def eliminar(indicador_id: IdRuta, db: Session = Depends(get_db), u: Usuario = D
     """Borra un indicador sin cargas. Con cargas responde 409: hay que archivarlo para conservar la trazabilidad."""
     indicadores.eliminar(db, u, indicador_id)
     return {"ok": True}
+
+
+@router.get("/indicadores/{indicador_id}/historial")
+def historial(indicador_id: IdRuta, response: Response, desde: Desde = 0, limite: Limite = 50, db: Session = Depends(get_db),
+              u: Usuario = Depends(requiere_permiso("indicadores.historial"))):
+    """Historial de cambios del indicador (quién, qué cambió y cuándo), lo más reciente primero. Total en `X-Total-Count`."""
+    total, entradas = historial_de.de_indicador(db, u, indicador_id, desde, limite)
+    con_total(response, total)
+    return entradas
 
 
 @router.get("/indicadores/{indicador_id}/periodos")
