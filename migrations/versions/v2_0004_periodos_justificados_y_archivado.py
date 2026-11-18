@@ -50,7 +50,7 @@ def upgrade() -> None:
             with bind.begin_nested():
                 op.execute(sa.text('ALTER TABLE public."periodos_justificados" ENABLE ROW LEVEL SECURITY'))
         except Exception as e:
-            log.warning("No se pudo activar RLS en periodos_justificados: %s. Ejecute scripts/supabase_hardening.sql.", e)
+            log.warning("No se pudo activar RLS en periodos_justificados: %s. Actívelo a mano: ALTER TABLE public.<tabla> ENABLE ROW LEVEL SECURITY.", e)
 
 
 def downgrade() -> None:

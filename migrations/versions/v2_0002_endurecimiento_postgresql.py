@@ -2,7 +2,7 @@
 permisos a los roles públicos `anon` y `authenticated` (el único camino a los datos es esta aplicación).
 
 En SQLite no hace nada. Si el rol de conexión no tiene permiso para alguna sentencia, se avisa y no se aborta
-(ver `scripts/supabase_hardening.sql` para ejecutarlo a mano).
+(la instalación completa, `scripts/supabase_instalacion_completa.sql`, ya lo incluye).
 
 Revisión: v2_0002
 Anterior: v2_0001
@@ -39,7 +39,7 @@ def _intentar(bind, sentencia: str) -> None:
         with bind.begin_nested():
             op.execute(sa.text(sentencia))
     except Exception as e:
-        log.warning("No se pudo ejecutar «%s»: %s. Ejecute scripts/supabase_hardening.sql.", sentencia.splitlines()[0], e)
+        log.warning("No se pudo ejecutar «%s»: %s. Aplíquelo a mano en el SQL Editor.", sentencia.splitlines()[0], e)
 
 
 def upgrade() -> None:

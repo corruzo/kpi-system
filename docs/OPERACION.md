@@ -27,7 +27,7 @@ Un respaldo que nunca se verificó no es un respaldo. Haga una restauración de 
    revisión del respaldo; `verificar` la muestra).
 3. `SIGT_BACKUP_KEY='…' python -m app.respaldar restaurar archivo.sigtbak`. Es todo-o-nada: revierte si algún conteo o la
    cadena de la bitácora no coincide. Se niega a escribir en una base con datos.
-4. Aplique `scripts/supabase_hardening.sql` si es Supabase, actualice `SIGT_DATABASE_URL` y redespliegue.
+4. Actualice `SIGT_DATABASE_URL` y redespliegue (en Supabase, `alembic upgrade head` ya aplicó el endurecimiento: RLS, bitácora inalterable y sin permisos para `anon`/`authenticated`).
 5. Use el **mismo `SIGT_SECRET`** (cifra la contraseña de los reportes); si cambió, redefínala en *Parámetros*.
 
 ## Incidentes frecuentes
@@ -54,8 +54,7 @@ empezar de nuevo (por ejemplo, tras pruebas).
 2. **Detenga las escrituras** (en Vercel, pause el despliegue de producción si hay usuarios conectados).
 3. En Supabase → SQL Editor, ejecute **`scripts/supabase_instalacion_completa.sql`** de una sola vez: borra el esquema `public` y crea todas las
    tablas, la bitácora inalterable, RLS, el retiro de permisos a `anon`/`authenticated` y deja `alembic_version` en la revisión actual.
-   (Alternativa sin borrar nada: desplegar; con `VERCEL` definido las migraciones corren al arrancar y, si el rol de conexión no pudo aplicar
-   el endurecimiento, la migración lo avisa en el log: ejecute entonces `scripts/supabase_hardening.sql`, que es idempotente.)
+   (Alternativa sin borrar nada: desplegar; con `VERCEL` definido las migraciones corren al arrancar y aplican el endurecimiento.)
 4. **Primer Desarrollador:** defina `SIGT_ADMIN_USER` y `SIGT_ADMIN_PASSWORD` (10+ caracteres) y despliegue: con la base vacía el primer
    arranque lo crea y siembra los roles de sistema (Desarrollador y Coordinador SGC) y los parámetros. **Elimine `SIGT_ADMIN_PASSWORD`** del
    entorno y cambie la contraseña.
@@ -64,4 +63,4 @@ empezar de nuevo (por ejemplo, tras pruebas).
    *Calidad*) y asigna a cada persona su rol, su ámbito e indicadores.
 6. Verifique: `alembic current` = `v2_0007`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.
 
-Los dos scripts SQL se generan con `python scripts/generar_sql_supabase.py` y una prueba verifica que coincidan con los modelos.
+El script SQL se genera con `python scripts/generar_sql_supabase.py` y una prueba verifica que coincida con los modelos. Es el único script SQL del proyecto.
