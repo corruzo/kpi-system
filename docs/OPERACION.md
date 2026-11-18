@@ -44,6 +44,14 @@ Un respaldo que nunca se verificó no es un respaldo. Haga una restauración de 
 ## Antes de cada despliegue
 `make verificar` en verde (o el CI de GitHub), migración probada en una copia si cambia el esquema, y un respaldo reciente.
 
+## Instalación completa de la base desde cero (Supabase)
+
+Para dejar la base vacía y con el esquema completo en un solo paso (sin esperar a que las migraciones corran al desplegar): en Supabase →
+SQL Editor, ejecute **`scripts/supabase_instalacion_completa.sql`** (destructivo: borra `public`). Crea todas las tablas, la bitácora
+inalterable, RLS, el retiro de permisos a `anon`/`authenticated` y deja `alembic_version` en la revisión actual. Luego defina
+`SIGT_ADMIN_USER` y `SIGT_ADMIN_PASSWORD` en el despliegue: al arrancar con la base vacía se crea el primer Desarrollador y se siembran los roles
+de sistema y los parámetros. El archivo se genera con `python scripts/generar_sql_supabase.py` y una prueba verifica que coincida con los modelos.
+
 ## Reinicio a la versión 2 (producción)
 
 La versión 2 cambia el esquema por completo (estructura en árbol, roles y permisos, metas). Los datos de la versión 1 eran de prueba y
