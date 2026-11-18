@@ -32,6 +32,7 @@ SIGT.modulos.nucleo = () => ({
       this.ejSel = d.ejercicio;
       this.indicadores = d.indicadores; this.areas = d.unidades || [];
       this.bandejaN = d.bandeja_total || 0; this.bandejaEj = d.bandeja_ejercicios || []; this.usuarios = [];
+      this.notif = { abierto: false, dias_aviso: 5, ...(d.notificaciones || { no_leidas: 0, items: [], avisos: [] }) };
       this.marcha = d.marcha || null; this.resumenInicio = d.resumen || null; this._inicioListo = true;   // la pantalla de inicio ya tiene sus datos
       for (const cargar of this.ganchos.ingreso) await cargar.call(this);   // lo que no viene en el arranque (p. ej. valores por defecto)
       await this.go(VISTA_INICIAL);
@@ -93,8 +94,8 @@ SIGT.modulos.nucleo = () => ({
       for (const n of [...set].filter(n => n >= 1 && n <= t).sort((x, y) => x - y)) { if (n - prev > 1) r.push({ key: 'e' + n, gap: true }); r.push({ key: 'n' + n, n }); prev = n; }
       return r;
     },
-    irPagina(k, n) { if (n >= 1 && n <= this.totalPaginas(k) && n !== this.pg(k).pagina) return this[CARGADORES[k]](n); },
-    cambiarPorPagina(k, v) { this.pg(k).por = Number(v); return this[CARGADORES[k]](1); },
+    irPagina(k, n) { if (n >= 1 && n <= this.totalPaginas(k) && n !== this.pg(k).pagina) return this[LISTAS_PAGINADAS[k]](n); },
+    cambiarPorPagina(k, v) { this.pg(k).por = Number(v); return this[LISTAS_PAGINADAS[k]](1); },
     // Barra de progreso global: se muestra si alguna petición tarda más de 0,2 s
     iniciarCarga() { this.pendientes++; if (!this._tc) this._tc = setTimeout(() => { this.cargando = this.pendientes > 0; }, 200); },
     terminarCarga() { if (--this.pendientes <= 0) { this.pendientes = 0; clearTimeout(this._tc); this._tc = null; this.cargando = false; } },

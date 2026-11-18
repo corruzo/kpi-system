@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from ..dominio import calendario, formulas, meta, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
 from ..models import Indicador, Medicion, NotaAuditoria, Revision, Unidad, Usuario, ahora
-from . import acceso, auditoria, ejercicios, indicadores, metas
+from . import acceso, auditoria, ejercicios, indicadores, metas, notificaciones
 from .periodos import justificados_de
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
@@ -213,6 +213,7 @@ def revisar(db: Session, u: Usuario, medicion_id: int, accion: str, nota: str) -
     m.estado = "aprobado" if accion == "aprobar" else "observado"
     m.revisado_por_id, m.revisado_en, m.nota_revision = u.id, ahora(), nota
     m.revisiones.append(Revision(accion="aprobada" if accion == "aprobar" else "devuelta", nota=nota, por_id=u.id, en=m.revisado_en))   # historial
+    notificaciones.avisar_revision(db, u, m, "aprobada" if accion == "aprobar" else "devuelta", nota)                                    # y aviso a quien carga
     auditoria.registrar(db, u, "APROBACION" if accion == "aprobar" else "OBSERVACION", "medicion", m.id,
                         {"periodo": m.periodo, "nota": nota}, m.indicador)
     db.commit()
@@ -231,6 +232,7 @@ def reabrir(db: Session, u: Usuario, medicion_id: int, nota: str) -> Medicion:
         raise Invalido("Indique el motivo de la reapertura.")
     m.estado, m.revisado_por_id, m.revisado_en, m.nota_revision = "observado", u.id, ahora(), nota
     m.revisiones.append(Revision(accion="reabierta", nota=nota, por_id=u.id, en=m.revisado_en))
+    notificaciones.avisar_revision(db, u, m, "reabierta", nota)
     auditoria.registrar(db, u, "REAPERTURA", "medicion", m.id, {"periodo": m.periodo, "nota": nota}, m.indicador)
     db.commit()
     return m

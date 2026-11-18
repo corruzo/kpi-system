@@ -17,10 +17,10 @@ SIGT.modulos.inicio = () => ({
         personas: this.puede('usuarios.cuentas')
           ? { t: 'Personas', d: 'Cree la cuenta de cada persona; al guardarla se abre su rol y su posición en la estructura. Una cuenta sin rol no accede a nada.', b: 'Crear y asignar personas', ir: () => this.go('personas') }
           : { t: 'Personas', d: 'El Desarrollador registra las cuentas (es una tarea técnica). Usted asigna a cada persona su rol y su posición en la estructura con «Rol y posición». Una cuenta sin rol no accede a nada.', b: 'Asignar personas', ir: () => this.go('personas') },
-        fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia, su semáforo, su responsable y quiénes lo cargan.', b: 'Crear indicadores', ir: () => this.go('fichas') },
+        fichas: { t: 'Indicadores', d: 'Cree la ficha de cada indicador: qué mide, su fórmula, su frecuencia, su semáforo, su responsable principal y su suplente.', b: 'Crear indicadores', ir: () => this.go('fichas') },
         periodo: { t: 'Período fiscal ' + this.marcha.etiqueta, d: 'Abra el año de gestión. Sin período fiscal no se pueden fijar metas ni cargar datos.', b: 'Crear el período ' + this.marcha.etiqueta, ir: () => this.crearPeriodo(this.marcha.ejercicio) },
         meta: { t: 'Meta del año', d: 'Para cada indicador, escriba cuánto se espera lograr en cada período (o un valor anual repartido).', b: 'Ingresar metas', ir: () => this.go('meta') },
-        carga: { t: 'Carga mensual de datos', d: 'Cada mes quien carga ingresa su dato real; el sistema lo compara con la meta y su superior directo lo aprueba.', b: 'Ver cargas', ir: () => this.go('historial') },
+        carga: { t: 'Carga mensual de datos', d: 'Cada mes quien carga ingresa su dato real; el sistema lo compara con la meta y quien tiene el permiso de aprobar (calidad) lo aprueba o lo devuelve.', b: 'Ver cargas', ir: () => this.go('historial') },
       };
       let ahora = true;
       return this.marcha.pasos.map((p, i) => {

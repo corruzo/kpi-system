@@ -10,7 +10,7 @@ from app import permisos as cat
 from app import permisos_doc
 
 PUBLICAS = {"/api/login", "/api/logout", "/api/publico", "/api/logo"}   # sin sesión (logout debe poder cerrar una sesión ya vencida)
-CUENTA_PROPIA = {"/api/me", "/api/cambiar-clave", "/api/tour", "/api/arranque"}   # cualquier sesión válida, con o sin rol
+CUENTA_PROPIA = {"/api/me", "/api/cambiar-clave", "/api/tour", "/api/arranque", "/api/notificaciones", "/api/notificaciones/leer"}   # cualquier sesión válida, con o sin rol
 
 
 _declaracion = permisos_doc.declaracion
@@ -26,7 +26,7 @@ RUTAS = list(rutas_de_la_api())
 
 
 def test_hay_rutas_que_barrer():
-    assert len(RUTAS) > 60                                                       # (la v1 recorría 0 rutas por el cambio de FastAPI)
+    assert len(RUTAS) > 60                                                       # (si fuera 0, el barrido no recorrería nada)
 
 
 def test_ninguna_ruta_queda_sin_permiso_declarado():

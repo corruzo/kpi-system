@@ -56,7 +56,6 @@ SIGT.modulos.roles = () => ({
       try { await this.api(`/api/roles/${r.id}`, { method: 'PUT', body: { nombre: r.nombre, descripcion: r.descripcion, permisos: this.mat[r.id] } }); this.avisar('Rol «' + r.nombre + '» guardado. Rige desde la siguiente petición de cada persona.'); await this.cargarRoles(); } catch { }
       this.busy = false;
     },
-    get hayCambiosMatriz() { return this.roles.some(r => this.sucia(r)); },
     // Filas planas de la matriz: encabezado de cada módulo y, si está abierto, sus permisos
     get filasMatriz() {
       return this.gruposVisibles().flatMap(g => [{ k: 'g:' + g, g, n: this.permisosDe(g).length }, ...(this.matCerrados[g] ? [] : this.permisosDe(g).map(p => ({ k: p.codigo, p })))]);

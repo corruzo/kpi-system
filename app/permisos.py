@@ -143,9 +143,9 @@ POR_CODIGO: dict[str, Permiso] = {p.codigo: p for p in CATALOGO}
 GRUPOS: tuple[str, ...] = tuple(dict.fromkeys(p.grupo for p in CATALOGO))
 FUNCIONALES: tuple[Permiso, ...] = tuple(p for p in CATALOGO if not p.tecnico)
 # Lo que todo usuario con sesión puede hacer sobre su propia cuenta (no es configurable y no depende del rol).
-CUENTA_PROPIA = ("Ver su perfil", "Cambiar su contraseña", "Guía de bienvenida", "Cerrar sesión")
+CUENTA_PROPIA = ("Ver su perfil", "Cambiar su contraseña", "Guía de bienvenida", "Ver y marcar sus notificaciones", "Cerrar sesión")
 # Sin estos el Coordinador SGC no podría hacer su trabajo: su rol nunca puede quedar sin ellos.
-# También aprueba siempre (es el respaldo de la aprobación jerárquica).
+# También aprueba siempre (es el respaldo de la aprobación).
 MINIMOS_DEL_COORDINADOR = ("roles.gestionar", "usuarios.asignar", "usuarios.ver", "estructura.ver", "cargas.aprobar", "cargas.ver",
                            "indicadores.ver", "ejercicios.ver")
 

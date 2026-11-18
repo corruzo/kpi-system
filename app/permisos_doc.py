@@ -79,7 +79,7 @@ def generar() -> str:
         lineas.append("")
     lineas += ["## Cuenta propia (todos los usuarios con sesión, no configurable)", "",
           *[f"- {x}" for x in cat.CUENTA_PROPIA], "",
-          "Rutas: `GET /api/me`, `POST /api/cambiar-clave`, `POST /api/tour`, `GET /api/arranque` (una cuenta sin rol solo recibe su perfil). "
+          "Rutas: `GET /api/me`, `POST /api/cambiar-clave`, `POST /api/tour`, `GET /api/arranque` (una cuenta sin rol solo recibe su perfil), `GET /api/notificaciones` y `POST /api/notificaciones/leer` (solo las suyas). "
           "Públicas (sin sesión): `POST /api/login`, `POST /api/logout`, `GET /api/publico`, `GET /api/logo`.", "",
           "## Permisos mínimos del Coordinador SGC", "",
           "Su rol nunca puede quedar sin: " + ", ".join(f"`{c}`" for c in cat.MINIMOS_DEL_COORDINADOR) + ".", ""]

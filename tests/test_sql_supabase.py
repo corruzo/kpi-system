@@ -18,6 +18,11 @@ def test_el_sql_de_supabase_coincide_con_los_modelos():
     assert g.DESTINO.read_text(encoding="utf-8") == g.generar(), "Regenere: python scripts/generar_sql_supabase.py"
 
 
+def test_el_sql_de_endurecimiento_coincide_con_los_modelos():
+    g = _generador()
+    assert g.DESTINO_ENDURECIMIENTO.read_text(encoding="utf-8") == g.generar_endurecimiento(), "Regenere: python scripts/generar_sql_supabase.py"
+
+
 def test_el_sql_crea_todas_las_tablas_y_deja_la_revision_actual():
     from app.database import Base
     sql = _generador().DESTINO.read_text(encoding="utf-8")

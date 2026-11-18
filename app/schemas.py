@@ -239,6 +239,10 @@ class CierreIn(BaseModel):
     nota: str = Field(default="", max_length=2000)
 
 
+class LeerNotificacionesIn(BaseModel):
+    ids: list[Id] | None = Field(default=None, max_length=200)   # sin indicar: todas las de la persona
+
+
 class JustificacionIn(BaseModel):
     periodo: str = Field(min_length=4, max_length=10)
     tipo: Literal["parada_planta", "inicio_medicion", "no_aplica"]

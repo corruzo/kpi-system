@@ -69,17 +69,17 @@ def test_en_vercel_migra_solo_salvo_que_se_desactive(tmp_path):
 
 def test_la_base_desde_cero_queda_con_el_esquema_v2_y_la_migracion_de_endurecimiento_es_inocua(tmp_path):
     """Esquema base (v2_0001) más las migraciones v2_0002 (endurecimiento), v2_0003 (sin listas de apoyo), v2_0004 (períodos
-    justificados), v2_0005 (responsable + suplente) y v2_0006 (historial de revisiones): la revisión actual es la última."""
+    justificados), v2_0005 (responsable + suplente), v2_0006 (historial de revisiones) y v2_0007 (notificaciones): la revisión actual es la última."""
     salida = correr_ok(tmp_path, (
         "from app.servicios import migraciones as m; from sqlalchemy import inspect; from app.database import engine; "
         "m.actualizar(); t = set(inspect(engine).get_table_names()); print(m.revision_actual()); "
         "print(sorted(t & {'unidades','roles','rol_permisos','usuario_unidades','metas'}))"))
     ahora, tablas = salida.splitlines()
-    assert ahora == "v2_0006"
+    assert ahora == "v2_0007"
     assert tablas == str(sorted(["unidades", "roles", "rol_permisos", "usuario_unidades", "metas"]))
     todas = correr_ok(tmp_path, "from sqlalchemy import inspect; from app.database import engine; print(sorted(inspect(engine).get_table_names()))")
     assert todas == str(sorted(["alembic_version", "bitacora", "ejercicios", "indicadores", "intentos_fallidos",
-                                "mediciones", "metas", "notas_auditoria", "parametros", "periodos_justificados", "revisiones", "rol_permisos", "roles", "unidades", "usuario_unidades", "usuarios"]))
+                                "mediciones", "metas", "notas_auditoria", "notificaciones", "parametros", "periodos_justificados", "revisiones", "rol_permisos", "roles", "unidades", "usuario_unidades", "usuarios"]))
 
 
 def test_la_migracion_a_responsable_y_suplente_conserva_a_los_cargadores_y_registra_a_quien_queda_fuera(tmp_path):
@@ -118,7 +118,7 @@ def test_la_migracion_del_historial_de_revisiones_reconstruye_las_devoluciones_d
         "(1, '2026-01', 'aprobado', 2, '2026-02-03 10:00:00', ''), (2, '2026-02', 'aprobado', 2, '2026-03-05 10:00:00', 'Importado desde Excel'))]; "
         "[c.execute(\"INSERT INTO bitacora (fecha, usuario_id, usuario_nombre, rol, accion, entidad, entidad_id, indicador_id, nodo_id, detalle, prev_hash, hash) VALUES (?, 2, 'Persona 2', 'R', ?, 'medicion', 1, 1, 1, ?, 'p', 'h')\", (f, a, json.dumps({'periodo': '2026-01', 'nota': n}))) for f, a, n in ("
         "('2026-02-02 09:00:00', 'OBSERVACION', 'Falta soporte del dato'), ('2026-02-03 10:00:00', 'APROBACION', ''), ('2026-02-10 11:00:00', 'REAPERTURA', 'Se detectó un error'))]; "
-        "c.commit(); c.close(); command.upgrade(cfg, 'head'); print(m.revision_actual())" % (tmp_path / "base.db"))
+        "c.commit(); c.close(); command.upgrade(cfg, 'v2_0006'); print(m.revision_actual())" % (tmp_path / "base.db"))
     assert correr_ok(tmp_path, preparar) == "v2_0006"
     c = sqlite3.connect(tmp_path / "base.db")
     filas = c.execute("SELECT medicion_id, accion, nota, por_id FROM revisiones ORDER BY id").fetchall()

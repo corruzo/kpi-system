@@ -309,6 +309,25 @@ class Revision(Base):
     por: Mapped[Usuario] = relationship(lazy="joined")
 
 
+TIPOS_NOTIFICACION = ("aprobada", "devuelta", "reabierta")
+
+
+class Notificacion(Base):
+    """Aviso para una persona (aparece en la campana): su carga fue aprobada, devuelta (con el motivo) o reabierta.
+    El aviso de «cierre de mes cercano con cargas pendientes» NO se guarda: se calcula al consultar (ver `servicios/notificaciones.py`)."""
+    __tablename__ = "notificaciones"
+    __table_args__ = (CheckConstraint("tipo IN ('aprobada', 'devuelta', 'reabierta')", name="ck_notificaciones_tipo"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), index=True)
+    tipo: Mapped[str] = mapped_column(String(10))
+    titulo: Mapped[str] = mapped_column(String(160))
+    texto: Mapped[str] = mapped_column(Text, default="")
+    indicador_id: Mapped[int | None] = mapped_column(ForeignKey("indicadores.id"), index=True)
+    periodo: Mapped[str | None] = mapped_column(String(10))
+    creada_en: Mapped[datetime] = mapped_column(DateTime, default=ahora, index=True)
+    leida_en: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class NotaAuditoria(Base):
     __tablename__ = "notas_auditoria"
     id: Mapped[int] = mapped_column(primary_key=True)

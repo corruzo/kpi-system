@@ -12,7 +12,6 @@ from ..models import TIPOS_JUSTIFICACION, Indicador, Medicion, PeriodoJustificad
 from . import acceso, auditoria, ejercicios, indicadores
 
 MIN_MOTIVO = 5
-ETIQUETAS = {"parada_planta": "Parada de planta", "inicio_medicion": "Empezó a medirse después", "no_aplica": "No aplica"}
 
 
 def _indicador_del_ambito(db: Session, u: Usuario, indicador_id: int) -> Indicador:

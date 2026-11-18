@@ -133,7 +133,7 @@ JEFES_POR_AREA: dict[int, int] = {}   # último analista creado con `crear_usuar
 
 
 def crear_usuario(c, rol: str, area_id: int | None = None) -> str:
-    """Compatibilidad con las pruebas de la versión 1: «jefe» = quien carga (Analista que trabaja en el nodo),
+    """Atajos de las pruebas: «jefe» = quien carga (Analista que trabaja en el nodo),
     «gerente» = rol con ámbito en toda la empresa, «admin» = Coordinador SGC."""
     if rol == "jefe":
         u = persona(c, "Analista", miembro=[area_id] if area_id else [], prefijo="jef")

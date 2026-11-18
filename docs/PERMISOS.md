@@ -118,9 +118,10 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 - Ver su perfil
 - Cambiar su contraseña
 - Guía de bienvenida
+- Ver y marcar sus notificaciones
 - Cerrar sesión
 
-Rutas: `GET /api/me`, `POST /api/cambiar-clave`, `POST /api/tour`, `GET /api/arranque` (una cuenta sin rol solo recibe su perfil). Públicas (sin sesión): `POST /api/login`, `POST /api/logout`, `GET /api/publico`, `GET /api/logo`.
+Rutas: `GET /api/me`, `POST /api/cambiar-clave`, `POST /api/tour`, `GET /api/arranque` (una cuenta sin rol solo recibe su perfil), `GET /api/notificaciones` y `POST /api/notificaciones/leer` (solo las suyas). Públicas (sin sesión): `POST /api/login`, `POST /api/logout`, `GET /api/publico`, `GET /api/logo`.
 
 ## Permisos mínimos del Coordinador SGC
 

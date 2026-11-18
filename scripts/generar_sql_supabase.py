@@ -1,6 +1,10 @@
-"""Genera `scripts/supabase_instalacion_completa.sql`: la base de datos COMPLETA desde cero para Supabase (PostgreSQL).
+"""Genera los dos scripts SQL para Supabase (PostgreSQL):
 
-    python scripts/generar_sql_supabase.py          # reescribe el archivo
+- `scripts/supabase_instalacion_completa.sql`: la base de datos COMPLETA desde cero (destructivo).
+- `scripts/supabase_hardening.sql`: solo el endurecimiento (bitácora inalterable, RLS, sin permisos para `anon`/`authenticated`),
+  idempotente, para una base que ya existe y a la que la migración no pudo aplicárselo.
+
+    python scripts/generar_sql_supabase.py          # reescribe los archivos
 
 El SQL sale de los modelos (tablas, claves, índices y restricciones) y de la migración de endurecimiento (bitácora inalterable,
 RLS, retiro de permisos a `anon` y `authenticated`), y deja `alembic_version` en la revisión actual: al arrancar, la aplicación
@@ -14,6 +18,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ / "scripts" / "supabase_instalacion_completa.sql"
+DESTINO_ENDURECIMIENTO = RAIZ / "scripts" / "supabase_hardening.sql"
 
 
 def _cargar_migracion(nombre: str):
@@ -27,6 +32,38 @@ def _cargar_migracion(nombre: str):
 def _revision_actual() -> str:
     ultima = sorted((RAIZ / "migrations" / "versions").glob("v2_*.py"))[-1]
     return ultima.name.split("_", 2)[0] + "_" + ultima.name.split("_", 2)[1]
+
+
+def _endurecimiento(nombres: list[str], migracion) -> list[str]:
+    """Bitácora inalterable + RLS sin políticas en todas las tablas + sin permisos para los roles públicos de Supabase."""
+    out = ["-- Bitácora inalterable a nivel de motor:"]
+    out += [s.strip() + ";" for s in migracion.TRIGGER]
+    out.append("\n-- RLS sin políticas en todas las tablas: la API pública de Supabase (anon/authenticated) no lee ni escribe.")
+    out.append("-- La aplicación se conecta con el rol postgres, que ignora RLS.")
+    out += [f'ALTER TABLE public."{n}" ENABLE ROW LEVEL SECURITY;' for n in nombres]
+    out.append("\n-- Sin permisos para los roles públicos de Supabase (solo si existen):")
+    out.append("DO $$\nBEGIN\n\tIF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('anon', 'authenticated')) THEN")
+    out += [f"\t\tEXECUTE '{x}';" for x in migracion.REVOCAR]
+    out.append("\tEND IF;\nEND $$;")
+    return out
+
+
+def generar_endurecimiento() -> str:
+    """Script independiente (idempotente) con solo el endurecimiento, para una base ya creada."""
+    os.environ.setdefault("SIGT_DATA_DIR", tempfile.mkdtemp())
+    sys.path.insert(0, str(RAIZ))
+    from app import models  # noqa: F401
+    from app.database import Base
+
+    cabecera = """-- ============================================================================================================
+-- SPE TPV · ENDURECIMIENTO DE LA BASE (Supabase / PostgreSQL) · idempotente
+-- GENERADO por scripts/generar_sql_supabase.py: no se edita a mano.
+-- La migración v2_0002 ya intenta aplicar esto al desplegar; este script es el respaldo manual si no pudo hacerlo.
+-- Ejecutar en el SQL Editor de Supabase. No borra ni modifica datos.
+-- ============================================================================================================
+"""
+    nombres = [t.name for t in Base.metadata.sorted_tables] + ["alembic_version"]
+    return cabecera + "\n".join(_endurecimiento(nombres, _cargar_migracion("v2_0002"))) + "\n"
 
 
 def generar() -> str:
@@ -76,20 +113,13 @@ CREATE TABLE alembic_version (
 );
 INSERT INTO alembic_version (version_num) VALUES ('{revision}');
 
--- -------------------------------------------------------------------------------- endurecimiento (migración v2_0002)
--- Bitácora inalterable a nivel de motor:""")
-    out += [s.strip() + ";" for s in endurecimiento.TRIGGER]
-    out.append("\n-- RLS sin políticas en todas las tablas: la API pública de Supabase (anon/authenticated) no lee ni escribe.")
-    out.append("-- La aplicación se conecta con el rol postgres, que ignora RLS.")
-    out += [f'ALTER TABLE public."{t.name}" ENABLE ROW LEVEL SECURITY;' for t in tablas]
-    out.append('ALTER TABLE public."alembic_version" ENABLE ROW LEVEL SECURITY;')
-    out.append("\n-- Sin permisos para los roles públicos de Supabase (solo si existen):")
-    out.append("DO $$\nBEGIN\n\tIF EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('anon', 'authenticated')) THEN")
-    out += [f"\t\tEXECUTE '{s}';" for s in endurecimiento.REVOCAR]
-    out.append("\tEND IF;\nEND $$;\n\nCOMMIT;\n")
+-- -------------------------------------------------------------------------------- endurecimiento (migración v2_0002)""")
+    out += _endurecimiento([t.name for t in tablas] + ["alembic_version"], endurecimiento)
+    out.append("\nCOMMIT;\n")
     return "\n".join(out)
 
 
 if __name__ == "__main__":
     DESTINO.write_text(generar(), encoding="utf-8")
-    print(f"Escrito {DESTINO.relative_to(RAIZ)}")
+    DESTINO_ENDURECIMIENTO.write_text(generar_endurecimiento(), encoding="utf-8")
+    print(f"Escrito {DESTINO.relative_to(RAIZ)} y {DESTINO_ENDURECIMIENTO.relative_to(RAIZ)}")

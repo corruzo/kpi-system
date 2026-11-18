@@ -31,8 +31,6 @@ SIGT.modulos.bitacora = () => ({
         case 'ACCESOS_DESBLOQUEADOS': return 'Bloqueo por intentos fallidos levantado';
         case 'IMPORTACION': return `${d.codigo} ← ${d.archivo} (${d.hoja}): ${(d.periodos || []).length} períodos importados`;
         case 'PARAMETROS_EDITADOS': return 'Cambios: ' + Object.keys(d.cambios || {}).join(', ');
-        case 'CATALOGO_CREADO': case 'CATALOGO_ELIMINADO': return d.valor || `${d.cantidad || ''} elementos (${d.origen || ''})`;
-        case 'CATALOGO_EDITADO': return `${d.tipo}: ${(d.antes || [])[0]} → ${(d.despues || [])[0]}`;
         case 'PERIODO_JUSTIFICADO': case 'JUSTIFICACION_REVOCADA': return `${d.codigo} · ${d.etiqueta} (${d.tipo}): ${d.motivo}`;
         case 'CLAVE_CAMBIADA': return 'Cambio de contraseña';
         case 'USUARIO_CREADO': case 'USUARIO_EDITADO': return `${d.username || ''} ${d.rol || ''} ` + Object.keys(d.cambios || {}).join(', ');

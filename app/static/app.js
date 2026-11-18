@@ -25,6 +25,7 @@ const ORDEN_DE_MODULOS = [
   'estructura',    // árbol de la empresa
   'roles',         // roles y matriz de permisos
   'personas',      // rol, ámbito e indicadores de cada persona; cuentas y soporte
+  'notificaciones', // la campana: cargas aprobadas o devueltas y cierre de período cercano
   'importacion',   // fichas históricas
   'bitacora',      // trazabilidad
   'salud',         // estado técnico del sistema (Desarrollador)

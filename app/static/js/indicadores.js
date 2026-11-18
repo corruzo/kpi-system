@@ -39,7 +39,7 @@ SIGT.modulos.indicadores = () => ({
     async refrescarIndicadores() { await Promise.all([this.cargarFichas(this.pg('fichas').pagina), this.cargarIndicadores()]); },
     codigoSugerido: '',
     get etiquetaNC() { return (this.params.codigo_formato || 'NC-16').split('-').slice(0, 2).join('-'); },
-    // Asignación: nodo de la estructura, responsable (el «dueño», único que modifica la ficha) y quienes cargan el dato.
+    // Asignación: nodo de la estructura, responsable principal y suplente (los dos cargan el dato; ninguno edita la ficha).
     // Primero quienes están en la rama del nodo elegido (el nodo, sus superiores o lo que cuelga de él); el resto, al final y marcado
     get ramaDelNodo() {
       const porId = Object.fromEntries(this.areas.map(a => [a.id, a])), objetivo = this.ficha.nodo_id, rama = new Set();

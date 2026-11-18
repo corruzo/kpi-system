@@ -2,7 +2,8 @@
 
 Crea, a través de la API (con el Desarrollador): una gerencia con su departamento y jefatura, los roles Gerente / Jefe / Analista, las
 cuentas de un gerente, un jefe y un analista (asignados a su posición), cuatro indicadores con sus metas y la carga mensual de datos
-reales del ejercicio, aprobada por el superior directo (el jefe) salvo el último mes, que queda pendiente, y un mes devuelto y reenviado.
+reales del ejercicio, aprobada por el jefe (tiene el permiso de aprobar y la jefatura en su ámbito) salvo el último mes, que queda pendiente,
+y un mes devuelto y reenviado.
 
     python scripts/ejemplo_produccion.py --url http://127.0.0.1:8000 --admin admin --clave-admin '...'
 
@@ -93,8 +94,8 @@ def main() -> None:
 
     # 2) Roles (los define el Coordinador SGC; aquí los crea el Desarrollador, que puede conceder todo lo funcional)
     carga = {"cargas.cargar": "modificar", "reportes.fichas": "ver"}
-    jefe_p = {**carga, "cargas.aprobar": "modificar", "cargas.reabrir": "modificar", "cargas.notas": "modificar", "indicadores.crear": "modificar",
-              "indicadores.editar": "modificar", "indicadores.archivar": "modificar", "indicadores.asignar": "modificar", "formulas.probar": "modificar",
+    # (quien carga solo carga: crear y editar indicadores es de Calidad; aquí los crea el Desarrollador)
+    jefe_p = {**carga, "cargas.aprobar": "modificar", "cargas.reabrir": "modificar", "cargas.notas": "modificar",
               "metas.cargar": "modificar", "metas.copiar": "modificar", "panel.ver": "ver", "reportes.general": "ver"}
     roles = {n: exigir(adm.post("/api/roles", json={"nombre": n, "permisos": p}), f"Crear rol {n}")["id"]
              for n, p in (("Analista", carga), ("Jefe", jefe_p), ("Gerente", jefe_p))}
@@ -108,7 +109,7 @@ def main() -> None:
         ids[usuario] = exigir(adm.post("/api/usuarios", json={"username": usuario, "nombre": nombre, "password": clave}), f"Crear {usuario}")["id"]
         exigir(adm.put(f"/api/usuarios/{ids[usuario]}/asignacion", json={"rol_id": roles[rol], "raiz": False, **pos}), f"Asignar {usuario}")
 
-    # 4) Ejercicio, indicadores (responsable: el jefe; carga: el analista) y sus metas
+    # 4) Ejercicio, indicadores (responsable principal: el analista, que carga) y sus metas
     anio = hoy.year + (1 if hoy.month >= inicio > 1 else 0)
     r = adm.post("/api/ejercicios", json={"anio": anio})   # 409 = ya existía
     if r.status_code not in (201, 409):
@@ -116,15 +117,15 @@ def main() -> None:
     ids_ind = {}
     for cod, nombre, objetivo, unidad, sentido, formula, variables, nivel_optimo, limite, dec, fuente in INDICADORES:
         ind = exigir(adm.post("/api/indicadores", json={
-            "nombre": nombre, "objetivo": objetivo, "nodo_id": jefatura, "responsable_id": ids["jefe.produccion"],
-            "cargadores": [ids["analista.produccion"]], "unidad": unidad, "frecuencia": "mensual", "sentido": sentido, "formula": formula,
+            "nombre": nombre, "objetivo": objetivo, "nodo_id": jefatura, "responsable_id": ids["analista.produccion"],
+            "unidad": unidad, "frecuencia": "mensual", "sentido": sentido, "formula": formula,
             "nivel_optimo": nivel_optimo, "limite": limite, "decimales": dec, "fuente": fuente, "seguimiento": "proceso",
             "ref_nombre": "Proceso de Producción", "ref_detalle": "Fabricar según el plan, con calidad y sin desperdicio",
             "variables": [{"clave": k, "etiqueta": e, "ayuda": h} for k, e, h in variables]}), f"Crear {cod}")
         ids_ind[cod] = ind["id"]
         exigir(adm.put(f"/api/ejercicios/{anio}/metas/{ind['id']}", json={"anual": nivel_optimo, "reparto": "repetir"}), f"Meta de {cod}")
 
-    # 5) El analista carga de enero (inicio del ejercicio) al mes actual; el jefe (superior directo) aprueba
+    # 5) El analista carga de enero (inicio del ejercicio) al mes actual; el jefe aprueba
     analista, jefe = cliente(a.url, "analista.produccion", clave), cliente(a.url, "jefe.produccion", clave)
     meses = [f"{hoy.year}-{m:02d}" for m in range(inicio, hoy.month + 1)] if inicio <= hoy.month else []
     if not meses:

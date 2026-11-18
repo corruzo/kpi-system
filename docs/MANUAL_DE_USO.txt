@@ -242,7 +242,20 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
   Error en una carga ya aprobada: quien le corresponde aprobarla (o el Coordinador) la reabre desde
   Cargas con el motivo; vuelve a quedar «Devuelta». Todo queda en la bitácora.
 
-6.4 Recordatorios
+6.4 Notificaciones (la campana)
+  En la cabecera, junto al menú de usuario, la campana muestra un contador rojo con lo que requiere su
+  atención. Dos clases de aviso:
+   · Guardados: su carga fue APROBADA, DEVUELTA (con el motivo) o REABIERTA. Llegan al responsable
+     principal, al suplente y a quien envió la carga (no a quien la revisó). Se marcan como leídos al
+     pulsarlos o con «Marcar todas como leídas»; al pulsar uno, el sistema lo lleva a esa carga.
+   · De cierre: cuando faltan 5 días o menos para que cierre el período en curso y usted (como responsable
+     principal o suplente) tiene cargas pendientes (períodos vencidos sin cargar o devueltos, y el período en
+     curso si aún no tiene carga), aparece un aviso en amarillo con los indicadores y períodos que faltan.
+     No se guarda: se calcula al consultar y desaparece solo al cargar o justificar el período.
+  La campana se actualiza al ingresar, al abrirla y cada 90 segundos. No hay correo automático; para
+  avisar a otra persona use Recordatorios (6.5).
+
+6.5 Recordatorios
   Operar > Recordatorios de carga: personas de SU ÁMBITO con períodos pendientes (y las devueltas).
   «Enviar aviso» abre en Outlook un correo ya redactado con el nombre y lo que falta; usted solo pulsa
   «Enviar». La persona debe tener correo registrado. Cada aviso queda en la bitácora.
@@ -364,8 +377,8 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
  * Reinicio de fábrica (Configuración > Avanzado > Zona de peligro; Desarrollador): borra TODO (indicadores,
    cargas, estructura, personas, roles definidos, parámetros, logo y bitácora). Conserva solo su
    cuenta y los roles de sistema. Pide escribir «BORRAR TODO» y su contraseña. No se puede deshacer.
- * Reinicio a la versión 2 en producción: procedimiento y script en docs/OPERACION.md
-   (scripts/reset_produccion_v2.sql). Destruye los datos de la versión 1 (eran de prueba).
+ * Instalar la base desde cero en producción: procedimiento y script SQL en docs/OPERACION.md
+   (scripts/supabase_instalacion_completa.sql). Destruye todos los datos.
 
 ====================================================================================================
 15. MANTENIMIENTO: CUENTAS, CLAVES, RESPALDOS, ACTUALIZACIONES

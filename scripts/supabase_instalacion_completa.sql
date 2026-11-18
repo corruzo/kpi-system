@@ -1,5 +1,5 @@
 -- ============================================================================================================
--- SPE TPV · INSTALACIÓN COMPLETA DE LA BASE DE DATOS (Supabase / PostgreSQL) · revisión v2_0006
+-- SPE TPV · INSTALACIÓN COMPLETA DE LA BASE DE DATOS (Supabase / PostgreSQL) · revisión v2_0007
 -- GENERADO por scripts/generar_sql_supabase.py: no se edita a mano (una prueba verifica que coincida con los modelos).
 --
 -- ¡DESTRUCTIVO E IRREVERSIBLE! Borra TODO el esquema `public` (tablas, datos, bitácora) y lo crea de nuevo, vacío.
@@ -8,7 +8,7 @@
 -- Después de ejecutarlo:
 --   1. Defina en el despliegue SIGT_ADMIN_USER y SIGT_ADMIN_PASSWORD (10+ caracteres): al arrancar con la base vacía la
 --      aplicación crea el primer Desarrollador y siembra los roles de sistema y los parámetros. Elimine la contraseña luego.
---   2. La aplicación ve `alembic_version` = v2_0006: no migra nada.
+--   2. La aplicación ve `alembic_version` = v2_0007: no migra nada.
 -- ============================================================================================================
 
 BEGIN;
@@ -249,6 +249,25 @@ CREATE TABLE metas (
 CREATE INDEX ix_metas_actualizado_por_id ON metas (actualizado_por_id);
 CREATE INDEX ix_metas_ejercicio ON metas (ejercicio);
 
+CREATE TABLE notificaciones (
+	id SERIAL NOT NULL, 
+	usuario_id INTEGER NOT NULL, 
+	tipo VARCHAR(10) NOT NULL, 
+	titulo VARCHAR(160) NOT NULL, 
+	texto TEXT NOT NULL, 
+	indicador_id INTEGER, 
+	periodo VARCHAR(10), 
+	creada_en TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	leida_en TIMESTAMP WITHOUT TIME ZONE, 
+	PRIMARY KEY (id), 
+	CONSTRAINT ck_notificaciones_tipo CHECK (tipo IN ('aprobada', 'devuelta', 'reabierta')), 
+	FOREIGN KEY(usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE, 
+	FOREIGN KEY(indicador_id) REFERENCES indicadores (id)
+);
+CREATE INDEX ix_notificaciones_creada_en ON notificaciones (creada_en);
+CREATE INDEX ix_notificaciones_indicador_id ON notificaciones (indicador_id);
+CREATE INDEX ix_notificaciones_usuario_id ON notificaciones (usuario_id);
+
 CREATE TABLE periodos_justificados (
 	id SERIAL NOT NULL, 
 	indicador_id INTEGER NOT NULL, 
@@ -300,7 +319,7 @@ CREATE TABLE alembic_version (
 	version_num VARCHAR(32) NOT NULL,
 	CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
 );
-INSERT INTO alembic_version (version_num) VALUES ('v2_0006');
+INSERT INTO alembic_version (version_num) VALUES ('v2_0007');
 
 -- -------------------------------------------------------------------------------- endurecimiento (migración v2_0002)
 -- Bitácora inalterable a nivel de motor:
@@ -324,6 +343,7 @@ ALTER TABLE public."indicadores" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."usuario_unidades" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."mediciones" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."metas" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."notificaciones" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."periodos_justificados" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."notas_auditoria" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."revisiones" ENABLE ROW LEVEL SECURITY;

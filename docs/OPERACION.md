@@ -44,31 +44,24 @@ Un respaldo que nunca se verificó no es un respaldo. Haga una restauración de 
 ## Antes de cada despliegue
 `make verificar` en verde (o el CI de GitHub), migración probada en una copia si cambia el esquema, y un respaldo reciente.
 
-## Instalación completa de la base desde cero (Supabase)
+## Instalar la base desde cero o reiniciarla (producción)
 
-Para dejar la base vacía y con el esquema completo en un solo paso (sin esperar a que las migraciones corran al desplegar): en Supabase →
-SQL Editor, ejecute **`scripts/supabase_instalacion_completa.sql`** (destructivo: borra `public`). Crea todas las tablas, la bitácora
-inalterable, RLS, el retiro de permisos a `anon`/`authenticated` y deja `alembic_version` en la revisión actual. Luego defina
-`SIGT_ADMIN_USER` y `SIGT_ADMIN_PASSWORD` en el despliegue: al arrancar con la base vacía se crea el primer Desarrollador y se siembran los roles
-de sistema y los parámetros. El archivo se genera con `python scripts/generar_sql_supabase.py` y una prueba verifica que coincida con los modelos.
+**Destructivo e irreversible: lo ejecuta una persona autorizada, con la base correcta.** Sirve para la primera instalación o para
+empezar de nuevo (por ejemplo, tras pruebas).
 
-## Reinicio a la versión 2 (producción)
-
-La versión 2 cambia el esquema por completo (estructura en árbol, roles y permisos, metas). Los datos de la versión 1 eran de prueba y
-**se eliminan**: no hay migración de usuarios ni de indicadores. **Este procedimiento es destructivo e irreversible; no se ejecutó desde el
-desarrollo: lo ejecuta una persona autorizada.**
-
-1. **Respaldo previo** (por si acaso): `SIGT_BACKUP_KEY='frase larga' python -m app.respaldar crear` con la base de producción
+1. **Respaldo previo** (si hay algo que conservar): `SIGT_BACKUP_KEY='frase larga' python -m app.respaldar crear` con la base de producción
    (`SIGT_DATABASE_URL`), y `python -m app.respaldar verificar archivo.sigtbak`. Guárdelo fuera de GitHub y de Supabase.
-2. **Detenga las escrituras** (no hay nada que hacer si nadie usa el sistema; en Vercel, pause el despliegue de producción).
-3. En Supabase → SQL Editor, ejecute **`scripts/reset_produccion_v2.sql`**: borra el esquema `public` completo (tablas, datos, bitácora y
-   `alembic_version`) y lo recrea vacío. Confirme antes que está en el proyecto correcto.
-4. **Despliegue** de la rama de la versión 2 en producción (la autorización para subirla a `master` la da el responsable del proyecto).
-   Con `VERCEL` definido las migraciones corren al arrancar y crean el esquema (`v2_0001`) y el endurecimiento (`v2_0002`: trigger de la
-   bitácora, RLS y retiro de permisos a `anon`/`authenticated`). Si el rol de conexión no pudo aplicar el endurecimiento, la migración lo avisa
-   en el log: ejecute `scripts/supabase_hardening.sql` a mano (es idempotente).
-5. **Primer Desarrollador:** con `SIGT_ADMIN_USER` y `SIGT_ADMIN_PASSWORD` definidos y la base vacía, el primer arranque crea al Desarrollador
-   y siembra los roles de sistema (Desarrollador y Coordinador SGC). **Elimine `SIGT_ADMIN_PASSWORD`** del entorno y cambie la contraseña.
-6. Siga *Puesta en marcha* en la aplicación: el Desarrollador crea las cuentas (incluido el Coordinador SGC, que se le asigna con
-   Personas → *Rol y posición*); el Coordinador arma la estructura, los roles y asigna a cada persona su rol, su ámbito e indicadores.
-7. Verifique: `alembic current` = `v2_0006`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.
+2. **Detenga las escrituras** (en Vercel, pause el despliegue de producción si hay usuarios conectados).
+3. En Supabase → SQL Editor, ejecute **`scripts/supabase_instalacion_completa.sql`** de una sola vez: borra el esquema `public` y crea todas las
+   tablas, la bitácora inalterable, RLS, el retiro de permisos a `anon`/`authenticated` y deja `alembic_version` en la revisión actual.
+   (Alternativa sin borrar nada: desplegar; con `VERCEL` definido las migraciones corren al arrancar y, si el rol de conexión no pudo aplicar
+   el endurecimiento, la migración lo avisa en el log: ejecute entonces `scripts/supabase_hardening.sql`, que es idempotente.)
+4. **Primer Desarrollador:** defina `SIGT_ADMIN_USER` y `SIGT_ADMIN_PASSWORD` (10+ caracteres) y despliegue: con la base vacía el primer
+   arranque lo crea y siembra los roles de sistema (Desarrollador y Coordinador SGC) y los parámetros. **Elimine `SIGT_ADMIN_PASSWORD`** del
+   entorno y cambie la contraseña.
+5. Siga *Puesta en marcha* en la aplicación: el Desarrollador crea las cuentas (incluido el Coordinador SGC, que se le asigna con
+   Personas → *Rol y posición*); el Coordinador arma la estructura, los roles (con «Crear roles sugeridos» parte de los típicos, incluido
+   *Calidad*) y asigna a cada persona su rol, su ámbito e indicadores.
+6. Verifique: `alembic current` = `v2_0007`; `GET /healthz`; ingrese con una cuenta de cada rol y compruebe sus menús; haga un respaldo nuevo.
+
+Los dos scripts SQL se generan con `python scripts/generar_sql_supabase.py` y una prueba verifica que coincidan con los modelos.

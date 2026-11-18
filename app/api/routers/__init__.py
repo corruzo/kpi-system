@@ -8,6 +8,7 @@ from . import (
     indicadores,
     mediciones,
     metas,
+    notificaciones,
     organizacion,
     personas,
     recordatorios,
@@ -19,4 +20,4 @@ from . import (
 
 # Quién entra → cómo se organiza la empresa y quién puede qué → qué se mide → cada carga → cómo se agrupa por año → qué se espera → qué se obtiene
 ROUTERS = [sesion.router, arranque.router, estructura.router, personas.router, organizacion.router, indicadores.router, mediciones.router,
-           recordatorios.router, ejercicios.router, metas.router, tablero.router, reportes.router, importacion.router, bitacora.router, sistema.router]
+           notificaciones.router, recordatorios.router, ejercicios.router, metas.router, tablero.router, reportes.router, importacion.router, bitacora.router, sistema.router]

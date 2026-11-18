@@ -1,7 +1,7 @@
 /* Período y metas: crear el período fiscal (paso 1) y fijar la meta de cada indicador (paso 3). */
 SIGT.modulos.meta = () => ({
     pres: null, presAnio: null, presArea: '', presAbierto: null, ed: {}, rapido: {}, presFiltro: 'todos',
-    nuevoAnio: null, nuevoNota: '', metaDestacada: null,
+    metaDestacada: null,
 
     // Ganchos: el núcleo los invoca al ingresar, al entrar a una vista y al salir.
     ganchos: {
