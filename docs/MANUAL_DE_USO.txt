@@ -314,9 +314,16 @@ PANEL DE SALUD DEL DESARROLLADOR (Inicio)
 
  Control > Cierre de años (permisos de ejercicios). Un ejercicio pasa de vigente → terminado → cerrado:
  1. Verificar: lista de comprobación (cargas en revisión o devueltas, períodos sin cargar).
- 2. Cerrar (solo después del último día; sin cargas pendientes de revisión; aceptando los faltantes si los
-    hay). Queda de SOLO LECTURA y guarda una foto de sus resultados (quien ve toda la empresa recibe esa
-    foto; los demás, el cálculo de su propio alcance).
+ 2. Cerrar (solo después del último día). NO se puede forzar: todo período esperado debe estar cargado y
+    aprobado, o JUSTIFICADO; y no puede haber cargas en revisión o devueltas. Queda de SOLO LECTURA y guarda
+    una foto de sus resultados (quien ve toda la empresa recibe esa foto; los demás, el cálculo de su
+    propio alcance).
+    · Justificar un período (permiso «Justificar períodos», solo indicadores de su ámbito): «Parada de
+      planta», «Empezó a medirse después» o «No aplica», siempre con motivo. Cuenta como cubierto, no se
+      puede cargar y deja de aparecer como pendiente. Se hace desde esta misma pantalla (botón «Justificar»
+      junto a cada período sin carga) y se puede revocar mientras el ejercicio siga abierto. Queda en la
+      bitácora.
+    · Un indicador ARCHIVADO no debe los períodos que empiezan después de su archivado; sí los anteriores.
  3. Reabrir exige un motivo (queda en la bitácora).
  4. Crear el siguiente (Período y metas) y fijar sus metas (copiar del anterior ayuda).
 

@@ -68,14 +68,14 @@ def test_en_vercel_migra_solo_salvo_que_se_desactive(tmp_path):
 
 
 def test_la_base_desde_cero_queda_con_el_esquema_v2_y_la_migracion_de_endurecimiento_es_inocua(tmp_path):
-    """Una sola migración base (v2_0001) más la de endurecimiento (v2_0002, que en SQLite no hace nada) y la que quita las listas de apoyo (v2_0003)."""
+    """Una sola migración base (v2_0001) más la de endurecimiento (v2_0002, que en SQLite no hace nada) la que quita las listas de apoyo (v2_0003) y la de períodos justificados (v2_0004)."""
     salida = correr_ok(tmp_path, (
         "from app.servicios import migraciones as m; from sqlalchemy import inspect; from app.database import engine; "
         "m.actualizar(); t = set(inspect(engine).get_table_names()); print(m.revision_actual()); "
         "print(sorted(t & {'unidades','roles','rol_permisos','usuario_unidades','indicador_cargadores','metas'}))"))
     ahora, tablas = salida.splitlines()
-    assert ahora == "v2_0003"
+    assert ahora == "v2_0004"
     assert tablas == str(sorted(["unidades", "roles", "rol_permisos", "usuario_unidades", "indicador_cargadores", "metas"]))
     todas = correr_ok(tmp_path, "from sqlalchemy import inspect; from app.database import engine; print(sorted(inspect(engine).get_table_names()))")
     assert todas == str(sorted(["alembic_version", "bitacora", "ejercicios", "indicador_cargadores", "indicadores", "intentos_fallidos",
-                                "mediciones", "metas", "notas_auditoria", "parametros", "rol_permisos", "roles", "unidades", "usuario_unidades", "usuarios"]))
+                                "mediciones", "metas", "notas_auditoria", "parametros", "periodos_justificados", "rol_permisos", "roles", "unidades", "usuario_unidades", "usuarios"]))

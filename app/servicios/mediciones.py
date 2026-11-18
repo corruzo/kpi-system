@@ -7,6 +7,7 @@ from ..dominio import calendario, formulas, meta, semaforo
 from ..errores import Conflicto, Invalido, NoEncontrado, Prohibido
 from ..models import Indicador, Medicion, NotaAuditoria, Unidad, Usuario, ahora
 from . import acceso, auditoria, ejercicios, indicadores, metas
+from .periodos import justificados_de
 
 MIN_TEXTO_ANALISIS = 10    # caracteres exigidos al análisis y al plan de mejora cuando el semáforo no es verde
 MIN_TEXTO_NOTA = 5
@@ -71,6 +72,8 @@ def cargar(db: Session, u: Usuario, datos) -> Medicion:
         raise Conflicto("El indicador está archivado.")
     _exigir_periodo_cargable(ind, datos.periodo)
     anio = calendario.ejercicio_de(ind.frecuencia, datos.periodo)
+    if datos.periodo in justificados_de(db, [ind.id]).get(ind.id, {}):
+        raise Conflicto("Ese período fue justificado (no aplica): para cargarlo, calidad debe revocar primero la justificación.")
     ejercicios.exigir_creado(db, anio)
     ejercicios.exigir_abierto(db, anio)
     r = evaluar_carga(ind, datos.valores)

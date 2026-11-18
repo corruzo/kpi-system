@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..dominio import calendario, formulas, semaforo
 from ..errores import Conflicto, Invalido, Prohibido
-from ..models import Indicador, Medicion, Meta, Unidad, Usuario
+from ..models import Indicador, Medicion, Meta, PeriodoJustificado, Unidad, Usuario, ahora
 from . import acceso, auditoria, ejercicios
+from .periodos import justificados_de
 
 # Responsable y cargadores se cargan explícitamente (y en bloque) solo en las listas que los muestran
 CON_ASIGNACION = (joinedload(Indicador.responsable), selectinload(Indicador.cargadores))
@@ -29,6 +30,9 @@ def estados_de_todos(db: Session, ids: list[int] | None = None) -> dict[int, dic
         q = q.where(Medicion.indicador_id.in_(ids))
     for indicador_id, periodo, estado in db.execute(q):
         por_indicador.setdefault(indicador_id, {})[periodo] = estado
+    for indicador_id, por_periodo in justificados_de(db, ids).items():   # un período justificado ya no está pendiente
+        for periodo in por_periodo:
+            por_indicador.setdefault(indicador_id, {}).setdefault(periodo, "justificado")
     return por_indicador
 
 
@@ -94,11 +98,13 @@ def periodos_de_carga(db: Session, u: Usuario, indicador_id: int, ejercicio: int
     hoy = calendario.hoy()
     medidas = {m.periodo: m for m in db.scalars(select(Medicion).where(Medicion.indicador_id == indicador_id).options(selectinload(Medicion.notas)))}
     anio = ejercicio or calendario.ejercicio_de_fecha(hoy)
-    todos = calendario.periodos_pendientes(ind.frecuencia, hoy, {p: m.estado for p, m in medidas.items()}, ind.creado_en.date())
+    justificados = justificados_de(db, [ind.id]).get(ind.id, {})
+    estados = {**dict.fromkeys(justificados, "justificado"), **{p: m.estado for p, m in medidas.items()}}
+    todos = calendario.periodos_pendientes(ind.frecuencia, hoy, estados, ind.creado_en.date())
     pendientes, otros = _dividir_pendientes(ind, todos, anio)
     periodos = calendario.periodos_hasta_hoy(ind.frecuencia, anio, hoy)
     con_meta = {p.periodo: p.valor for p in db.scalars(select(Meta).where(Meta.indicador_id == ind.id))}
-    return {"indicador": ind, "medidas": medidas, "pendientes": pendientes, "pendientes_otros": otros, "ejercicio": anio,
+    return {"indicador": ind, "medidas": medidas, "justificados": justificados, "pendientes": pendientes, "pendientes_otros": otros, "ejercicio": anio,
             "metas": con_meta, "creado": ejercicios.creado(db, anio),
             "cerrados": ejercicios.anios_cerrados(db), "periodos": periodos}
 
@@ -296,6 +302,7 @@ def archivar(db: Session, u: Usuario, indicador_id: int, archivado: bool) -> Ind
     ind = _modificable(db, u, indicador_id)
     if ind.activo == archivado:
         ind.activo = not archivado
+        ind.archivado_en = ahora() if archivado else None
         auditoria.registrar(db, u, "INDICADOR_ARCHIVADO" if archivado else "INDICADOR_RESTAURADO", "indicador", ind.id, {"codigo": ind.codigo}, ind)
     db.commit()
     return ind
@@ -308,5 +315,6 @@ def eliminar(db: Session, u: Usuario, indicador_id: int) -> None:
         raise Conflicto(f"{ind.codigo} tiene cargas registradas: no se puede eliminar sin perder la trazabilidad. Archívelo.")
     auditoria.registrar(db, u, "INDICADOR_ELIMINADO", "indicador", ind.id, {"codigo": ind.codigo, "nombre": ind.nombre}, ind)
     db.execute(delete(Meta).where(Meta.indicador_id == ind.id))   # sin cargas: su meta se va con él
+    db.execute(delete(PeriodoJustificado).where(PeriodoJustificado.indicador_id == ind.id))
     db.delete(ind)   # la relación `cargadores` borra también sus filas de asignación
     db.commit()

@@ -40,6 +40,10 @@ def unidad(n: Unidad, ruta_nombres: str = "", personas: int | None = None, indic
     return d
 
 
+def justificacion(j) -> dict:
+    return {"indicador_id": j.indicador_id, "periodo": j.periodo, "tipo": j.tipo, "motivo": j.motivo, "por": j.por.nombre, "en": j.en}
+
+
 def indicador(i: Indicador, u: Usuario | None = None) -> dict:
     """Con `u`, agrega la relación de esa persona con el indicador (la interfaz muestra así solo los botones que aplican)."""
     d = {"id": i.id, "codigo": i.codigo, "nombre": i.nombre, "objetivo": i.objetivo, "nodo_id": i.nodo_id, "area": i.nodo.nombre,

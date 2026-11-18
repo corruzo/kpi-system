@@ -38,13 +38,29 @@ SIGT.modulos.ejercicios = () => ({
     get anchoAmplio() { return window.innerWidth >= 640; },
     get ejPorCerrar() { return this.ejVista.filter(e => e.estado === 'terminado'); },
     async abrirCierre(e) {
-      this.cierre = { abierto: true, e, v: null, nota: '', aceptar: false };
+      this.cierre = { abierto: true, e, v: null, nota: '', just: null };
       try { this.cierre.v = await this.api(`/api/ejercicios/${e.anio}/verificacion`); } catch { this.cierre.abierto = false; }
     },
     async confirmarCierre() {
       this.busy = true;
-      try { await this.api(`/api/ejercicios/${this.cierre.e.anio}/cerrar`, { method: 'POST', body: { nota: this.cierre.nota, aceptar_faltantes: this.cierre.aceptar } }); this.cierre.abierto = false; this.avisar('Ejercicio cerrado y archivado.'); await this.cargarEjerciciosVista(); } catch { }
+      try { await this.api(`/api/ejercicios/${this.cierre.e.anio}/cerrar`, { method: 'POST', body: { nota: this.cierre.nota } }); this.cierre.abierto = false; this.avisar('Ejercicio cerrado y archivado.'); await this.cargarEjerciciosVista(); } catch { }
       this.busy = false;
+    },
+    // Períodos justificados (parada de planta, empezó a medirse después, no aplica): cuentan como cubiertos para el cierre
+    opcJustificacion: [{ valor: 'parada_planta', etiqueta: 'Parada de planta' }, { valor: 'inicio_medicion', etiqueta: 'Empezó a medirse después' }, { valor: 'no_aplica', etiqueta: 'No aplica' }],
+    etiquetaJustificacion: t => ({ parada_planta: 'Parada de planta', inicio_medicion: 'Empezó a medirse después', no_aplica: 'No aplica' }[t] || t),
+    abrirJustificar(f, it) { this.cierre.just = { indicador_id: f.indicador_id, codigo: f.codigo, periodo: it.periodo, etiqueta: it.etiqueta, tipo: 'parada_planta', motivo: '' }; },
+    async guardarJustificacion() {
+      const j = this.cierre.just; this.busy = true;
+      try {
+        await this.api(`/api/indicadores/${j.indicador_id}/justificaciones`, { method: 'POST', body: { periodo: j.periodo, tipo: j.tipo, motivo: j.motivo } });
+        this.cierre.just = null; this.cierre.v = await this.api(`/api/ejercicios/${this.cierre.e.anio}/verificacion`); this.avisar('Período justificado.');
+      } catch { }
+      this.busy = false;
+    },
+    async revocarJustificacion(j) {
+      if (!confirm(`¿Revocar la justificación de ${j.codigo} · ${j.etiqueta}? El período volverá a exigirse.`)) return;
+      try { await this.api(`/api/indicadores/${j.indicador_id}/justificaciones/${j.periodo}`, { method: 'DELETE' }); this.cierre.v = await this.api(`/api/ejercicios/${this.cierre.e.anio}/verificacion`); this.avisar('Justificación revocada.'); } catch { }
     },
     async confirmarReapertura() {
       this.busy = true;

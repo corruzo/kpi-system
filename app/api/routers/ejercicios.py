@@ -40,7 +40,7 @@ def verificar(anio: AnioRuta, db: Session = Depends(get_db), _=Depends(requiere_
     """Lista de comprobación previa al cierre."""
     v = ejercicios.verificar(db, anio)
     return {**ser.ejercicio(v["descripcion"]), "terminado": v["terminado"], "pendientes": v["pendientes"],
-            "faltantes": v["faltantes"], "total_faltantes": v["total_faltantes"], "resumen": v["foto"]["resumen"],
+            "faltantes": v["faltantes"], "justificados": v["justificados"], "total_faltantes": v["total_faltantes"], "resumen": v["foto"]["resumen"],
             "puede_cerrar": v["puede_cerrar"]}
 
 
@@ -48,7 +48,7 @@ def verificar(anio: AnioRuta, db: Session = Depends(get_db), _=Depends(requiere_
 def cerrar(anio: AnioRuta, datos: schemas.CierreIn, db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("ejercicios.cerrar")),
            _=Depends(escritura)):
     """Cierra el ejercicio: queda de solo lectura y se guarda una foto de sus resultados."""
-    ejercicios.cerrar(db, u, anio, datos.nota, datos.aceptar_faltantes)
+    ejercicios.cerrar(db, u, anio, datos.nota)
     return ser.ejercicio(ejercicios.descripcion(db, anio, calendario.hoy()))
 
 

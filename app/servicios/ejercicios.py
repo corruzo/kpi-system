@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 
 from ..dominio import calendario
 from ..errores import Conflicto, Invalido
-from ..models import Ejercicio, Indicador, Medicion, Usuario, ahora
+from ..models import Ejercicio, Indicador, Medicion, PeriodoJustificado, Usuario, ahora
 from . import acceso, auditoria
+from .periodos import justificados_de
 
 
 # ---------------------------------------------------------------- reglas básicas
@@ -100,23 +101,27 @@ def _resumen_vacio() -> dict:
             "cargas": 0, "esperados": 0, "faltantes": 0}
 
 
-def _periodos_esperados(ind: Indicador, anio: int, hoy: date, tiene_cargas: bool) -> list[str]:
-    """Períodos ya cerrados que debieron cargarse. Un indicador nuevo no debe períodos anteriores a su creación."""
+def _periodos_esperados(ind: Indicador, anio: int, hoy: date, tiene_cargas: bool, justificados=frozenset()) -> list[str]:
+    """Períodos ya cerrados que debieron cargarse. No se exigen: los anteriores a la creación de un indicador nuevo, los que
+    empiezan después de que se archivó y los justificados (parada de planta, no aplica…)."""
     if ind.frecuencia == "eventual":
         return []
     esperados = [p for p in calendario.periodos_del_ejercicio(ind.frecuencia, anio)
                  if calendario.rango(ind.frecuencia, p)[1] < hoy]
     if not tiene_cargas and ind.creado_en:
         esperados = [p for p in esperados if calendario.rango(ind.frecuencia, p)[1] >= ind.creado_en.date()]
-    return esperados
+    if not ind.activo and ind.archivado_en:
+        esperados = [p for p in esperados if calendario.rango(ind.frecuencia, p)[0] <= ind.archivado_en.date()]
+    return [p for p in esperados if p not in justificados]
 
 
-def _fila_indicador(ind: Indicador, mediciones: list[Medicion], anio: int, hoy: date) -> dict:
+def _fila_indicador(ind: Indicador, mediciones: list[Medicion], anio: int, hoy: date, justificados=frozenset()) -> dict:
     ms = sorted(mediciones, key=lambda m: m.periodo)
     validas = [m for m in ms if m.estado in ("enviado", "aprobado")]
     ultimo = validas[-1] if validas else None
     cubiertos = {m.periodo for m in validas}
-    faltan = [p for p in _periodos_esperados(ind, anio, hoy, bool(ms)) if p not in cubiertos]
+    esperados = _periodos_esperados(ind, anio, hoy, bool(ms), justificados)
+    faltan = [p for p in esperados if p not in cubiertos]
     celdas = [None] * 12   # mapa de calor: un semáforo por mes del ejercicio
     for m in ms:
         if m.estado != "observado":
@@ -129,7 +134,7 @@ def _fila_indicador(ind: Indicador, mediciones: list[Medicion], anio: int, hoy: 
         mejora = (delta > 0) if ind.sentido == "mayor" else (delta < 0)
         tendencia = {"delta": delta, "mejora": mejora if delta else None}
     return {"indicador": ind, "ultimo": ultimo, "validas": validas, "celdas": celdas, "faltantes": faltan,
-            "esperados": len(_periodos_esperados(ind, anio, hoy, bool(ms))), "tendencia": tendencia,
+            "esperados": len(esperados), "tendencia": tendencia,
             "por_aprobar": sum(m.estado == "enviado" for m in ms), "devueltas": sum(m.estado == "observado" for m in ms)}
 
 
@@ -149,12 +154,13 @@ def foto(db: Session, anio: int, nodo_id: int | None = None, hoy: date | None = 
         q_med = q_med.where(Medicion.indicador_id.in_([i.id for i in inds]))
     for m in db.scalars(q_med):
         por_indicador[m.indicador_id].append(m)
+    justificados = justificados_de(db, [i.id for i in inds]) if inds else {}
     resumen, por_area, filas = _resumen_vacio(), {}, []
     for ind in inds:
         ms = por_indicador.get(ind.id, [])
         if not ind.activo and not ms:
             continue   # un indicador archivado solo cuenta si tiene datos en el ejercicio
-        fila = _fila_indicador(ind, ms, anio, hoy)
+        fila = _fila_indicador(ind, ms, anio, hoy, justificados.get(ind.id, {}).keys())
         color = fila["ultimo"].semaforo if fila["ultimo"] else "sin_datos"
         area = por_area.setdefault(ind.nodo.nombre, {"area": ind.nodo.nombre, **dict.fromkeys(("total", "verde", "amarillo", "rojo", "sin_datos", "esperados", "faltantes"), 0)})
         for acumulado in (area, resumen):
@@ -203,17 +209,25 @@ def verificar(db: Session, anio: int, hoy: date | None = None) -> dict:
                    "periodo": calendario.etiqueta(m.indicador.frecuencia, m.periodo), "estado": m.estado}
                   for m in db.scalars(select(Medicion).where(Medicion.ejercicio == anio,
                                                               Medicion.estado.in_(("enviado", "observado"))))]
-    faltantes = [{"codigo": x["indicador"].codigo, "indicador": x["indicador"].nombre,
+    faltantes = [{"indicador_id": x["indicador"].id, "codigo": x["indicador"].codigo, "indicador": x["indicador"].nombre,
                   "area": x["indicador"].nodo.nombre,
-                  "periodos": [calendario.etiqueta(x["indicador"].frecuencia, p) for p in x["faltantes"]]}
+                  "periodos": [calendario.etiqueta(x["indicador"].frecuencia, p) for p in x["faltantes"]],
+                  "items": [{"periodo": p, "etiqueta": calendario.etiqueta(x["indicador"].frecuencia, p)} for p in x["faltantes"]]}
                  for x in f["filas"] if x["faltantes"]]
+    justificados = [{"indicador_id": j.indicador_id, "codigo": ind.codigo, "indicador": ind.nombre, "periodo": j.periodo,
+                     "etiqueta": calendario.etiqueta(ind.frecuencia, j.periodo), "tipo": j.tipo, "motivo": j.motivo,
+                     "por": j.por.nombre, "en": j.en}
+                    for j, ind in db.execute(select(PeriodoJustificado, Indicador).join(Indicador, Indicador.id == PeriodoJustificado.indicador_id)
+                                             .where(PeriodoJustificado.ejercicio == anio).order_by(Indicador.codigo, PeriodoJustificado.periodo))]
     terminado = desc["hasta"] < hoy
-    return {"descripcion": desc, "terminado": terminado, "pendientes": pendientes, "faltantes": faltantes,
-            "total_faltantes": sum(len(x["periodos"]) for x in faltantes), "foto": f,
-            "puede_cerrar": terminado and not pendientes and desc["estado"] != "cerrado"}
+    total_faltantes = sum(len(x["periodos"]) for x in faltantes)
+    # sin forzado posible: un ejercicio solo se cierra con todos sus períodos cargados y aprobados, o justificados
+    return {"descripcion": desc, "terminado": terminado, "pendientes": pendientes, "faltantes": faltantes, "justificados": justificados,
+            "total_faltantes": total_faltantes, "foto": f,
+            "puede_cerrar": terminado and not pendientes and not total_faltantes and desc["estado"] != "cerrado"}
 
 
-def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, aceptar_faltantes: bool, hoy: date | None = None) -> None:
+def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, hoy: date | None = None) -> None:
     hoy = hoy or calendario.hoy()
     exigir_creado(db, anio)
     v = verificar(db, anio, hoy)
@@ -223,8 +237,9 @@ def cerrar(db: Session, usuario: Usuario, anio: int, nota: str, aceptar_faltante
         raise Invalido("El ejercicio aún no ha terminado: solo puede cerrarse después de su último día.")
     if v["pendientes"]:
         raise Invalido(f"Hay {len(v['pendientes'])} carga(s) en revisión o devueltas: resuélvalas antes de cerrar.")
-    if v["total_faltantes"] and not aceptar_faltantes:
-        raise Invalido(f"Faltan {v['total_faltantes']} período(s) por cargar. Confirme que desea cerrar sin ellos.")
+    if v["total_faltantes"]:
+        raise Invalido(f"Faltan {v['total_faltantes']} período(s) por cargar: cárguelos y apruébelos, o justifíquelos "
+                       "(parada de planta, no aplica) para poder cerrar el ejercicio.")
     f = v["foto"]
     instantanea = {"resumen": f["resumen"], "por_area": f["por_area"], "faltantes": v["total_faltantes"],
                    "indicadores": [{"codigo": x["indicador"].codigo, "nombre": x["indicador"].nombre,

@@ -7,7 +7,7 @@ from ... import schemas
 from ...dominio import calendario
 from ...errores import Invalido
 from ...models import Usuario
-from ...servicios import indicadores, parametros
+from ...servicios import indicadores, justificaciones, parametros
 from .. import serializadores as ser
 from ..deps import AnioConsulta, Desde, IdConsulta, IdRuta, Limite, con_total, escritura, get_db, requiere_permiso
 
@@ -69,6 +69,20 @@ def restaurar(indicador_id: IdRuta, db: Session = Depends(get_db), u: Usuario = 
     return ser.indicador(indicadores.archivar(db, u, indicador_id, False), u)
 
 
+@router.post("/indicadores/{indicador_id}/justificaciones", status_code=201)
+def justificar_periodo(indicador_id: IdRuta, datos: schemas.JustificacionIn, db: Session = Depends(get_db),
+                       u: Usuario = Depends(requiere_permiso("periodos.justificar")), _=Depends(escritura)):
+    """Marca un período como justificado (parada de planta, empezó a medirse después, no aplica) con su motivo."""
+    return ser.justificacion(justificaciones.justificar(db, u, indicador_id, datos.periodo, datos.tipo, datos.motivo))
+
+
+@router.delete("/indicadores/{indicador_id}/justificaciones/{periodo}")
+def revocar_justificacion(indicador_id: IdRuta, periodo: str, db: Session = Depends(get_db),
+                          u: Usuario = Depends(requiere_permiso("periodos.justificar")), _=Depends(escritura)):
+    justificaciones.revocar(db, u, indicador_id, periodo)
+    return {"ok": True}
+
+
 @router.delete("/indicadores/{indicador_id}")
 def eliminar(indicador_id: IdRuta, db: Session = Depends(get_db), u: Usuario = Depends(requiere_permiso("indicadores.eliminar")),
              _=Depends(escritura)):
@@ -92,6 +106,7 @@ def periodos(indicador_id: IdRuta, ejercicio: AnioConsulta = None, db: Session =
                           "ejercicio": calendario.etiqueta_ejercicio(calendario.ejercicio_de(f, p)),
                           "cerrado": calendario.ejercicio_de(f, p) in d["cerrados"],
                           "meta": d["metas"].get(p), "creado": d["creado"],
+                          "justificado": ser.justificacion(d["justificados"][p]) if p in d["justificados"] else None,
                           "medicion": ser.medicion(d["medidas"][p]) if p in d["medidas"] else None}
                          for p in d["periodos"]]}
 

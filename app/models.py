@@ -181,6 +181,7 @@ class Indicador(Base):
     nivel_optimo: Mapped[float] = mapped_column(Float)             # umbral de la zona verde
     limite: Mapped[float] = mapped_column(Float)           # límite de zona amarilla (más allá = rojo)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    archivado_en: Mapped[datetime | None] = mapped_column(DateTime)   # cuándo se archivó: los períodos posteriores ya no se le exigen
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
     # --- ficha técnica ampliada (columnas añadidas por migración automática) ---
     constantes: Mapped[list] = mapped_column(JSON, default=list)              # [{"clave","etiqueta","valor"}]
@@ -209,6 +210,28 @@ class Indicador(Base):
     def precision(self) -> int:
         """Decimales con que se muestra y redondea el resultado (por defecto 2)."""
         return 2 if self.decimales is None else self.decimales
+
+
+TIPOS_JUSTIFICACION = ("parada_planta", "inicio_medicion", "no_aplica")
+
+
+class PeriodoJustificado(Base):
+    """Período que no se carga por una razón formal (parada de planta, el indicador empezó a medirse después, no aplica).
+    Cuenta como cubierto: no aparece como pendiente ni impide cerrar el ejercicio fiscal. Siempre lleva su motivo."""
+    __tablename__ = "periodos_justificados"
+    __table_args__ = (
+        UniqueConstraint("indicador_id", "periodo"),
+        CheckConstraint("tipo IN ('parada_planta', 'inicio_medicion', 'no_aplica')", name="ck_periodos_justificados_tipo"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    indicador_id: Mapped[int] = mapped_column(ForeignKey("indicadores.id", ondelete="CASCADE"))
+    periodo: Mapped[str] = mapped_column(String(10))
+    ejercicio: Mapped[int] = mapped_column(Integer, index=True)   # año en que termina el ejercicio fiscal del período
+    tipo: Mapped[str] = mapped_column(String(20))
+    motivo: Mapped[str] = mapped_column(Text)
+    por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    en: Mapped[datetime] = mapped_column(DateTime, default=ahora)
+    por: Mapped[Usuario] = relationship(lazy="joined")
 
 
 class Medicion(Base):

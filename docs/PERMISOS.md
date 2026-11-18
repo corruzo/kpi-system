@@ -39,6 +39,7 @@ El Coordinador SGC solo elige el **nivel** de cada permiso para un rol; el **alc
 | `cargas.ver` | **Ver cargas**: Consultar el historial de cargas, sus períodos y su estado. | Ninguno / Ver | Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados. | `GET /api/indicadores/{indicador_id}/periodos`<br>`GET /api/mediciones`<br>`GET /api/mediciones/resumen-ejercicios` |
 | `cargas.cargar` | **Cargar datos**: Digitar el dato real de cada período y corregir las cargas devueltas. | Ninguno / Sí | Solo los indicadores en los que es cargador. | `POST /api/calcular`<br>`POST /api/mediciones` |
 | `cargas.reabrir` | **Reabrir cargas aprobadas**: Devolver a quien cargó una carga ya aprobada, con su motivo. | Ninguno / Sí | Las cargas que le corresponde aprobar. | `POST /api/mediciones/{medicion_id}/reabrir` |
+| `periodos.justificar` | **Justificar períodos**: Marcar un período como «parada de planta», «empezó a medirse después» o «no aplica», con su motivo, para que no bloquee el cierre del ejercicio. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él). | `DELETE /api/indicadores/{indicador_id}/justificaciones/{periodo}`<br>`POST /api/indicadores/{indicador_id}/justificaciones` |
 | `cargas.notas` | **Notas de auditoría**: Agregar notas de auditoría a una carga. | Ninguno / Sí | Los indicadores de su ámbito (su nodo y lo que cuelga de él) y los que tiene asignados. | `POST /api/mediciones/{medicion_id}/notas` |
 
 ## Aprobación

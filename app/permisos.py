@@ -66,6 +66,9 @@ CATALOGO: tuple[Permiso, ...] = (
        "Solo los indicadores en los que es cargador.", implica=("cargas.ver",)),
     _p("cargas.reabrir", "Cargas", "Reabrir cargas aprobadas", "Devolver a quien cargó una carga ya aprobada, con su motivo.",
        "Las cargas que le corresponde aprobar.", implica=("cargas.ver",)),
+    _p("periodos.justificar", "Cargas", "Justificar períodos",
+       "Marcar un período como «parada de planta», «empezó a medirse después» o «no aplica», con su motivo, para que no bloquee el cierre del ejercicio.",
+       "Los indicadores de su ámbito (su nodo y lo que cuelga de él).", implica=("cargas.ver",)),
     _p("cargas.notas", "Cargas", "Notas de auditoría", "Agregar notas de auditoría a una carga.", A_VISIBLES, implica=("cargas.ver",)),
     # ------------------------------------------------------------ Aprobación
     _p("cargas.aprobar", "Aprobación", "Aprobar o devolver cargas",

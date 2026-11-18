@@ -237,7 +237,12 @@ class CopiaMetaIn(BaseModel):
 
 class CierreIn(BaseModel):
     nota: str = Field(default="", max_length=2000)
-    aceptar_faltantes: bool = False
+
+
+class JustificacionIn(BaseModel):
+    periodo: str = Field(min_length=4, max_length=10)
+    tipo: Literal["parada_planta", "inicio_medicion", "no_aplica"]
+    motivo: str = Field(min_length=5, max_length=1000)
 
 
 class ReaperturaIn(BaseModel):
